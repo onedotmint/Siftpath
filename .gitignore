@@ -1,0 +1,11 @@
+# Local dependencies and generated artifacts, including at the repository root.
+node_modules/
+dist/
+coverage/
+.tmp/
+.env
+.env.*
+!.env.example
+*.tgz
+*.zip
+*.bundle

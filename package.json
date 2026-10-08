@@ -1,0 +1,65 @@
+{
+  "name": "@onedotmint/siftpath",
+  "version": "2.0.0-next.1",
+  "description": "Siftpath: web evidence retrieval for AI agents — search, fetch, gather.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "siftpath": "dist/cli.js",
+    "smartsearch": "dist/cli.js",
+    "smart-search": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./pi": "./dist/integrations/pi.js"
+  },
+  "files": [
+    "dist",
+    "skills",
+    "integrations",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "docs",
+    ".agents",
+    ".cursor-plugin",
+    ".claude-plugin"
+  ],
+  "scripts": {
+    "build": "npm run sync:integrations && tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "test:live": "npm run build && node --test tests/live/*.test.mjs",
+    "bench": "npm run build && node benchmarks/run.mjs",
+    "check": "npm run typecheck && npm test && npm run bench",
+    "pack:dry": "npm run build && npm pack --dry-run --ignore-scripts",
+    "prepack": "npm run build",
+    "sync:integrations": "node scripts/sync-integrations.mjs",
+    "verify:source": "node scripts/verify-source.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/onedotmint/Siftpath.git"
+  },
+  "pi": {
+    "extensions": [
+      "./integrations/pi/index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.7",
+    "typescript": "5.8.3"
+  }
+}

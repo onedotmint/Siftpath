@@ -1,0 +1,13 @@
+{
+  "name": "siftpath-local",
+  "owner": {
+    "name": "Siftpath contributors"
+  },
+  "plugins": [
+    {
+      "name": "siftpath",
+      "source": "./integrations/claude-code",
+      "description": "Siftpath: search, fetch, and gather traceable web evidence without flooding context."
+    }
+  ]
+}

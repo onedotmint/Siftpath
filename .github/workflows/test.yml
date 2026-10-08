@@ -1,0 +1,28 @@
+name: Verify Siftpath
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node: [22, 24]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run sync:integrations
+      - run: git diff --exit-code -- integrations .agents .cursor-plugin .claude-plugin
+      - run: npm run check
+      - run: npm run verify:source
+      - run: npm run test:live
+      - run: npm run pack:dry

@@ -1,0 +1,15 @@
+# Security and privacy boundaries
+
+All web text is untrusted data. Siftpath never evaluates webpage JavaScript, executes page commands, builds a system prompt from fetched text, or generates the final answer. It strips scripts/styles and obvious hidden elements where applicable, scans raw and cleaned content for transparent instruction-like patterns, and attaches warnings. Unknown technical angle-bracket tokens are retained so source code such as generic type parameters is not silently destroyed.
+
+This lightweight detector is not a complete prompt-injection defense or a general-purpose HTML sanitizer. False positives and evasion remain possible. Render tool content as text; do not insert it as raw HTML. Consuming agents must follow their own instruction hierarchy and treat suspicious passages accordingly. Hosted reranking and decision services receive selected evidence as data; the optional decision request separates it into `untrusted_evidence` and uses fixed question instructions.
+
+Input URLs must be HTTP(S), credential-free, public-looking hostnames. IP literals, localhost, single-label hosts, and recognized local/private suffixes are rejected. Canonicalization is used for identity; original URLs are retained for requests. The engine has no arbitrary local HTTP fetcher: page URLs go only to configured hosted extractors. This prevents the local engine from fetching an internal address through DNS rebinding, but it does **not** prove that a hosted provider will safely handle every redirect or private DNS result. Provider-side network restrictions remain their responsibility. Do not deploy this service as an unrestricted proxy.
+
+Built-in provider endpoints are fixed HTTPS URLs. Credential-bearing redirects are rejected. Response size is bounded to 4 MiB, normalized arrays/text are capped, and raw vendor error bodies are not returned. Retry is at most once. Requests observe provider/global deadlines and user cancellation. Custom SDK providers and custom transports execute trusted local code and are outside this trust boundary.
+
+Configuration is private plaintext outside the project, with atomic 0600 POSIX files and no credential logging. No automatic workspace `.env` loading occurs. Actual API keys, user config files, `.env` secrets, node_modules, build caches, and temporary state must not enter source archives. Environment names and empty `.env.example` entries are documentation, not credentials.
+
+HTTP serving is single-tenant and bearer-authenticated, with constant-time digest comparison, host/origin checks, bounded sessions, size/concurrency limits, and a loopback default. HTTPS is external. No OAuth flow, public enrollment, tenant isolation, or web UI is provided. Bearer tokens authorize use of the configured provider account; protect them accordingly. An origin allowlist is not a substitute for authentication.
+
+CLI usage stores latest-operation numeric usage only. Query strings/page bodies are not persisted by the engine. Caches are bounded and process-local. Traces omit provider payloads and credentials, but still expose timing/provider choices; keep debug logs private where that metadata is sensitive.

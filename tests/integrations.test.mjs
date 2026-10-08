@@ -1,0 +1,110 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { spawn, spawnSync } from 'node:child_process';
+import { mkdtemp, readFile, stat, symlink, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { EvidenceEngine, configureProviders } from '../dist/index.js';
+import { parseConfiguration, readConfiguration, writePrivateJson } from '../dist/config.js';
+import { toolDefinitions, invokeTool } from '../dist/tools.js';
+import { McpSession } from '../dist/mcp/session.js';
+import { serveHttp } from '../dist/mcp/http.js';
+import { registerPi } from '../dist/integrations/pi.js';
+import { fixtureProvider, providers } from './helpers.mjs';
+
+const init={jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'test',version:'1'}}};
+function engine(){const p=fixtureProvider();return new EvidenceEngine({providers:providers([p],[p])});}
+
+test('agent schema exposes exactly three tools without vendor-specific parameters',async()=>{
+ assert.deepEqual(toolDefinitions.map(t=>t.name),['web_search','web_fetch','web_gather']);
+ for(const tool of toolDefinitions){assert.equal(tool.inputSchema.additionalProperties,false);assert.ok(!JSON.stringify(tool.inputSchema).match(/apiKey|provider|baseUrl|search_depth/));}
+ await assert.rejects(invokeTool(engine(),'web_search',{query:'alpha',provider:'exa'}),{code:'INVALID_INPUT'});
+ await assert.rejects(invokeTool(engine(),'web_fetch',{}),{code:'INVALID_INPUT'});
+ await assert.rejects(invokeTool(engine(),'web_gather',{query:'alpha',maxTokens:20001}),{code:'INVALID_INPUT'});
+});
+test('MCP initialize, list, call, malformed input, and unknown tool use one dispatcher',async()=>{
+ const session=new McpSession(engine());
+ assert.equal((await session.dispatch({jsonrpc:'2.0',id:0,method:'tools/list'})).error.code,-32002);
+ assert.equal((await session.dispatch(init)).result.protocolVersion,'2025-11-25');
+ assert.equal((await session.dispatch({jsonrpc:'2.0',method:'notifications/initialized'})),undefined);
+ const list=await session.dispatch({jsonrpc:'2.0',id:2,method:'tools/list'});assert.equal(list.result.tools.length,3);
+ const call=await session.dispatch({jsonrpc:'2.0',id:3,method:'tools/call',params:{name:'web_gather',arguments:{query:'alpha beta'}}});
+ assert.equal(call.result.isError,false);assert.ok(JSON.parse(call.result.content[0].text).evidence.length);assert.equal(call.result.structuredContent,undefined);
+ assert.equal((await session.dispatch({jsonrpc:'2.0',id:4,method:'tools/call',params:{name:'unknown'}})).error.code,-32602);
+ assert.equal((await session.dispatch([])).error.code,-32600);session.close();
+});
+test('MCP cancellation aborts provider work and duplicate IDs are rejected',async()=>{
+ let signal;const p=fixtureProvider();p.search=async(_r,c)=>{signal=c.signal;return new Promise(()=>{})};
+ const session=new McpSession(new EvidenceEngine({providers:providers([p])}));await session.dispatch(init);
+ const work=session.dispatch({jsonrpc:'2.0',id:'call',method:'tools/call',params:{name:'web_search',arguments:{query:'alpha'}}});
+ await new Promise(r=>setTimeout(r,3));
+ assert.equal((await session.dispatch({jsonrpc:'2.0',id:'call',method:'ping'})).error.code,-32600);
+ await session.dispatch({jsonrpc:'2.0',method:'notifications/cancelled',params:{requestId:'call'}});
+ const result=await work;assert.equal(JSON.parse(result.result.content[0].text).code,'ABORTED');assert.equal(signal.aborted,true);session.close();
+});
+test('MCP progress only emits when explicitly requested',async()=>{
+ const session=new McpSession(engine());await session.dispatch(init);const messages=[];
+ await session.dispatch({jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'web_search',arguments:{query:'alpha'}}},m=>messages.push(m));assert.equal(messages.length,0);
+ await session.dispatch({jsonrpc:'2.0',id:3,method:'tools/call',params:{name:'web_search',arguments:{query:'alpha'},_meta:{progressToken:'p'}}},m=>messages.push(m));
+ assert.ok(messages.length);assert.ok(messages.every(m=>m.method==='notifications/progress'&&m.params.progressToken==='p'));session.close();
+});
+test('HTTP MCP supports authenticated sessions and rejects unsafe origins and methods',async t=>{
+ const token='unit-test-only-not-a-real-secret-12345';const server=await serveHttp({createEngine:engine,token,port:0});t.after(()=>server.close());
+ const url=`http://127.0.0.1:${server.port}/mcp`,headers={authorization:`Bearer ${token}`,'content-type':'application/json',accept:'application/json, text/event-stream'};
+ assert.equal((await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(init)})).status,401);
+ assert.equal((await fetch(url,{method:'POST',headers:{...headers,origin:'https://evil.test'},body:JSON.stringify(init)})).status,403);
+ const first=await fetch(url,{method:'POST',headers,body:JSON.stringify(init)});assert.equal(first.status,200);const sid=first.headers.get('mcp-session-id');assert.ok(sid);await first.json();
+ const sessionHeaders={...headers,'mcp-session-id':sid,'mcp-protocol-version':'2025-11-25'};
+ const response=await fetch(url,{method:'POST',headers:sessionHeaders,body:JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'web_gather',arguments:{query:'alpha beta'}}})});
+ assert.equal(response.status,200);assert.ok(JSON.parse((await response.json()).result.content[0].text).evidence.length);
+ assert.equal((await fetch(url,{method:'POST',headers:sessionHeaders,body:JSON.stringify({jsonrpc:'2.0',method:'notifications/initialized'})})).status,202);
+ assert.equal((await fetch(url,{headers:sessionHeaders})).status,405);
+ assert.equal((await fetch(url,{method:'POST',headers:{...sessionHeaders,'mcp-protocol-version':'9999'},body:'{}'})).status,400);
+ assert.equal((await fetch(url,{method:'POST',headers:sessionHeaders,body:'not-json'})).status,400);
+ assert.equal((await fetch(url,{method:'DELETE',headers:sessionHeaders})).status,200);
+ assert.equal((await fetch(url,{method:'POST',headers:sessionHeaders,body:'{}'})).status,404);
+});
+test('HTTP credentials are mandatory and not echoed',async()=>{
+ await assert.rejects(serveHttp({createEngine:engine,token:'short',port:0}),{code:'INVALID_CONFIG'});
+});
+test('stdio works as a real child process, not just a protocol mock',async t=>{
+ const child=spawn(process.execPath,['tests/fixtures/mcp-server.mjs'],{stdio:['pipe','pipe','pipe']});t.after(()=>child.kill());
+ let buffer='',stderr='';const waiting=new Map();child.stderr.on('data',d=>stderr+=d);
+ child.stdout.on('data',d=>{buffer+=d;let nl;while((nl=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,nl);buffer=buffer.slice(nl+1);const message=JSON.parse(line);const waiter=waiting.get(message.id);if(waiter){clearTimeout(waiter.timer);waiting.delete(message.id);waiter.resolve(message);}}});
+ const call=message=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('stdio response deadline')),2000);waiting.set(message.id,{resolve,timer});child.stdin.write(JSON.stringify(message)+'\n');});
+ assert.equal((await call(init)).result.serverInfo.name,'siftpath');
+ assert.equal((await call({jsonrpc:'2.0',id:2,method:'tools/list'})).result.tools.length,3);
+ const result=await call({jsonrpc:'2.0',id:3,method:'tools/call',params:{name:'web_fetch',arguments:{urls:['https://alpha.test/a','https://beta.test/b'],query:'alpha'}}});
+ assert.equal(result.result.isError,false);assert.equal(JSON.parse(result.result.content[0].text).sources.length,2);assert.equal(stderr,'');
+ child.stdin.end();await new Promise(resolve=>child.once('exit',resolve));
+});
+test('Pi native tools execute shared core, report progress, and clear UI state',async()=>{
+ const tools=[],commands=[],updates=[],statuses=[];
+ const Type={String:o=>({type:'string',...o}),Integer:o=>({type:'integer',...o}),Array:(items,o)=>({type:'array',items,...o}),Literal:value=>({const:value}),
+  Union:(anyOf,o)=>({anyOf,...o}),Optional:item=>({...item,optional:true}),Object:(properties,o)=>({type:'object',properties,...o})};
+ registerPi({registerTool:t=>tools.push(t),registerCommand:(name,c)=>commands.push({name,...c})},Type,engine());
+ assert.equal(tools.length,3);assert.deepEqual(commands.map(c=>c.name),['siftpath-doctor','smartsearch-doctor','siftpath-usage','smartsearch-usage']);
+ const result=await tools.find(t=>t.name==='web_gather').execute('call',{query:'alpha beta'},undefined,r=>updates.push(r),{ui:{setStatus:(...args)=>statuses.push(args),notify(){}}});
+ assert.ok(JSON.parse(result.content[0].text).evidence.length);assert.ok(updates.length);assert.equal(statuses.at(-1)[1],undefined);
+ await assert.rejects(tools[0].execute('bad',{query:''},undefined,undefined,{ui:{setStatus:(...args)=>statuses.push(args),notify(){}}}),{code:'INVALID_INPUT'});assert.equal(statuses.at(-1)[1],undefined);
+});
+test('private configuration respects environment precedence and rejects unsafe/unknown fields',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'siftpath-config-'));t.after(()=>rm(dir,{recursive:true,force:true}));const path=join(dir,'config.json');
+ await writePrivateJson(path,{version:1,credentials:{EXA_API_KEY:'saved-placeholder'}});
+ if(process.platform!=='win32')assert.equal((await stat(path)).mode&0o777,0o600);
+ const config=await readConfiguration(path,{EXA_API_KEY:'environment-placeholder'});assert.equal(config.credentials.EXA_API_KEY,'environment-placeholder');
+ assert.equal(configureProviders(config).statuses[0].state,'ready');assert.throws(()=>parseConfiguration({credentials:{TYPO_API_KEY:'x'}}),{code:'INVALID_CONFIG'});
+ assert.throws(()=>parseConfiguration({timeoutMs:-1}),{code:'INVALID_CONFIG'});assert.throws(()=>parseConfiguration({clefModel:'planner'}),{code:'INVALID_CONFIG'});
+ const link=join(dir,'link.json');await symlink(path,link);await assert.rejects(writePrivateJson(link,{}),{code:'UNSAFE_CONFIG_PATH'});
+});
+test('CLI help, error codes, noninteractive setup and symlink executable work',async t=>{
+ const dir=await mkdtemp(join(tmpdir(),'siftpath-cli-'));t.after(()=>rm(dir,{recursive:true,force:true}));
+ const env={...process.env,SIFTPATH_CONFIG:join(dir,'config.json')};for(const k of Object.keys(env))if(/^(EXA|PARALLEL|TAVILY|BRAVE|FIRECRAWL|JINA|CLOUDFLARE)_/.test(k))delete env[k];
+ const cli=resolve('dist/cli.js');const run=args=>spawnSync(process.execPath,[cli,...args],{env,encoding:'utf8'});
+ assert.equal(run(['--help']).status,0);assert.match(run(['--help']).stdout,/siftpath gather/);
+ assert.equal(run(['doctor','--json']).status,2);assert.equal(run(['search','alpha']).status,1);
+ assert.equal(JSON.parse(run(['search','alpha']).stderr).code,'NO_EVIDENCE');
+ assert.equal(run(['setup','--non-interactive']).status,0);assert.deepEqual(JSON.parse(await readFile(env.SIFTPATH_CONFIG,'utf8')),{version:1});
+ const link=join(dir,'siftpath.js');await symlink(cli,link);const linked=spawnSync(process.execPath,[link,'--version'],{env,encoding:'utf8'});
+ assert.equal(linked.status,0);assert.equal(linked.stdout.trim(),JSON.parse(await readFile('package.json','utf8')).version);
+});

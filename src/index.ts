@@ -1,0 +1,15 @@
+export { EvidenceEngine } from './core/engine.js';
+export { EngineError, ProviderError } from './core/errors.js';
+export { JsonHttp } from './core/http.js';
+export type { FetchTransport, HttpRequest } from './core/http.js';
+export type * from './core/types.js';
+export { createEngine, configureProviders, readConfiguration, parseConfiguration, diagnostics, configPath } from './config.js';
+export type { Configuration, ProviderStatus } from './config.js';
+export { toolDefinitions, invokeTool } from './tools.js';
+export { exa } from './providers/exa.js';
+export { parallel } from './providers/parallel.js';
+export { tavily } from './providers/tavily.js';
+export { brave } from './providers/brave.js';
+export { firecrawl } from './providers/firecrawl.js';
+export { jina } from './providers/jina.js';
+export { cloudflare } from './providers/cloudflare.js';

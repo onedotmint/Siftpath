@@ -1,0 +1,4 @@
+interface:
+  display_name: "Siftpath Web Research"
+  short_description: "Search, fetch, and gather traceable web evidence."
+  default_prompt: "Find relevant web evidence, cite its sources, and stop when the evidence covers my question."

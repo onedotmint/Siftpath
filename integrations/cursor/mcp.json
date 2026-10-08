@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "siftpath": {
+      "command": "siftpath",
+      "args": [
+        "mcp"
+      ]
+    }
+  }
+}
