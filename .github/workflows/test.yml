@@ -27,6 +27,7 @@ jobs:
       - run: npm run verify:source
       - run: npm run test:live
       - run: npm run pack:dry
+      - run: node tests/installed-package-smoke.mjs
 
   mcp-official-interop:
     runs-on: ubuntu-latest
