@@ -34,6 +34,9 @@ export async function serveHttp(options: HttpServerOptions) {
   const host = options.host ?? '127.0.0.1', sessions = new Map<string, Entry>();
   const tokenHash = digest(`Bearer ${options.token}`), idleMs = options.idleMs ?? 900000;
   const maxSessions = options.maxSessions ?? 64;
+  // One bounded engine for stateless MCP 2026 requests, sharing only in-memory caches.
+  const modernEngine = options.createEngine();
+  let modernActive = 0;
   let port = options.port ?? 7337;
   const server = createServer((request, response) => {
     void (async () => {
@@ -46,6 +49,45 @@ export async function serveHttp(options: HttpServerOptions) {
       }
       if (request.url !== '/mcp') { respond(response, 404); return; }
       const version = request.headers['mcp-protocol-version'];
+      if (version === '2026-07-28') {
+        if (request.headers['mcp-session-id']) { respond(response, 400); return; }
+        if (request.method !== 'POST') { response.setHeader('allow', 'POST'); respond(response, 405); return; }
+        if (!request.headers['content-type']?.toLowerCase().startsWith('application/json')) { respond(response, 415); return; }
+        if (modernActive >= 16) { respond(response, 503); return; }
+        const accepts = request.headers.accept ?? '';
+        if (!/application\/json|\*\/\*/.test(accepts)) { respond(response, 406); return; }
+        modernActive++;
+        const controller = new AbortController();
+        const disconnected = () => { if (!response.writableEnded) controller.abort(); };
+        response.once('close', disconnected);
+        const modernSession = new McpSession(modernEngine, options.onTrace);
+        try {
+          let value: unknown;
+          try { value = await body(request); }
+          catch (error) { respond(response, error instanceof EngineError ? 413 : 400, rpcError(null, -32700, 'Invalid or oversized JSON body.')); return; }
+          const record = value && typeof value === 'object' && !Array.isArray(value)
+            ? value as Record<string, unknown> : undefined;
+          const params = record?.params && typeof record.params === 'object' && !Array.isArray(record.params)
+            ? record.params as Record<string, unknown> : undefined;
+          const meta = params?._meta && typeof params._meta === 'object' && !Array.isArray(params._meta)
+            ? params._meta as Record<string, unknown> : undefined;
+          if (meta?.['io.modelcontextprotocol/protocolVersion'] !== '2026-07-28') {
+            respond(response, 400, rpcError(record?.id as string | number | null ?? null, -32022, 'Invalid modern MCP protocol envelope.')); return;
+          }
+          const method = record?.method;
+          if (request.headers['mcp-method'] !== method ||
+              (method === 'tools/call' && request.headers['mcp-name'] !== params?.name) ||
+              (method !== 'tools/call' && request.headers['mcp-name'] !== undefined)) {
+            respond(response, 400, rpcError(record?.id as string | number | null ?? null, -32600, 'MCP standard headers do not match the request.')); return;
+          }
+          const answer = await modernSession.dispatch(value, undefined, controller.signal);
+          respond(response, answer ? 200 : 202, answer);
+        } finally {
+          modernSession.close(); modernActive--;
+          response.off('close', disconnected);
+        }
+        return;
+      }
       if (version !== undefined && !(protocolVersions as readonly unknown[]).includes(version)) { respond(response, 400); return; }
       const id = request.headers['mcp-session-id'];
       let entry = typeof id === 'string' ? sessions.get(id) : undefined;
