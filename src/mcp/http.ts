@@ -75,8 +75,8 @@ export async function serveHttp(options: HttpServerOptions) {
           respond(response, 400, rpcError(null, -32022, 'Invalid modern MCP protocol envelope.')); return;
         }
         if (request.headers['mcp-method'] !== record?.method ||
-            (record.method === 'tools/call' && request.headers['mcp-name'] !== params?.name) ||
-            (record.method !== 'tools/call' && request.headers['mcp-name'] !== undefined)) {
+            (record?.method === 'tools/call' && request.headers['mcp-name'] !== params?.name) ||
+            (record?.method !== 'tools/call' && request.headers['mcp-name'] !== undefined)) {
           respond(response, 400, rpcError(null, -32600, 'MCP standard headers do not match the request.')); return;
         }
         const answer = await session.dispatch(value, undefined, controller.signal);
