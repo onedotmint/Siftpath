@@ -54,6 +54,17 @@ fast gather 默认预算为 3,500。quality 模式可使用托管重排和充分
 
 证据保留 URL、标题、服务商、检索时间、可用的发布日期、段落/片段和来源 ID。`coverage` 为 `low`、`partial` 或 `good`，是停止检索的提示，**不是事实正确或来源独立的保证**。
 
+## Lightweight offline HTML input
+
+Raw HTML can be turned into a normal evidence pack without a browser, a local model, or a network request:
+
+```bash
+siftpath html --url https://example.com/article --query "retry policy" < article.html
+```
+
+SDK: `await engine.fromHtml({ url: 'https://example.com/article', html, query: 'retry policy' })`.
+The `url` is source metadata only: no DNS lookup or HTTP fetch happens. Input is capped at 1 MiB; the normal complete-result token budget applies. This is deliberately **not** a fourth AI/MCP tool. Basic cleanup is dependency-free and may retain navigation. For article-oriented parsing, explicitly install `@mozilla/readability` and `linkedom` in the same Node resolution scope and use `--readability` (or `extractor: 'readability'`). These libraries are never installed by Siftpath itself. No Trawl, Chromium, Python, or local model is required.
+
 ## SDK
 
 在消费项目中安装本地打包产物后，使用当前包名：

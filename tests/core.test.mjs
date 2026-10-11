@@ -102,3 +102,18 @@ test('custom tokenizer is applied and invalid token counters fail explicitly', a
   const result=await engine.gather({query:'alpha beta',maxTokens:2200});assert.equal(result.usage.tokenEstimation,'custom');assert.ok(JSON.stringify(result).length<=2200);
   await assert.rejects(new EvidenceEngine({providers:providers([p]),countTokens:()=>NaN}).search({query:'x'}),{code:'INVALID_TOKEN_COUNTER'});
 });
+
+test('offline HTML ingestion needs no API provider or network, and respects evidence budgets', async () => {
+  const engine = new EvidenceEngine({providers:providers([])});
+  const result = await engine.fromHtml({
+    url:'https://example.com/article', query:'retry',
+    html:'<html><head><title>Example</title></head><body><nav>Menu</nav><article><h1>Retry</h1><p>Retry uses exponential backoff for network failures.</p><script>secret()</script></article></body></html>',
+    maxTokens:1200
+  });
+  assert.equal(result.sources.length,1);assert.equal(result.sources[0].provider,'local-html');
+  assert.ok(result.evidence.some(e=>e.text.includes('exponential backoff')));
+  assert.equal(result.usage.httpRequests,0);assert.equal(result.usage.providerCalls,0);
+  assert.ok(estimateTokens(JSON.stringify(result))<=1200);
+  await assert.rejects(engine.fromHtml({url:'http://localhost/private',html:'<p>secret</p>'}),{code:'INVALID_INPUT'});
+  await assert.rejects(engine.fromHtml({url:'https://example.com',html:'x'.repeat(1_048_577)}),{code:'INVALID_INPUT'});
+});

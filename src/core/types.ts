@@ -41,6 +41,8 @@ export interface FetchInput {
   url?: string; urls?: string[]; resultIds?: string[]; query?: string; maxTokens?: number;
 }
 export interface GatherInput { query: string; mode?: Mode; maxTokens?: number }
+/** Caller-supplied HTML, never a URL fetched by Siftpath. */
+export interface HtmlInput { url: string; html: string; query?: string; maxTokens?: number; extractor?: 'basic' | 'readability' }
 export interface SearchRequest {
   query: string; maxResults: number; mode: Mode; domains?: string[]; since?: string;
 }

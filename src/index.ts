@@ -1,4 +1,5 @@
 export { EvidenceEngine } from './core/engine.js';
+export { htmlPage } from './core/html.js';
 export { EngineError, ProviderError } from './core/errors.js';
 export { JsonHttp } from './core/http.js';
 export type { FetchTransport, HttpRequest } from './core/http.js';

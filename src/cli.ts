@@ -18,6 +18,7 @@ const help = `Siftpath - web evidence retrieval for AI agents
   siftpath search "question" [--mode fast|quality] [--recency 7d] [--domains example.com]
   siftpath fetch URL [URL ...] [--query "objective"] [--max-tokens 3000]
   siftpath gather "comparison" [--mode quality] [--max-tokens 6000]
+  siftpath html --url https://example.com/article [--query "objective"] [--readability] < page.html
   siftpath setup [--non-interactive]
   siftpath doctor [--json]
   siftpath providers
@@ -37,6 +38,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       help: { type: 'boolean', short: 'h' }, version: { type: 'boolean', short: 'v' },
       mode: { type: 'string' }, 'max-results': { type: 'string' }, 'max-tokens': { type: 'string' },
       recency: { type: 'string' }, domains: { type: 'string' }, query: { type: 'string' },
+      url: { type: 'string' }, readability: { type: 'boolean' },
       trace: { type: 'boolean' }, json: { type: 'boolean' },
       'non-interactive': { type: 'boolean' }, http: { type: 'boolean' }, host: { type: 'string' }, port: { type: 'string' },
     } });
@@ -95,6 +97,26 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       process.once('SIGINT', stop); process.once('SIGTERM', stop);
       server.server.once('close', () => { process.off('SIGINT', stop); process.off('SIGTERM', stop); });
     } else await serveStdio(createEngine(configuration), process.stdin, process.stdout, trace);
+    return;
+  }
+  if (command === 'html') {
+    if (args.length || typeof values.url !== 'string' || process.stdin.isTTY)
+      throw new EngineError('INVALID_INPUT', 'Pipe HTML into stdin and supply --url as source metadata.');
+    const chunks: Buffer[] = []; let total = 0;
+    for await (const chunk of process.stdin) {
+      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string);
+      total += bytes.length;
+      if (total > 1_048_576) throw new EngineError('INVALID_INPUT', 'HTML exceeds 1 MiB.');
+      chunks.push(bytes);
+    }
+    const result = await createEngine(configuration).fromHtml({
+      url: values.url, html: Buffer.concat(chunks).toString('utf8'),
+      ...(typeof values.query === 'string' ? { query: values.query } : {}),
+      ...(values['max-tokens'] !== undefined ? { maxTokens: Number(values['max-tokens']) } : {}),
+      ...(values.readability ? { extractor: 'readability' as const } : {}),
+    });
+    process.stdout.write(JSON.stringify(result) + '\n');
+    try { await saveUsage(result.usage); } catch { process.stderr.write('USAGE_WRITE_FAILED: local extraction succeeded but usage could not be saved.\n'); }
     return;
   }
   if (!['search', 'fetch', 'gather'].includes(command)) throw new EngineError('INVALID_INPUT', 'Unknown command. Run siftpath --help.');

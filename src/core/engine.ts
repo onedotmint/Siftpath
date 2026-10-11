@@ -1,13 +1,14 @@
 import { abortable, scope } from './async.js';
 import { fitEvidence, fitSearch } from './budget.js';
 import { TtlCache } from './cache.js';
+import { htmlPage } from './html.js';
 import { cancelled, EngineError, input, toWarning } from './errors.js';
 import { diverse, fuseCandidates, pageEvidence, selectProviders, uniqueEvidence, uniqueWarnings } from './processing.js';
 import { estimateTokens, relevance } from './text.js';
 import { canonicalUrl, domainKey, domainMatches, publicUrl, sourceId } from './urls.js';
 import { integer, modeValue, queryText, searchRequest, stringArray } from './validation.js';
 import type { CallOptions, Candidate, Decision, EngineOptions, Evidence, EvidencePack, FetchInput,
-  GatherInput, Page, ProviderBase, ProviderContext, ProviderResult, SearchInput, SearchPack,
+  GatherInput, HtmlInput, Page, ProviderBase, ProviderContext, ProviderResult, SearchInput, SearchPack,
   SearchRequest, Source, TraceEvent, Usage, Warning } from './types.js';
 interface Run {
   signal: AbortSignal; caller?: AbortSignal; warnings: Warning[]; usage: Usage;
@@ -57,6 +58,21 @@ export class EvidenceEngine {
       const evidence = uniqueEvidence(pages.flatMap(page => pageEvidence(page, query))).sort((a, b) => b.relevance! - a.relevance!);
       if (!evidence.length) throw this.empty(run, 'No usable page content. Configure an extract provider or inspect warnings.');
       return this.pack(query, diverse(evidence, item => item.url, 24), budget, run);
+    });
+  }
+  /** Ingest caller-supplied raw HTML offline. No network and no additional MCP tool. */
+  async fromHtml(value: HtmlInput, options: CallOptions = {}): Promise<EvidencePack> {
+    input(value !== null && typeof value === 'object' && !Array.isArray(value), 'HTML input must be an object.');
+    const query = value.query === undefined ? '' : queryText(value.query);
+    const budget = integer(value.maxTokens, 3000, 256, 20000, 'maxTokens');
+    return this.run(options, async run => {
+      const page = await htmlPage(value);
+      const evidence = pageEvidence(page, query);
+      if (!evidence.length) throw this.empty(run, 'No usable HTML evidence.');
+      if ((value.extractor ?? 'basic') === 'basic') run.warnings.push({
+        code: 'BASIC_HTML_EXTRACTION', message: 'Basic HTML cleanup may retain navigation; use optional Readability for article-focused extraction.',
+      });
+      return this.pack(query, evidence.slice(0, 24), budget, run);
     });
   }
   async gather(value: GatherInput, options: CallOptions = {}): Promise<EvidencePack> {
