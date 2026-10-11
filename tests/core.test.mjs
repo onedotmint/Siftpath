@@ -4,7 +4,8 @@ import { publicUrl, canonicalUrl, domainKey, sourceId } from '../dist/core/urls.
 import { cleanText, scanInjection, passages, relevance, estimateTokens } from '../dist/core/text.js';
 import { sinceDate, searchRequest } from '../dist/core/validation.js';
 import { TtlCache } from '../dist/core/cache.js';
-import { selectProviders, fuseCandidates, diverse, pageEvidence } from '../dist/core/processing.js';
+import { selectProviders, fuseCandidates, diverse, pageEvidence, rankEvidence } from '../dist/core/processing.js';
+import { bm25Scores } from '../dist/core/bm25.js';
 import { EvidenceEngine } from '../dist/core/engine.js';
 import { candidate, page, fixtureProvider, providers } from './helpers.mjs';
 
@@ -123,4 +124,47 @@ test('optional HTML extraction is opt-in and rejects conflicting CLI-only modes'
  await assert.rejects(engine.fromHtml({url:'https://example.com',html:'<p>hello</p>',extractor:'unknown'}),{code:'INVALID_INPUT'});
  const basic=await engine.fromHtml({url:'https://example.com',html:'<p>hello</p>'});
  assert.ok(basic.evidence.length);assert.equal(basic.usage.httpRequests,0);
+});
+
+
+test('BM25 rewards repeated rare query terms, normalizes length and stays finite', () => {
+  const ranked = bm25Scores('quasar', ['quasar', 'quasar quasar', 'ordinary tokens']);
+  assert.equal(ranked.length, 3);
+  assert.ok(ranked[1] > ranked[0]); assert.equal(ranked[2], 0);
+  assert.ok(ranked.every(Number.isFinite));
+  const long = 'ETag revalidation. ' + 'Other details about networking and configuration. '.repeat(60);
+  const passages = [
+    { id:'background', text:long, relevance:relevance('ETag revalidation', long) },
+    { id:'answer', text:'ETag revalidation returns 304 Not Modified.', relevance:relevance('ETag revalidation', 'ETag revalidation returns 304 Not Modified.') },
+  ];
+  assert.equal(rankEvidence(passages, 'ETag revalidation')[0].id, 'background');
+  const chosen = rankEvidence(passages, 'ETag revalidation', 'bm25');
+  assert.equal(chosen[0].id, 'answer'); assert.equal(chosen[0].relevance, 1);
+  assert.ok(chosen.every(item => item.relevance >= 0 && item.relevance <= 1));
+  assert.equal(passages[0].relevance, 1); // Ranking does not mutate source evidence.
+});
+test('BM25 handles Chinese bigrams and degrades safely on missing terms or oversized batches', () => {
+  const chinese = [{ id:'unrelated', text:'关于项目设计流程和页面排版的说明。', relevance:0 },
+    { id:'relevant', text:'浏览器缓存验证通过 ETag 与 If-None-Match 完成。', relevance:1 }];
+  assert.equal(rankEvidence(chinese, '缓存验证', 'bm25')[0].id, 'relevant');
+  assert.deepEqual(rankEvidence(chinese, 'completelyAbsentWord', 'bm25'), rankEvidence(chinese, 'completelyAbsentWord'));
+  const oversized = Array.from({length:513},(_,i)=>({ id:String(i), text:'sample evidence', relevance:513-i }));
+  assert.equal(bm25Scores('sample', oversized.map(item=>item.text)), undefined);
+  assert.equal(rankEvidence(oversized, 'sample', 'bm25')[0].id,'0');
+});
+test('BM25 is opt-in for fetched evidence and does not affect provider calls or token caps', async () => {
+  const long='ETag revalidation. ' + 'This section describes configuration and unrelated deployment operations. '.repeat(50);
+  const fetcher={id:'fixture',capabilities:{fetch:true},async fetch(request) {
+    return {items:request.urls.map((url,index)=>page(url,'fixture',index===0?long:'ETag revalidation uses If-None-Match and responds with 304.'))};
+  }};
+  const urls=['https://example.test/a','https://example.test/b'];
+  const base=await new EvidenceEngine({providers:providers([],[fetcher])})
+    .fetch({urls,query:'ETag revalidation',maxTokens:1500});
+  const bm=await new EvidenceEngine({providers:providers([],[fetcher]),evidenceRanking:'bm25'})
+    .fetch({urls,query:'ETag revalidation',maxTokens:1500});
+  assert.equal(base.evidence[0].url,urls[0]);
+  assert.equal(bm.evidence[0].url,urls[1]);
+  assert.equal(base.usage.providerCalls,1); assert.equal(bm.usage.providerCalls,1);
+  assert.ok(estimateTokens(JSON.stringify(bm))<=1500);
+  assert.deepEqual(new Set(bm.sources.map(source=>source.id)),new Set(bm.evidence.map(e=>e.sourceId)));
 });

@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { EvidenceEngine } from './core/engine.js';
 import { EngineError } from './core/errors.js';
 import { JsonHttp, type FetchTransport } from './core/http.js';
-import type { ProviderBase, Providers, Usage } from './core/types.js';
+import type { EvidenceRanking, ProviderBase, Providers, Usage } from './core/types.js';
 import { selectProviders } from './core/processing.js';
 import { exa } from './providers/exa.js';
 import { parallel } from './providers/parallel.js';
@@ -23,6 +23,7 @@ export interface Configuration {
   version?: 1; credentials?: Partial<Record<CredentialName, string>>;
   disabled?: string[]; priorities?: Record<string, number>;
   timeoutMs?: number; providerTimeoutMs?: number; jinaModel?: string; clefModel?: 'clef' | 'clef-flash';
+  evidenceRanking?: EvidenceRanking;
 }
 export interface ProviderStatus { id: string; roles: string[]; state: 'ready' | 'missing' | 'disabled' | 'invalid'; needs: string[] }
 const providerIds = ['exa', 'parallel', 'tavily', 'brave', 'firecrawl', 'jina', 'cloudflare'];
@@ -30,12 +31,13 @@ const bad = (): never => { throw new EngineError('INVALID_CONFIG', 'Invalid Sift
 export function parseConfiguration(value: unknown): Configuration {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return bad();
   const raw = value as Record<string, unknown>;
-  const allowed = ['version', 'credentials', 'disabled', 'priorities', 'timeoutMs', 'providerTimeoutMs', 'jinaModel', 'clefModel'];
+  const allowed = ['version', 'credentials', 'disabled', 'priorities', 'timeoutMs', 'providerTimeoutMs', 'jinaModel', 'clefModel', 'evidenceRanking'];
   if (Object.keys(raw).some(key => !allowed.includes(key)) || raw.version !== undefined && raw.version !== 1) return bad();
   for (const field of ['timeoutMs', 'providerTimeoutMs']) if (raw[field] !== undefined &&
     (typeof raw[field] !== 'number' || !Number.isInteger(raw[field]) || raw[field] < 1 || raw[field] > 120000)) return bad();
   if (raw.jinaModel !== undefined && (typeof raw.jinaModel !== 'string' || !/^[a-zA-Z0-9_.:/-]{1,100}$/.test(raw.jinaModel))) return bad();
   if (raw.clefModel !== undefined && raw.clefModel !== 'clef' && raw.clefModel !== 'clef-flash') return bad();
+  if (raw.evidenceRanking !== undefined && raw.evidenceRanking !== 'legacy' && raw.evidenceRanking !== 'bm25') return bad();
   if (raw.disabled !== undefined && (!Array.isArray(raw.disabled) || !raw.disabled.every(key => providerIds.includes(key)))) return bad();
   for (const field of ['credentials', 'priorities']) {
     const item = raw[field]; if (item === undefined) continue;
@@ -76,7 +78,8 @@ export async function readConfiguration(path = configPath(), env: NodeJS.Process
   const credentials = { ...saved.credentials };
   for (const key of credentialNames) if (env[key]?.trim()) credentials[key] = env[key]!.trim();
   if (!credentials.CLOUDFLARE_API_TOKEN && env.CLOUDFLARE_AUTH_TOKEN?.trim()) credentials.CLOUDFLARE_API_TOKEN = env.CLOUDFLARE_AUTH_TOKEN.trim();
-  return parseConfiguration({ ...saved, credentials });
+  const rankOverride = siftpathEnv('EVIDENCE_RANKING', env);
+  return parseConfiguration({ ...saved, credentials, ...(rankOverride === undefined ? {} : { evidenceRanking: rankOverride }) });
 }
 /** Private user storage, never a workspace .env file; atomic replace with mode 0600. */
 export async function writePrivateJson(path: string, value: unknown): Promise<void> {
@@ -123,12 +126,13 @@ export function configureProviders(config: Configuration, transport?: FetchTrans
 }
 export function createEngine(config: Configuration, transport?: FetchTransport): EvidenceEngine {
   return new EvidenceEngine({ providers: configureProviders(config, transport).providers,
-    timeoutMs: config.timeoutMs, providerTimeoutMs: config.providerTimeoutMs });
+    timeoutMs: config.timeoutMs, providerTimeoutMs: config.providerTimeoutMs, evidenceRanking: config.evidenceRanking });
 }
 export function diagnostics(config: Configuration) {
   const { providers, statuses } = configureProviders(config);
   return {
     runtime: process.version, supportedRuntime: Number(process.versions.node.split('.')[0]) >= 22,
+    evidenceRanking: config.evidenceRanking ?? 'legacy',
     providers: statuses,
     routes: {
       fast: selectProviders(providers.search, { query: 'diagnostic', mode: 'fast', maxResults: 8 }, 1).map(p => p.id),

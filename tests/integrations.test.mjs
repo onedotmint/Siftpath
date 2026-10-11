@@ -94,6 +94,9 @@ test('private configuration respects environment precedence and rejects unsafe/u
  if(process.platform!=='win32')assert.equal((await stat(path)).mode&0o777,0o600);
  const config=await readConfiguration(path,{EXA_API_KEY:'environment-placeholder'});assert.equal(config.credentials.EXA_API_KEY,'environment-placeholder');
  assert.equal(configureProviders(config).statuses[0].state,'ready');assert.throws(()=>parseConfiguration({credentials:{TYPO_API_KEY:'x'}}),{code:'INVALID_CONFIG'});
+ assert.equal(parseConfiguration({evidenceRanking:'bm25'}).evidenceRanking,'bm25');
+ assert.throws(()=>parseConfiguration({evidenceRanking:'neural'}),{code:'INVALID_CONFIG'});
+ assert.equal((await readConfiguration(path,{SIFTPATH_EVIDENCE_RANKING:'bm25'})).evidenceRanking,'bm25');
  assert.throws(()=>parseConfiguration({timeoutMs:-1}),{code:'INVALID_CONFIG'});assert.throws(()=>parseConfiguration({clefModel:'planner'}),{code:'INVALID_CONFIG'});
  const link=join(dir,'link.json');await symlink(path,link);await assert.rejects(writePrivateJson(link,{}),{code:'UNSAFE_CONFIG_PATH'});
 });

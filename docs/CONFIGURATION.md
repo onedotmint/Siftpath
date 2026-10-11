@@ -52,3 +52,7 @@ The server is single-tenant. Do not expose a shared provider account to multiple
 `fetch` accepts 1-20 URLs or session-scoped result IDs. `maxTokens` is 256-20,000 for fetch/gather. Search deliberately keeps a fixed compact budget and only exposes query, maxResults, recency, domains, and mode. Recency accepts `day`, `week`, `month`, `year`, an amount such as `7d`/`24h`, or a valid ISO calendar date. Domain filters are hostnames, not arbitrary URL expressions.
 
 The SDK supports custom timeouts/tokenizers/cache TTLs through `EvidenceEngine`. Process-local caches disappear when the CLI exits. For reuse and `resultIds`, keep one SDK engine, Pi instance, or MCP session alive.
+
+## Experimental local evidence ranking
+
+The optional `evidenceRanking` configuration key accepts `legacy` (default) or `bm25`. For a one-command trial use `SIFTPATH_EVIDENCE_RANKING=bm25 siftpath gather "your question"` instead of editing configuration. This setting also applies to Pi/MCP when read from the user configuration. It changes only the ordering of extracted evidence passages; search source selection, providers, tool schemas and network behavior are unchanged. No model, background service, dependency, or index is added. Remove the key/environment override to revert immediately. See `npm run bench:bm25` for a synthetic A/B test; it is not a real-world quality guarantee.

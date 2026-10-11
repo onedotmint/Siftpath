@@ -65,6 +65,19 @@ siftpath html --url https://example.com/article --query "retry policy" < article
 SDK: `await engine.fromHtml({ url: 'https://example.com/article', html, query: 'retry policy' })`.
 The `url` is source metadata only: no DNS lookup or HTTP fetch happens. Input is capped at 1 MiB; the normal complete-result token budget applies. This is deliberately **not** a fourth AI/MCP tool. Basic cleanup is dependency-free and may retain navigation. For article-oriented parsing, explicitly install `@mozilla/readability` and `linkedom` in the same Node resolution scope and use `--readability` (or `extractor: 'readability'`). Alternatively install `defuddle` and `linkedom` for `--defuddle` (or `extractor: 'defuddle'`), which preserves more page structure in Markdown. Both are optional and never fetched automatically. These libraries are never installed by Siftpath itself. No Trawl, Chromium, Python, or local model is required.
 
+## 实验：本地 BM25 段落排序
+
+默认仍使用原有关键词命中率算法。可以临时启用 **BM25**，只在已获取的 `fetch`、`gather`、离线 HTML 证据段落之间排序，不影响搜索服务商排名或请求次数：
+
+```bash
+SIFTPATH_EVIDENCE_RANKING=bm25 siftpath gather "HTTP ETag revalidation"
+npm run bench:bm25
+```
+
+也可在私人配置文件设置 `"evidenceRanking": "bm25"`，或使用 SDK 的 `new EvidenceEngine({ ..., evidenceRanking: 'bm25' })`。移除该设置立即恢复原算法。保持零额外运行依赖，沿用现有中英文词法规则，不需要索引、向量库或模型。BM25 在每次调用内统计段落词频、稀有度与长度，超过 512 段或查询缺乏可用词时自动使用原排序；相关性分数只是当前候选集内的相对值，不是答案置信度。已配置托管 reranker 时，quality 模式仍允许其覆盖本地初排。
+
+`npm run bench:bm25` 包含有标注的合成段落对比和原有模拟服务商回放。**它不能证明真实网页或真实服务商上的准确率提高**，因此 BM25 尚不作为默认值。
+
 ## MCP protocol compatibility
 
 The built-in zero-runtime-dependency MCP server handles modern `2026-07-28` `server/discover`, tool discovery and the existing three tool calls alongside legacy 2025 clients. Local stdio remains the default. Authenticated HTTP recognizes the modern per-request metadata envelope and standard headers; old HTTP sessions remain available. This is **minimal protocol compatibility**, not a claim of complete official MCP SDK/conformance support. No Express, Python, database, browser, or local AI model is required. Run the integration test suite after changes and validate against an independent official client before release.

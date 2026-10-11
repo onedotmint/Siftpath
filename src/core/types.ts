@@ -1,5 +1,6 @@
 /** The core has no knowledge of vendor names or host integrations. */
 export type Mode = 'fast' | 'quality';
+export type EvidenceRanking = 'legacy' | 'bm25';
 export type Capability = 'search' | 'fetch' | 'semanticSearch' | 'freshness' | 'domainFilter' |
   'dateFilter' | 'highlights' | 'objectiveExtract' | 'news' | 'pdf' | 'hardPages';
 export type Capabilities = Partial<Record<Capability, boolean>>;
@@ -89,4 +90,6 @@ export interface EngineOptions {
   providers: Providers; timeoutMs?: number; providerTimeoutMs?: number;
   cacheMaxEntries?: number; searchTtlMs?: number; fetchTtlMs?: number;
   countTokens?: (text: string) => number;
+  /** Opt-in lexical experiment; existing ranking stays the default. */
+  evidenceRanking?: EvidenceRanking;
 }

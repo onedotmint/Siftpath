@@ -3,7 +3,7 @@ import { fitEvidence, fitSearch } from './budget.js';
 import { TtlCache } from './cache.js';
 import { htmlPage } from './html.js';
 import { cancelled, EngineError, input, toWarning } from './errors.js';
-import { diverse, fuseCandidates, pageEvidence, selectProviders, uniqueEvidence, uniqueWarnings } from './processing.js';
+import { diverse, fuseCandidates, pageEvidence, rankEvidence, selectProviders, uniqueEvidence, uniqueWarnings } from './processing.js';
 import { estimateTokens, relevance } from './text.js';
 import { canonicalUrl, domainKey, domainMatches, publicUrl, sourceId } from './urls.js';
 import { integer, modeValue, queryText, searchRequest, stringArray } from './validation.js';
@@ -55,7 +55,7 @@ export class EvidenceEngine {
     const budget = integer(value.maxTokens, 3000, 256, 20000, 'maxTokens');
     return this.run(options, async run => {
       const pages = await this.fetchStage(targets, query, run);
-      const evidence = uniqueEvidence(pages.flatMap(page => pageEvidence(page, query))).sort((a, b) => b.relevance! - a.relevance!);
+      const evidence = rankEvidence(uniqueEvidence(pages.flatMap(page => pageEvidence(page, query))), query, this.options.evidenceRanking);
       if (!evidence.length) throw this.empty(run, 'No usable page content. Configure an extract provider or inspect warnings.');
       return this.pack(query, diverse(evidence, item => item.url, 24), budget, run);
     });
@@ -67,7 +67,7 @@ export class EvidenceEngine {
     const budget = integer(value.maxTokens, 3000, 256, 20000, 'maxTokens');
     return this.run(options, async run => {
       const page = await htmlPage(value);
-      const evidence = pageEvidence(page, query);
+      const evidence = rankEvidence(pageEvidence(page, query), query, this.options.evidenceRanking);
       if (!evidence.length) throw this.empty(run, 'No usable HTML evidence.');
       if ((value.extractor ?? 'basic') === 'basic') run.warnings.push({
         code: 'BASIC_HTML_EXTRACTION', message: 'Basic HTML cleanup may retain navigation; use optional Readability for article-focused extraction.',
@@ -221,9 +221,9 @@ export class EvidenceEngine {
       pages.push({ ...candidate, text: candidate.excerpts.join('\n\n'), sourceId: candidate.origins[0]?.sourceId });
       run.warnings.push({ code: 'EXCERPT_ONLY', message: 'Some evidence comes from search excerpts rather than a fetched page.' });
     }
-    const ranked = uniqueEvidence(pages.flatMap(page => pageEvidence(page, query,
-      candidates.findIndex(candidate => canonicalUrl(candidate.url) === canonicalUrl(page.url)) + 1)))
-      .sort((a, b) => b.relevance! - a.relevance!);
+    const ranked = rankEvidence(uniqueEvidence(pages.flatMap(page => pageEvidence(page, query,
+      candidates.findIndex(candidate => canonicalUrl(candidate.url) === canonicalUrl(page.url)) + 1))),
+      query, this.options.evidenceRanking);
     return diverse(ranked, item => item.url, mode === 'quality' ? 16 : 8, mode === 'quality' ? 2 : Infinity);
   }
   private async rerank(query: string, evidence: Evidence[], mode: 'fast' | 'quality', run: Run): Promise<Evidence[]> {

@@ -41,7 +41,8 @@
     "pack:dry": "npm run build && npm pack --dry-run --ignore-scripts",
     "prepack": "npm run build",
     "sync:integrations": "node scripts/sync-integrations.mjs",
-    "verify:source": "node scripts/verify-source.mjs"
+    "verify:source": "node scripts/verify-source.mjs",
+    "bench:bm25": "npm run build && node benchmarks/bm25.mjs"
   },
   "repository": {
     "type": "git",
