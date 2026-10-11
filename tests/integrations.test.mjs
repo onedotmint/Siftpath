@@ -108,3 +108,47 @@ test('CLI help, error codes, noninteractive setup and symlink executable work',a
  const link=join(dir,'siftpath.js');await symlink(cli,link);const linked=spawnSync(process.execPath,[link,'--version'],{env,encoding:'utf8'});
  assert.equal(linked.status,0);assert.equal(linked.stdout.trim(),JSON.parse(await readFile('package.json','utf8')).version);
 });
+
+const modernMeta = {
+  'io.modelcontextprotocol/protocolVersion':'2026-07-28',
+  'io.modelcontextprotocol/clientCapabilities':{},
+  'io.modelcontextprotocol/clientInfo':{name:'siftpath-test',version:'1'}
+};
+function modern(id,method,fields={}) {
+  return {jsonrpc:'2.0',id,method,params:{...fields,_meta:modernMeta}};
+}
+test('modern stdio dispatcher supports discover, calls and rejects era mixing',async()=>{
+  const session=new McpSession(engine());
+  const discover=await session.dispatch(modern(1,'server/discover'));
+  assert.deepEqual(discover.result.supportedVersions,['2026-07-28']);
+  assert.equal(discover.result._meta['io.modelcontextprotocol/serverInfo'].name,'siftpath');
+  const list=await session.dispatch(modern(2,'tools/list'));
+  assert.deepEqual(list.result.tools.map(t=>t.name),['web_search','web_fetch','web_gather']);
+  const call=await session.dispatch(modern(3,'tools/call',{name:'web_search',arguments:{query:'alpha'}}));
+  assert.ok(JSON.parse(call.result.content[0].text).results.length);
+  assert.equal((await session.dispatch(init)).error.code,-32022);
+  session.close();
+});
+test('modern stateless HTTP MCP authenticates each request without session ID',async t=>{
+  const token='modern-siftpath-http-test-only-123456';
+  const handle=await serveHttp({createEngine:engine,token,port:0});t.after(()=>handle.close());
+  const url=`http://127.0.0.1:${handle.port}/mcp`;
+  const headers={authorization:`Bearer ${token}`,'content-type':'application/json',
+    accept:'application/json, text/event-stream','mcp-protocol-version':'2026-07-28'};
+  const request=(message,extra={})=>fetch(url,{method:'POST',headers:{...headers,
+    'mcp-method':message.method,...(message.params?.name?{'mcp-name':message.params.name}:{}),...extra},
+    body:JSON.stringify(message)});
+  const unauth=await fetch(url,{method:'POST',headers:{...headers,authorization:'bad','mcp-method':'tools/list'},body:JSON.stringify(modern(1,'tools/list'))});
+  assert.equal(unauth.status,401);
+  const discover=await request(modern(2,'server/discover'));assert.equal(discover.status,200);
+  assert.equal(discover.headers.get('mcp-session-id'),null);
+  assert.deepEqual((await discover.json()).result.supportedVersions,['2026-07-28']);
+  const list=await request(modern(3,'tools/list'));
+  assert.equal(list.status,200);assert.equal((await list.json()).result.tools.length,3);
+  const called=await request(modern(4,'tools/call',{name:'web_fetch',arguments:{urls:['https://alpha.test/a'],query:'alpha'}}));
+  assert.equal(called.status,200);assert.equal(JSON.parse((await called.json()).result.content[0].text).sources.length,1);
+  const badHeader=await request(modern(5,'tools/list'),{'mcp-method':'tools/call'});
+  assert.equal(badHeader.status,400);
+  const missingEnvelope=await request({jsonrpc:'2.0',id:6,method:'tools/list',params:{}});
+  assert.equal(missingEnvelope.status,400);
+});
