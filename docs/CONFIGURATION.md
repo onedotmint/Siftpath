@@ -4,7 +4,7 @@ The package is `@onedotmint/siftpath`, the primary CLI is `siftpath`, and projec
 
 ## One-time setup
 
-`siftpath setup` detects existing environment keys, displays available roles, and offers masked interactive credential entry. Press Enter to keep an existing value. It writes a private JSON file outside the workspace. `siftpath setup --non-interactive` does not prompt and does not persist environment secrets.
+`siftpath setup` 默认推荐一个 Exa 密钥（同时支持搜索与正文提取），也可选择 Tavily、Parallel、Brave 或高级服务商；已有搜索配置时默认不修改。输入在终端隐藏，不会出现在命令参数或聊天记录。 Press Enter to keep an existing value. It writes a private JSON file outside the workspace. `siftpath setup --non-interactive` does not prompt and does not persist environment secrets.
 
 Explicit path precedence: `SIFTPATH_CONFIG` > the compatibility alias `SMARTSEARCH_CONFIG` > default selection. Use a nonempty path for an override; setting the new variable, even to an empty value, prevents fallback to the old variable. An explicit missing file does not trigger a legacy-default lookup.
 
@@ -31,7 +31,7 @@ Files created by setup use atomic replacement and mode 0600 on POSIX, with newly
 
 ## Diagnostics
 
-`siftpath doctor` reports runtime version, configuration presence, provider readiness, and deterministic routes. It makes no network calls. Exit 2 means no configured search or fetch role, or an unsupported runtime; a missing optional reranker/decision provider alone is not an error. `--json` gives a machine-readable report.
+`siftpath doctor` 检查本地环境、配置与路由，不联网，配置存在不代表 API Key 有效。`siftpath doctor --live` 由用户明确触发一次可能收费的搜索 API 检查，默认只选一个服务商且允许一次网络重试；返回状态、结果数和安全的错误提示，不打印密钥或搜索内容。 Exit 2 means no configured search or fetch role, or an unsupported runtime; a missing optional reranker/decision provider alone is not an error. `--json` gives a machine-readable report.
 
 `siftpath providers` lists roles and states. `siftpath usage` reads only the last CLI operation; it is not cumulative billing. `engine.usage()` and `/siftpath-usage` in Pi retain in-process totals. Pi also exposes `/siftpath-doctor`. `--trace` writes provider timing/call/retry/cache events to stderr for CLI and MCP, not into returned agent evidence.
 

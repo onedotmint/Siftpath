@@ -1,26 +1,12 @@
 # Integrations
 
-First build/link the root source package and run `siftpath setup` as described in the [root README](../README.md). Alternatively, generate a local tarball with `npm pack` and install that actual file; no npm publication or Release tarball is assumed. Host packages invoke `siftpath mcp` on PATH and therefore never need a second set of API keys or provider logic. A host launched by a GUI may have a different PATH/environment; the saved user configuration avoids environment duplication.
+## Pi：推荐的原生集成
 
-The package is `@onedotmint/siftpath`; MCP/plugin IDs are `siftpath`, and local marketplace IDs are `siftpath-local`. All relative paths and npm commands below start at the repository root. These are installation instructions, not commands executed during this documentation update.
+**正式发布 npm 后**：在 Pi 中执行 `pi install npm:@onedotmint/siftpath`，重启后运行 `/siftpath-doctor`。如果没有配置 API Key，该命令会给出需要在**系统终端**执行的设置命令；密钥不得粘贴在 AI 对话中。
 
-`siftpath integration <host>` prints the installed package root, host entry, canonical skill, guide, and an absolute Node/MCP command for troubleshooting. Restart the host after installation. Installing a package is not evidence that its live calls work: the delivery tests use host contracts and protocol sessions, not actual installed agent applications.
+**当前 PR 的开发者试用**：按 [README](../README.md) 克隆并编译 `feat/lightweight-html-mcp-2026` 分支，再执行 `pi install /absolute/path/to/Siftpath`。直接安装尚未编译的 Git 源无法保证 `dist/` 存在；因此目前不宣传 git: 一键安装为可靠方式。
 
-## Pi: native first
-
-From a source checkout after `npm ci --ignore-scripts` and `npm run build` at the repository root:
-
-```bash
-pi install /absolute/path/to/Siftpath
-```
-
-Or reuse the global compiled package without building:
-
-```bash
-pi install "$(npm root -g)/@onedotmint/siftpath"
-```
-
-The package `pi` manifest loads `integrations/pi/index.ts` and `skills/`. The extension imports the host's current `@earendil-works/pi-ai` Type factory, registers exactly three native tools, forwards cancellation, sends progress/status updates, and exposes `/siftpath-doctor` and `/siftpath-usage`. The old `/smartsearch-doctor` and `/smartsearch-usage` spellings remain compatibility aliases. All retrieval calls use the shared engine. Current official Pi contracts were inspected; older namespace/version combinations and real terminal rendering still require a host smoke test. Do not enable the MCP copy alongside the native tools unnecessarily.
+Pi 原生集成只有 `web_search`、`web_fetch`、`web_gather` 三个工具和本地诊断命令。不要再重复加载相同的 MCP 工具。验证安装请使用 `pi list` 并在 Pi 内运行 `/siftpath-doctor`；仅有仓库构建 CI 通过不代表 Pi 宿主已经完成真实安装测试。
 
 ## Codex and local ChatGPT desktop
 

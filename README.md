@@ -1,46 +1,46 @@
 # Siftpath
 
-**面向 AI Agent 的网页证据检索：搜索来源、提取网页、汇总带出处的证据，控制模型上下文大小。**
+**轻量、可追溯、可控预算的 Agent 网页检索。** 搜索、提取和证据整理共用一个 TypeScript 核心；不需要本地模型或后台服务。
 
-Siftpath 是证据引擎，不是答案生成器或自动研究 Agent。SDK、CLI、Pi 和 MCP 共用一个 TypeScript 核心，返回结构化 `EvidencePack`，由调用方判断、引用并生成答案。
+> 当前为 **2.0.0-next.1 预发布版本**。新实现位于 [Draft PR #1](https://github.com/onedotmint/Siftpath/pull/1)，尚未合并或发布 npm。下方正式安装命令须等 npm 发布后才能使用。
 
-源码仓库：<https://github.com/onedotmint/Siftpath>。当前包名为 `@onedotmint/siftpath`，主命令为 `siftpath`，版本仍为 **`2.0.0-next.1` 预发布版**。不假定该版本已发布到 npm，也不假定已有 Release tarball。
+## 快速开始
 
-## 从源码安装
-
-需要 Git、Node.js 22+ 和 npm。构建后的包**零运行时依赖**，不需要 Python、本地模型或浏览器下载。以下是供使用者执行的安装步骤；**本轮文档整理未执行这些命令**，也未验证干净安装或构建。
+### Pi（正式发布后推荐）
 
 ```bash
-git clone https://github.com/onedotmint/Siftpath.git
+pi install npm:@onedotmint/siftpath
+```
+
+重启 Pi，运行 `/siftpath-doctor`。如果缺少密钥，它会告诉你需要在**系统终端**执行的配置命令；不要将 API Key 粘贴进 AI 对话。默认只需要一个 Exa 密钥，也支持 Tavily、Parallel 或 Brave。
+
+### CLI（正式发布后）
+
+```bash
+npm install -g @onedotmint/siftpath
+siftpath setup
+siftpath doctor
+siftpath doctor --live
+siftpath search "HTTP ETag"
+```
+
+`setup` 首次默认推荐 Exa（搜索与正文提取共用密钥），已有配置则默认不修改。普通 `doctor` **不联网**；`--live` 明确触发一次可能收费的真实搜索检查，最多包含一次网络重试。
+
+### 现在试用 PR（开发者路径）
+
+```bash
+git clone --branch feat/lightweight-html-mcp-2026 https://github.com/onedotmint/Siftpath.git
 cd Siftpath
 npm ci --ignore-scripts
 npm run build
 npm link
 siftpath setup
+siftpath doctor --live
 ```
 
-所有 npm 命令在仓库根目录执行。`build` 会先同步集成资产，再生成 `dist/`。`npm link` 将当前源码包链接到全局命令；保留该源码目录。若不想全局安装，完成前四步后直接用 Node 调用：
+需要 Node.js 22+、Git 和 npm。源码路径下 `pi install /absolute/path/to/Siftpath` 要求该目录已完成编译。**暂不推荐直接用 Pi 的 Git 源安装**，因为未编译的 `dist/` 并不包含在 Git 仓库中。正式发布前还需要打包产物安装验收。
 
-```bash
-node dist/cli.js setup
-node dist/cli.js search "HTTP conditional request documentation"
-```
-
-可选：维护者或使用者可在根目录运行 `npm pack`，由 `prepack` 自动构建并生成本地 `.tgz`，然后通过 `npm install -g ./onedotmint-siftpath-2.0.0-next.1.tgz` 安装。先生成产物，不要把此文件名当作已提供的下载链接。SDK 消费方也可安装这个本地 tarball。
-
-`setup` 提供隐藏输入的密钥配置，保存到项目外的私有用户配置。一个搜索服务商密钥即可开始；未配置的服务商会跳过。Exa、Parallel、Tavily 同一密钥也支持提取；只有 Brave 时可以搜索和汇总摘要，但不能提取网页。配置路径、权限和旧配置复用规则见[配置文档](docs/CONFIGURATION.md)。
-
-已有环境变量密钥时可以跳过 setup，服务商凭据名称不变：
-
-```bash
-export EXA_API_KEY='your-key'
-siftpath doctor
-siftpath search "HTTP conditional request documentation"
-siftpath fetch https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/ETag --query "conditional requests"
-siftpath gather "Compare HTTP ETag and Last-Modified revalidation" --mode quality --max-tokens 4000
-```
-
-`doctor` 仅检查本地配置，不访问网络；检索命令会调用已配置的托管服务，可能产生费用。普通检索向 stdout 输出紧凑 JSON，`--trace` 向 stderr 输出诊断，不直接输出最终文章。默认 token 数是估算值；SDK 可提供 tokenizer。
+更多高级用法见 [配置](docs/CONFIGURATION.md) 和 [各客户端接入](docs/INTEGRATIONS.md)。
 
 ## 三种操作
 
