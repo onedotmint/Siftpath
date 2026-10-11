@@ -34,7 +34,7 @@ export class McpSession {
     const claimed = meta?.['io.modelcontextprotocol/protocolVersion'];
     const modern = claimed === MODERN_VERSION;
     const stamped = (data: Record<string, unknown>): Record<string, unknown> => modern ? {
-      ...data, _meta: { ...(isObject(data._meta) ? data._meta : {}), 'io.modelcontextprotocol/serverInfo': SERVER_INFO },
+      resultType: 'complete', ...data, _meta: { ...(isObject(data._meta) ? data._meta : {}), 'io.modelcontextprotocol/serverInfo': SERVER_INFO },
     } : data;
     if (id === undefined) {
       if (value.method === 'notifications/cancelled' && params && isId(params.requestId)) this.active.get(params.requestId)?.abort();
