@@ -60,6 +60,10 @@ Then run `node scripts/eval-invocations.mjs observations.jsonl`. It reports both
 
 When verification is authorized, inspect the pack preview, generate the tarball locally, install it into an isolated prefix, and smoke-test `siftpath` (or invoke the installed `dist/cli.js` with Node). Export source from a committed tree, extract it, run `node scripts/verify-source.mjs`, and inspect for secrets/caches/symlinks. Record commands actually executed and actual artifact hashes; do not assume a tarball already exists or a version is published. Clean `npm ci --ignore-scripts` remains a gate even though the two previously missing lockfile integrity entries have been filled from official npm metadata. See [DEVELOPMENT.md](DEVELOPMENT.md).
 
+## MCP official-client interoperability
+
+The dedicated CI job installs `@modelcontextprotocol/client@2.3.1` **temporarily for tests only** and exercises both protocol eras over authenticated HTTP and stdio. This catches real SDK result-shape/negotiation incompatibilities that self-tests miss; production dependencies and npm lockfile remain unchanged. The test is a narrow smoke check, not the complete MCP conformance suite. In case of failure, do not claim the modern protocol is compatible or merge the draft PR.
+
 ## BM25 lexical ranking experiment
 
 `npm run bench:bm25` compares legacy term-hit ranking and opt-in BM25 using the same labeled Chinese/English synthetic passages, then replays the existing nine retrieval categories in both fast/quality modes. It reports top-1, mean reciprocal rank, approximate per-batch CPU time, evidence coverage/precision, and output size. BM25 remains disabled by default and automatically falls back to legacy ranking for large (>512 passages) or unscorable batches. These metrics are **synthetic** and do not establish live quality, latency or cost improvements. Run both modes on human-labeled real retrievals before considering a default change.

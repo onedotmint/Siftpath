@@ -63,7 +63,7 @@ siftpath html --url https://example.com/article --query "retry policy" < article
 ```
 
 SDK: `await engine.fromHtml({ url: 'https://example.com/article', html, query: 'retry policy' })`.
-The `url` is source metadata only: no DNS lookup or HTTP fetch happens. Input is capped at 1 MiB; the normal complete-result token budget applies. This is deliberately **not** a fourth AI/MCP tool. Basic cleanup is dependency-free and may retain navigation. For article-oriented parsing, explicitly install `@mozilla/readability` and `linkedom` in the same Node resolution scope and use `--readability` (or `extractor: 'readability'`). Alternatively install `defuddle` and `linkedom` for `--defuddle` (or `extractor: 'defuddle'`), which preserves more page structure in Markdown. Both are optional and never fetched automatically. These libraries are never installed by Siftpath itself. No Trawl, Chromium, Python, or local model is required.
+The `url` is source metadata only: no DNS lookup or HTTP fetch happens. Input is capped at 1 MiB; the normal complete-result token budget applies. This is deliberately **not** a fourth AI/MCP tool. Basic cleanup is dependency-free and may retain navigation. For article-oriented parsing, explicitly install `@mozilla/readability` and `linkedom` in the same Node resolution scope and use `--readability` (or `extractor: 'readability'`). The optional parser is never installed automatically. These libraries are never installed by Siftpath itself. No Trawl, Chromium, Python, or local model is required.
 
 ## 实验：本地 BM25 段落排序
 

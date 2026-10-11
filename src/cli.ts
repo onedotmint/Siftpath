@@ -18,7 +18,7 @@ const help = `Siftpath - web evidence retrieval for AI agents
   siftpath search "question" [--mode fast|quality] [--recency 7d] [--domains example.com]
   siftpath fetch URL [URL ...] [--query "objective"] [--max-tokens 3000]
   siftpath gather "comparison" [--mode quality] [--max-tokens 6000]
-  siftpath html --url https://example.com/article [--query "objective"] [--readability|--defuddle] < page.html
+  siftpath html --url https://example.com/article [--query "objective"] [--readability] < page.html
   siftpath setup [--non-interactive]
   siftpath doctor [--json]
   siftpath providers
@@ -38,7 +38,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       help: { type: 'boolean', short: 'h' }, version: { type: 'boolean', short: 'v' },
       mode: { type: 'string' }, 'max-results': { type: 'string' }, 'max-tokens': { type: 'string' },
       recency: { type: 'string' }, domains: { type: 'string' }, query: { type: 'string' },
-      url: { type: 'string' }, readability: { type: 'boolean' }, defuddle: { type: 'boolean' },
+      url: { type: 'string' }, readability: { type: 'boolean' },
       trace: { type: 'boolean' }, json: { type: 'boolean' },
       'non-interactive': { type: 'boolean' }, http: { type: 'boolean' }, host: { type: 'string' }, port: { type: 'string' },
     } });
@@ -102,7 +102,6 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   if (command === 'html') {
     if (args.length || typeof values.url !== 'string' || process.stdin.isTTY)
       throw new EngineError('INVALID_INPUT', 'Pipe HTML into stdin and supply --url as source metadata.');
-    if (values.readability && values.defuddle) throw new EngineError('INVALID_INPUT', 'Choose only one HTML extractor.');
     const chunks: Buffer[] = []; let total = 0;
     for await (const chunk of process.stdin) {
       const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string);
@@ -115,7 +114,6 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       ...(typeof values.query === 'string' ? { query: values.query } : {}),
       ...(values['max-tokens'] !== undefined ? { maxTokens: Number(values['max-tokens']) } : {}),
       ...(values.readability ? { extractor: 'readability' as const } : {}),
-      ...(values.defuddle ? { extractor: 'defuddle' as const } : {}),
     });
     process.stdout.write(JSON.stringify(result) + '\n');
     try { await saveUsage(result.usage); } catch { process.stderr.write('USAGE_WRITE_FAILED: local extraction succeeded but usage could not be saved.\n'); }
