@@ -1,4 +1,5 @@
 import { createEngine, diagnostics, readConfiguration } from '../config.js';
+import { fileURLToPath } from 'node:url';
 import { invokeTool, summary, toolDefinitions, type JsonSchema } from '../tools.js';
 import type { EvidenceEngine } from '../core/engine.js';
 
@@ -52,7 +53,12 @@ export function registerPi(pi: PiApi, Type: TypeFactory, supplied?: EvidenceEngi
   });
   for (const name of ['siftpath-doctor', 'smartsearch-doctor']) pi.registerCommand(name, { description: 'Check Siftpath configuration without sending queries.',
     async handler(_args, context) { const report = diagnostics(await readConfiguration());
-      context.ui.notify(report.providers.map(p => `${p.id}: ${p.state}`).join(' | '), report.readyForSearch ? 'info' : 'warning'); } });
+      if (!report.readyForSearch) {
+        const cli = fileURLToPath(new URL('../cli.js', import.meta.url));
+        context.ui.notify('No search key. In a terminal run: node "' + cli + '" setup. Never paste an API key into chat.', 'warning');
+      } else context.ui.notify('Search configured (not yet network-verified): ' +
+        (report.routes.fast.join(',') || 'none') + '. Optional terminal check: siftpath doctor --live', 'info');
+    } });
   for (const name of ['siftpath-usage', 'smartsearch-usage']) pi.registerCommand(name, { description: 'Show retrieval usage in this Pi session.',
     async handler(_args, context) { context.ui.notify(JSON.stringify((await getEngine()).usage()), 'info'); } });
 }

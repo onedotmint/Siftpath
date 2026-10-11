@@ -15,6 +15,7 @@ test('all generated integration skills match the single canonical skill', async 
 });
 test('plugin manifests and transports use real packaged paths and no embedded credentials', async () => {
   const pkg = await json('package.json');
+  assert.ok(pkg.keywords.includes('pi-package'));
   const entries = [['codex','plugin.json','mcp.json'],['cursor','.cursor-plugin/plugin.json','mcp.json'],['claude-code','.claude-plugin/plugin.json','.mcp.json']];
   for (const [client, manifest, transport] of entries) {
     const metadata = await json(`integrations/${client}/${manifest}`);

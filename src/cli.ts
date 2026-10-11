@@ -4,7 +4,7 @@ import { parseArgs } from 'node:util';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { configPath, createEngine, diagnostics, readConfiguration, saveUsage, usagePath, siftpathEnv } from './config.js';
+import { checkConnection, configPath, createEngine, diagnostics, readConfiguration, saveUsage, usagePath, siftpathEnv } from './config.js';
 import { EngineError } from './core/errors.js';
 import { serveHttp } from './mcp/http.js';
 import { serveStdio } from './mcp/stdio.js';
@@ -20,7 +20,7 @@ const help = `Siftpath - web evidence retrieval for AI agents
   siftpath gather "comparison" [--mode quality] [--max-tokens 6000]
   siftpath html --url https://example.com/article [--query "objective"] [--readability] < page.html
   siftpath setup [--non-interactive]
-  siftpath doctor [--json]
+  siftpath doctor [--json] [--live]  # live: a potentially billable search
   siftpath providers
   siftpath usage
   siftpath integration pi|codex|cursor|claude-code|deepseek-harness
@@ -39,7 +39,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
       mode: { type: 'string' }, 'max-results': { type: 'string' }, 'max-tokens': { type: 'string' },
       recency: { type: 'string' }, domains: { type: 'string' }, query: { type: 'string' },
       url: { type: 'string' }, readability: { type: 'boolean' },
-      trace: { type: 'boolean' }, json: { type: 'boolean' },
+      trace: { type: 'boolean' }, json: { type: 'boolean' }, live: { type: 'boolean' },
       'non-interactive': { type: 'boolean' }, http: { type: 'boolean' }, host: { type: 'string' }, port: { type: 'string' },
     } });
   } catch { throw new EngineError('INVALID_INPUT', 'Invalid command-line arguments. Run siftpath --help.'); }
@@ -47,6 +47,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const [command, ...args] = parsed.positionals;
   if (values.version) { process.stdout.write(`${packageVersion}\n`); return; }
   if (values.help || !command) { process.stdout.write(help); return; }
+  if (values.live && command !== 'doctor') throw new EngineError('INVALID_INPUT', '--live is only available with siftpath doctor.');
   if (command === 'setup') { await setup(Boolean(values['non-interactive'])); return; }
   if (command === 'usage') {
     try { process.stdout.write(await readFile(usagePath(), 'utf8')); }
@@ -71,15 +72,29 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
   const configuration = await readConfiguration();
   if (command === 'doctor' || command === 'providers') {
     const report = diagnostics(configuration);
-    if (values.json) process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+    const live = command === 'doctor' && values.live ? await checkConnection(configuration) : undefined;
+    if (values.json) process.stdout.write(JSON.stringify({
+      ...report, networkChecked: Boolean(live && live.requests), ...(live ? { live } : {}),
+    }, null, 2) + '\n');
     else {
-      process.stdout.write(`Node ${report.runtime} | configuration ${configPath()}\n`);
-      for (const provider of report.providers) process.stdout.write(`${provider.state.padEnd(8)} ${provider.id.padEnd(11)} ${provider.roles.join('/')}\n`);
-      process.stdout.write(`Routes: fast=${report.routes.fast.join(',') || 'none'} quality=${report.routes.quality.join(',') || 'none'}\n`);
-      process.stdout.write('No network calls made. Run npm run test:live from source for explicit, potentially billable provider checks.\n');
+      process.stdout.write('Node ' + report.runtime + ' | configuration ' + configPath() + '\n');
+      for (const provider of report.providers)
+        process.stdout.write(provider.state.padEnd(8) + ' ' + provider.id.padEnd(11) + ' ' + provider.roles.join('/') + '\n');
+      process.stdout.write('Routes: fast=' + (report.routes.fast.join(',') || 'none') +
+        ' quality=' + (report.routes.quality.join(',') || 'none') + '\n');
+      if (live) {
+        if (live.ok) process.stdout.write('Connection OK: ' + live.provider + ' returned ' + live.results + ' result(s).\n');
+        else process.stdout.write('Connection check failed: ' + (live.code ?? 'UNKNOWN') +
+          (live.provider ? ' (' + live.provider + ')' : '') + '. ' + (live.next ?? '') + '\n');
+        process.stdout.write('Potentially billable check; HTTP attempts: ' + (live.requests ?? 0) + '.\n');
+      } else {
+        process.stdout.write('Local config only; no network calls. To check a real provider (may charge): siftpath doctor --live\n');
+        if (!report.readyForSearch) process.stdout.write('No search key: run siftpath setup or set EXA_API_KEY / TAVILY_API_KEY.\n');
+      }
     }
-    // A missing optional provider is not an error; doctor signals unusable retrieval configuration.
-    if (command === 'doctor' && (!report.supportedRuntime || !report.readyForSearch && !report.readyForFetch)) process.exitCode = 2;
+    if (command === 'doctor' && (!report.supportedRuntime || !report.readyForSearch && !report.readyForFetch))
+      process.exitCode = 2;
+    else if (live && !live.ok) process.exitCode = live.code === 'NO_SEARCH_PROVIDER' ? 2 : 1;
     return;
   }
   const trace = values.trace ? (event: TraceEvent) => process.stderr.write(JSON.stringify(event) + '\n') : undefined;

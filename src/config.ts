@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { EvidenceEngine } from './core/engine.js';
-import { EngineError } from './core/errors.js';
+import { EngineError, errorCode } from './core/errors.js';
 import { JsonHttp, type FetchTransport } from './core/http.js';
 import type { EvidenceRanking, ProviderBase, Providers, Usage } from './core/types.js';
 import { selectProviders } from './core/processing.js';
@@ -124,6 +124,32 @@ export function configureProviders(config: Configuration, transport?: FetchTrans
   }
   return { providers, statuses };
 }
+/** Explicit bounded network check, against one search provider (never multi-provider gather). */
+export async function checkConnection(config: Configuration, transport?: FetchTransport): Promise<{
+  ok: boolean; provider?: string; results?: number; requests?: number; code?: string; next?: string;
+}> {
+  const { providers } = configureProviders(config, transport);
+  const selected = selectProviders(providers.search, { query: 'HTTP ETag', mode: 'fast', maxResults: 1 }, 1)[0];
+  if (!selected) return { ok: false, code: 'NO_SEARCH_PROVIDER', next: 'Run siftpath setup or set EXA_API_KEY / TAVILY_API_KEY.' };
+  let requests = 0;
+  const signal = AbortSignal.timeout(12_000);
+  try {
+    const result = await selected.search({ query: 'HTTP ETag', mode: 'fast', maxResults: 1 }, {
+      signal, recordHttp(event) { if (event.stage === 'http') requests++; },
+    });
+    if (result.items.length > 0) return { ok: true, provider: selected.id, results: result.items.length, requests };
+    return { ok: false, provider: selected.id, code: 'NO_RESULTS', requests,
+      next: 'The API responded, but no usable results were returned. Check your provider account and retry.' };
+  } catch (error) {
+    const code = signal.aborted ? 'TIMEOUT' : errorCode(error);
+    const next = code === 'AUTH_FAILED' ? 'Check the API key and account permissions for ' + selected.id + '.'
+      : code === 'RATE_LIMITED' ? 'Check your provider quota or rate limit.'
+      : code === 'TIMEOUT' || code === 'NETWORK_ERROR' ? 'Check DNS, connectivity and proxy settings, then retry.'
+      : 'The provider did not return a valid search result; check account status or retry later.';
+    return { ok: false, provider: selected.id, code, requests, next };
+  }
+}
+
 export function createEngine(config: Configuration, transport?: FetchTransport): EvidenceEngine {
   return new EvidenceEngine({ providers: configureProviders(config, transport).providers,
     timeoutMs: config.timeoutMs, providerTimeoutMs: config.providerTimeoutMs, evidenceRanking: config.evidenceRanking });

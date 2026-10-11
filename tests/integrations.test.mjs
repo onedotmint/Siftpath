@@ -5,12 +5,13 @@ import { mkdtemp, readFile, stat, symlink, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { EvidenceEngine, configureProviders } from '../dist/index.js';
-import { parseConfiguration, readConfiguration, writePrivateJson } from '../dist/config.js';
+import { checkConnection, parseConfiguration, readConfiguration, writePrivateJson } from '../dist/config.js';
+import { setupProviders } from '../dist/setup.js';
 import { toolDefinitions, invokeTool } from '../dist/tools.js';
 import { McpSession } from '../dist/mcp/session.js';
 import { serveHttp } from '../dist/mcp/http.js';
 import { registerPi } from '../dist/integrations/pi.js';
-import { fixtureProvider, providers } from './helpers.mjs';
+import { fixtureProvider, providers, mockTransport } from './helpers.mjs';
 
 const init={jsonrpc:'2.0',id:1,method:'initialize',params:{protocolVersion:'2025-11-25',capabilities:{},clientInfo:{name:'test',version:'1'}}};
 function engine(){const p=fixtureProvider();return new EvidenceEngine({providers:providers([p],[p])});}
@@ -119,7 +120,10 @@ test('CLI help, error codes, noninteractive setup and symlink executable work',a
  const env={...process.env,SIFTPATH_CONFIG:join(dir,'config.json')};for(const k of Object.keys(env))if(/^(EXA|PARALLEL|TAVILY|BRAVE|FIRECRAWL|JINA|CLOUDFLARE)_/.test(k))delete env[k];
  const cli=resolve('dist/cli.js');const run=args=>spawnSync(process.execPath,[cli,...args],{env,encoding:'utf8'});
  assert.equal(run(['--help']).status,0);assert.match(run(['--help']).stdout,/siftpath gather/);
- assert.equal(run(['doctor','--json']).status,2);assert.equal(run(['search','alpha']).status,1);
+ assert.equal(run(['doctor','--json']).status,2);
+  const missingLive=run(['doctor','--live','--json']);assert.equal(missingLive.status,2);
+  assert.equal(JSON.parse(missingLive.stdout).live.code,'NO_SEARCH_PROVIDER');
+  assert.equal(run(['search','alpha']).status,1);
  assert.equal(JSON.parse(run(['search','alpha']).stderr).code,'NO_EVIDENCE');
  assert.equal(run(['setup','--non-interactive']).status,0);assert.deepEqual(JSON.parse(await readFile(env.SIFTPATH_CONFIG,'utf8')),{version:1});
  const link=join(dir,'siftpath.js');await symlink(cli,link);const linked=spawnSync(process.execPath,[link,'--version'],{env,encoding:'utf8'});
@@ -168,4 +172,30 @@ test('modern stateless HTTP MCP authenticates each request without session ID',a
   assert.equal(badHeader.status,400);
   const missingEnvelope=await request({jsonrpc:'2.0',id:6,method:'tools/list',params:{}});
   assert.equal(missingEnvelope.status,400);
+});
+
+test('guided setup selects one default provider and preserves an existing search key',()=>{
+  assert.deepEqual(setupProviders('',false),['exa']);
+  assert.deepEqual(setupProviders('',true),[]);
+  assert.deepEqual(setupProviders('Tavily',false),['tavily']);
+  assert.deepEqual(setupProviders('exa,tavily,exa',false),['exa','tavily']);
+  assert.throws(()=>setupProviders('unavailable',false),{code:'INVALID_INPUT'});
+});
+test('live doctor uses only one real provider adapter without leaking credentials',async()=>{
+  const configuration={credentials:{EXA_API_KEY:'sensitive-private-key',TAVILY_API_KEY:'secondary-private-key'}};
+  const transport=mockTransport(request=>{
+    assert.equal(request.url,'https://api.exa.ai/search');
+    assert.equal(request.headers['x-api-key'],'sensitive-private-key');
+    assert.equal(request.body.numResults,1);
+    return {results:[{id:'item',url:'https://example.com/etag',title:'ETag',highlights:['HTTP ETag validation']}]};
+  });
+  const success=await checkConnection(configuration,transport.transport);
+  assert.equal(success.ok,true);assert.equal(success.provider,'exa');assert.equal(success.results,1);
+  assert.equal(success.requests,1);assert.equal(transport.calls.length,1);
+  assert.doesNotMatch(JSON.stringify(success),/private-key/);
+  const missing=await checkConnection({});
+  assert.equal(missing.code,'NO_SEARCH_PROVIDER');assert.equal(missing.requests,undefined);
+  const denied=await checkConnection(configuration,async()=>new Response('{}',{status:401}));
+  assert.equal(denied.ok,false);assert.equal(denied.code,'AUTH_FAILED');assert.equal(denied.requests,1);
+  assert.doesNotMatch(JSON.stringify(denied),/private-key/);
 });
