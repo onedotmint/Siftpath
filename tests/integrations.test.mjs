@@ -98,7 +98,7 @@ test('Pi native tools execute shared core, report progress, and clear UI state',
  const Type={String:o=>({type:'string',...o}),Integer:o=>({type:'integer',...o}),Array:(items,o)=>({type:'array',items,...o}),Literal:value=>({const:value}),
   Union:(anyOf,o)=>({anyOf,...o}),Optional:item=>({...item,optional:true}),Object:(properties,o)=>({type:'object',properties,...o})};
  registerPi({registerTool:t=>tools.push(t),registerCommand:(name,c)=>commands.push({name,...c})},Type,engine());
- assert.equal(tools.length,3);assert.deepEqual(commands.map(c=>c.name),['siftpath-doctor','smartsearch-doctor','siftpath-usage','smartsearch-usage']);
+ assert.equal(tools.length,3);assert.deepEqual(commands.map(c=>c.name),['siftpath']);
  const result=await tools.find(t=>t.name==='web_gather').execute('call',{query:'alpha beta'},undefined,r=>updates.push(r),{ui:{setStatus:(...args)=>statuses.push(args),notify(){}}});
  assert.ok(JSON.parse(result.content[0].text).evidence.length);assert.ok(updates.length);assert.equal(statuses.at(-1)[1],undefined);
  await assert.rejects(tools[0].execute('bad',{query:''},undefined,undefined,{ui:{setStatus:(...args)=>statuses.push(args),notify(){}}}),{code:'INVALID_INPUT'});assert.equal(statuses.at(-1)[1],undefined);
@@ -198,4 +198,73 @@ test('live doctor uses only one real provider adapter without leaking credential
   const denied=await checkConnection(configuration,async()=>new Response('{}',{status:401}));
   assert.equal(denied.ok,false);assert.equal(denied.code,'AUTH_FAILED');assert.equal(denied.requests,1);
   assert.doesNotMatch(JSON.stringify(denied),/private-key/);
+});
+
+test('Pi /siftpath status, usage and reload are offline, safe and single-command',async t=>{
+  const dir=await mkdtemp(join(tmpdir(),'siftpath-pi-status-'));
+  const previous=process.env.SIFTPATH_CONFIG;
+  process.env.SIFTPATH_CONFIG=join(dir,'config.json');
+  t.after(async()=>{
+    if(previous===undefined) delete process.env.SIFTPATH_CONFIG;
+    else process.env.SIFTPATH_CONFIG=previous;
+    await rm(dir,{recursive:true,force:true});
+  });
+  await writePrivateJson(process.env.SIFTPATH_CONFIG,{version:1,credentials:{EXA_API_KEY:'very-private-exa-key'}});
+  const commands=[],notifications=[],tools=[];
+  const ui={setStatus(){},notify:(message,level)=>notifications.push({message,level})};
+  const Type={String:o=>({type:'string',...o}),Integer:o=>({type:'integer',...o}),Array:(items,o)=>({type:'array',items,...o}),
+    Literal:value=>({const:value}),Union:(anyOf,o)=>({anyOf,...o}),Optional:item=>({...item,optional:true}),
+    Object:(properties,o)=>({type:'object',properties,...o})};
+  const original=engine();
+  await original.search({query:'alpha'});
+  registerPi({registerTool:tool=>tools.push(tool),registerCommand:(name,c)=>commands.push({name,...c})},Type,original);
+  assert.deepEqual(commands.map(c=>c.name),['siftpath']);
+  assert.equal(tools.length,3);
+  const command=commands[0];
+  await command.handler('',{ui});
+  assert.match(notifications.at(-1).message,/Siftpath v2\.0\.0-next\.1 \| loaded/);
+  assert.match(notifications.at(-1).message,/Search: exa/);
+  assert.match(notifications.at(-1).message,/Network: not checked/);
+  assert.match(notifications.at(-1).message,/Pi session: 1 operations/);
+  await command.handler('usage',{ui});
+  assert.match(notifications.at(-1).message,/Operations: 1/);
+  assert.match(notifications.at(-1).message,/HTTP requests: 0/);
+  assert.doesNotMatch(notifications.map(x=>x.message).join('\n'),/very-private-exa-key/);
+  await writePrivateJson(process.env.SIFTPATH_CONFIG,{version:1,credentials:{TAVILY_API_KEY:'another-private-key'}});
+  await command.handler('reload',{ui});
+  assert.match(notifications.at(-1).message,/Cache and session usage reset/);
+  await command.handler('status',{ui});
+  assert.match(notifications.at(-1).message,/Search: tavily/);
+  assert.match(notifications.at(-1).message,/Pi session: 0 operations/);
+  await command.handler('usage',{ui});
+  assert.match(notifications.at(-1).message,/Operations: 0/);
+  await command.handler('help',{ui});
+  assert.match(notifications.at(-1).message,/Usage: \/siftpath/);
+  assert.doesNotMatch(notifications.map(x=>x.message).join('\n'),/another-private-key/);
+});
+test('Pi /siftpath reload preserves working engine when new configuration is invalid',async t=>{
+  const dir=await mkdtemp(join(tmpdir(),'siftpath-pi-reload-'));
+  const previous=process.env.SIFTPATH_CONFIG;
+  process.env.SIFTPATH_CONFIG=join(dir,'config.json');
+  t.after(async()=>{
+    if(previous===undefined) delete process.env.SIFTPATH_CONFIG;
+    else process.env.SIFTPATH_CONFIG=previous;
+    await rm(dir,{recursive:true,force:true});
+  });
+  await writePrivateJson(process.env.SIFTPATH_CONFIG,{version:1,credentials:{EXA_API_KEY:'placeholder-private'}});
+  const commands=[],notifications=[];
+  const Type={String:o=>({type:'string',...o}),Integer:o=>({type:'integer',...o}),Array:(items,o)=>({type:'array',items,...o}),
+    Literal:value=>({const:value}),Union:(anyOf,o)=>({anyOf,...o}),Optional:item=>({...item,optional:true}),
+    Object:(properties,o)=>({type:'object',properties,...o})};
+  const original=engine();
+  await original.search({query:'alpha'});
+  registerPi({registerTool(){},registerCommand:(name,c)=>commands.push({name,...c})},Type,original);
+  const ui={setStatus(){},notify:(message,level)=>notifications.push({message,level})};
+  await writePrivateJson(process.env.SIFTPATH_CONFIG,{version:1,credentials:{INVALID_API_KEY:'do-not-echo'}});
+  await commands[0].handler('reload',{ui});
+  assert.equal(notifications.at(-1).level,'error');
+  assert.match(notifications.at(-1).message,/Previous engine and session usage were kept/);
+  await commands[0].handler('usage',{ui});
+  assert.match(notifications.at(-1).message,/Operations: 1/);
+  assert.doesNotMatch(notifications.map(x=>x.message).join('\n'),/do-not-echo/);
 });

@@ -2,11 +2,11 @@
 
 ## Pi：推荐的原生集成
 
-**正式发布 npm 后**：在 Pi 中执行 `pi install npm:@onedotmint/siftpath`，重启后运行 `/siftpath-doctor`。如果没有配置 API Key，该命令会给出需要在**系统终端**执行的设置命令；密钥不得粘贴在 AI 对话中。
+**正式发布 npm 后**：在 Pi 中执行 `pi install npm:@onedotmint/siftpath`，重启后运行 `/siftpath` 查看状态。还可以使用 `/siftpath usage` 查看本会话调用和缓存数据，或 `/siftpath reload` 在更改配置后重新建立检索引擎（清空内存缓存及计数）。三个操作均不联网、不会计费或暴露密钥；状态中的“已配置”不代表真实连通。如果没有配置 API Key，`/siftpath` 会给出需要在**系统终端**执行的设置命令；密钥不得粘贴在 AI 对话中。
 
 **当前 PR 的开发者试用**：按 [README](../README.md) 克隆并编译 `feat/lightweight-html-mcp-2026` 分支，再执行 `pi install /absolute/path/to/Siftpath`。直接安装尚未编译的 Git 源无法保证 `dist/` 存在；因此目前不宣传 git: 一键安装为可靠方式。
 
-Pi 原生集成只有 `web_search`、`web_fetch`、`web_gather` 三个工具和本地诊断命令。不要再重复加载相同的 MCP 工具。验证安装请使用 `pi list` 并在 Pi 内运行 `/siftpath-doctor`；仅有仓库构建 CI 通过不代表 Pi 宿主已经完成真实安装测试。
+Pi 原生集成只有 `web_search`、`web_fetch`、`web_gather` 三个工具，以及一个 `/siftpath` 命令（省略参数等同 `status`；支持 `usage` 和 `reload`）。旧 Pi 命令在 2.0 预发布阶段直接删除，不额外注册别名。不要再重复加载相同的 MCP 工具。验证安装请使用 `pi list` 并在 Pi 内运行 `/siftpath`；仅有仓库构建 CI 通过不代表 Pi 宿主已经完成真实安装测试。
 
 ## Codex and local ChatGPT desktop
 

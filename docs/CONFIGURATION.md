@@ -1,6 +1,6 @@
 # Configuration
 
-The package is `@onedotmint/siftpath`, the primary CLI is `siftpath`, and project environment variables use `SIFTPATH_*`. Legacy CLI/Pi commands and `SMARTSEARCH_*` variables remain limited compatibility aliases; new variables take precedence. Provider credential names do not change. See [MIGRATION.md](MIGRATION.md); no keys or configuration files are automatically moved.
+The package is `@onedotmint/siftpath`, the primary CLI is `siftpath`, and project environment variables use `SIFTPATH_*`. Legacy CLI aliases and `SMARTSEARCH_*` variables remain limited compatibility aliases; Pi's old commands have been consolidated into `/siftpath` with `usage` and `reload` subcommands. New variables take precedence. Provider credential names do not change. See [MIGRATION.md](MIGRATION.md); no keys or configuration files are automatically moved.
 
 ## One-time setup
 
@@ -33,7 +33,7 @@ Files created by setup use atomic replacement and mode 0600 on POSIX, with newly
 
 `siftpath doctor` 检查本地环境、配置与路由，不联网，配置存在不代表 API Key 有效。`siftpath doctor --live` 由用户明确触发一次可能收费的搜索 API 检查，默认只选一个服务商且允许一次网络重试；返回状态、结果数和安全的错误提示，不打印密钥或搜索内容。 Exit 2 means no configured search or fetch role, or an unsupported runtime; a missing optional reranker/decision provider alone is not an error. `--json` gives a machine-readable report.
 
-`siftpath providers` lists roles and states. `siftpath usage` reads only the last CLI operation; it is not cumulative billing. `engine.usage()` and `/siftpath-usage` in Pi retain in-process totals. Pi also exposes `/siftpath-doctor`. `--trace` writes provider timing/call/retry/cache events to stderr for CLI and MCP, not into returned agent evidence.
+`siftpath providers` lists roles and states. `siftpath usage` reads only the last CLI operation; it is not cumulative billing. `engine.usage()` and `/siftpath usage` in Pi report in-process totals. `/siftpath` displays an offline summary and `/siftpath reload` reapplies configuration while resetting process-local caches and counters. `--trace` writes provider timing/call/retry/cache events to stderr for CLI and MCP, not into returned agent evidence.
 
 ## HTTP serving
 

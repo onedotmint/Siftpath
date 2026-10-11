@@ -12,7 +12,7 @@
 pi install npm:@onedotmint/siftpath
 ```
 
-重启 Pi，运行 `/siftpath-doctor`。如果缺少密钥，它会告诉你需要在**系统终端**执行的配置命令；不要将 API Key 粘贴进 AI 对话。默认只需要一个 Exa 密钥，也支持 Tavily、Parallel 或 Brave。
+重启 Pi，运行 `/siftpath` 查看版本、搜索服务、连接检查状态和本会话调用统计。`/siftpath usage` 查看使用情况，`/siftpath reload` 在修改 API Key 后重新加载配置（会清空当前内存缓存与会话计数）。这些命令不会联网或打印密钥；真实连接检查仍通过终端 `siftpath doctor --live` 明确触发。缺少密钥时，`/siftpath` 会给出在**系统终端**执行的配置命令；不要将 API Key 粘贴进 AI 对话。默认只需要一个 Exa 密钥，也支持 Tavily、Parallel 或 Brave。
 
 ### CLI（正式发布后）
 
@@ -109,7 +109,7 @@ console.log(pack.evidence, pack.coverage);
 
 `siftpath integration pi`（或其他 host 名）可定位本地集成资产和绝对 Node/MCP 命令。集成 ID 为 `siftpath`，本地 marketplace 为 `siftpath-local`。实际安装说明见[集成文档](docs/INTEGRATIONS.md)；公共 ChatGPT 连接需要另行部署和注册，不是仓库文件已完成的发布。
 
-旧 CLI、Pi 命令和环境变量仅作为兼容别名保留；旧配置不会自动搬迁。旧 npm 包不会自动切换成新 SDK。升级请看[迁移说明](docs/MIGRATION.md)。
+旧 CLI 和环境变量仅作为兼容别名保留；旧的 Pi `/siftpath-doctor`、`/siftpath-usage` 和 `/smartsearch-*` 命令已统一为 `/siftpath`，不再注册。旧配置不会自动搬迁。旧 npm 包不会自动切换成新 SDK。升级请看[迁移说明](docs/MIGRATION.md)。
 
 ## 文档与验证边界
 
