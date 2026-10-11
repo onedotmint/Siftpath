@@ -10,7 +10,7 @@ export async function htmlPage(value: HtmlInput): Promise<Page> {
   input(typeof value.html === 'string' && value.html.trim().length > 0 &&
     Buffer.byteLength(value.html, 'utf8') <= 1_048_576, 'HTML input must be 1 byte to 1 MiB of UTF-8.');
   const extractor = value.extractor ?? 'basic';
-  input(extractor === 'basic' || extractor === 'readability', 'Unsupported HTML extractor.');
+  input(extractor === 'basic' || extractor === 'readability' || extractor === 'defuddle', 'Unsupported HTML extractor.');
   const titleMarkup = /<title\b[^>]*>([\s\S]*?)<\/title\s*>/i.exec(value.html)?.[1] ?? '';
   let title = cleanText(titleMarkup);
   const body = /<body\b[^>]*>([\s\S]*?)<\/body\s*>/i.exec(value.html)?.[1] ?? value.html;
@@ -35,6 +35,20 @@ export async function htmlPage(value: HtmlInput): Promise<Page> {
       text = cleanText(result.content ?? result.textContent ?? '');
     } catch {
       throw new EngineError('HTML_EXTRACT_FAILED', 'Readability could not extract this HTML. Try the basic extractor.');
+    }
+  }
+  if (extractor === 'defuddle') {
+    try {
+      const domPackage = 'linkedom', extractPackage = 'defuddle/node';
+      const dom = await import(domPackage) as { parseHTML: (html: string) => { document: Document } };
+      const reader = await import(extractPackage) as { Defuddle: (document: Document, url: string, options: { markdown: boolean }) => Promise<{ title?: string; content?: string }> };
+      const result = await reader.Defuddle(dom.parseHTML(value.html).document, url, { markdown: true });
+      title = cleanText(result.title ?? '') || title;
+      text = cleanText(result.content ?? '');
+    } catch (error) {
+      if (error instanceof Error && (error.message.includes('Cannot find') || error.message.includes('ERR_MODULE_NOT_FOUND')))
+        throw new EngineError('OPTIONAL_EXTRACTOR_UNAVAILABLE', 'For --defuddle, install defuddle and linkedom alongside Siftpath.');
+      throw new EngineError('HTML_EXTRACT_FAILED', 'Defuddle could not extract this HTML. Try the basic extractor.');
     }
   }
   input(text.length > 0, 'No readable text in HTML.');
