@@ -9,17 +9,18 @@ const tmp=await mkdtemp(join(tmpdir(),'siftpath-packed-'));
 const npm=process.platform==='win32'?process.execPath:'npm';
 const npmPrefix=process.platform==='win32'?[join(dirname(process.execPath),'node_modules','npm','bin','npm-cli.js')]:[];
 const run=(cmd,args,opts={})=>{
-  const result=spawnSync(cmd,cmd===npm?[...npmPrefix,...args]:args,{encoding:'utf8',cwd:root,timeout:120000,...opts});
+  const result=spawnSync(cmd,args,{encoding:'utf8',cwd:root,timeout:120000,...opts});
   assert.equal(result.status,0,cmd+' '+args.join(' ')+' failed: '+String(result.stderr).slice(-3000));
   return result.stdout;
 };
+const runNpm=args=>run(npm,[...npmPrefix,...args]);
 try {
-  const pack=JSON.parse(run(npm,['pack','--json','--ignore-scripts','--pack-destination',tmp]));
+  const pack=JSON.parse(runNpm(['pack','--json','--ignore-scripts','--pack-destination',tmp]));
   assert.equal(pack.length,1);
   const file=join(tmp,pack[0].filename);
   await stat(file);
   const prefix=join(tmp,'consumer');
-  run(npm,['install','--prefix',prefix,'--ignore-scripts','--no-audit','--no-fund',file]);
+  runNpm(['install','--prefix',prefix,'--ignore-scripts','--no-audit','--no-fund',file]);
   const pkg=join(prefix,'node_modules','@onedotmint','siftpath');
   const json=JSON.parse(await readFile(join(pkg,'package.json'),'utf8'));
   assert.ok(json.pi?.extensions?.length);
