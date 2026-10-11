@@ -123,6 +123,6 @@ console.log(pack.evidence, pack.coverage);
 | [服务商](docs/PROVIDERS.md) / [来源与复用](docs/REFERENCES.md) | 托管 API 契约和历史溯源 |
 | [历史归档](docs/history/README.md) | 此前交付与验证记录，不能视为当前验证结果 |
 
-本轮未安装依赖、运行测试、类型检查、构建、打包、基准或真实 API 调用；未验证客户端实际安装。锁文件已补齐此前缺失的 integrity，但干净安装仍待验证。已有离线测试和合成回放不证明真实服务商质量或费用。
+当前 Draft PR 的 GitHub Actions 验证会执行干净安装、类型检查、离线测试、合成基准、源码核验、npm 打包检查，并使用官方 MCP 客户端和可选 Readability 解析器做独立联通测试。是否通过以最新提交对应的 CI 为准。未配置凭据时实时 API 检查会跳过，因此不声称真实搜索服务商质量、费用或正式 MCP Conformance 已经过验证。
 
 MIT；保留原始 SmartSearch / GuDaStudio 版权声明。见 [LICENSE](LICENSE) 与 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
