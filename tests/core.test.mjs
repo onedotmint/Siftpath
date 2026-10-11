@@ -117,3 +117,10 @@ test('offline HTML ingestion needs no API provider or network, and respects evid
   await assert.rejects(engine.fromHtml({url:'http://localhost/private',html:'<p>secret</p>'}),{code:'INVALID_INPUT'});
   await assert.rejects(engine.fromHtml({url:'https://example.com',html:'x'.repeat(1_048_577)}),{code:'INVALID_INPUT'});
 });
+
+test('optional HTML extraction is opt-in and rejects conflicting CLI-only modes',async()=>{
+ const engine=new EvidenceEngine({providers:providers([])});
+ await assert.rejects(engine.fromHtml({url:'https://example.com',html:'<p>hello</p>',extractor:'unknown'}),{code:'INVALID_INPUT'});
+ const basic=await engine.fromHtml({url:'https://example.com',html:'<p>hello</p>'});
+ assert.ok(basic.evidence.length);assert.equal(basic.usage.httpRequests,0);
+});
