@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, resolve, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 const root=resolve('.');
 const tmp=await mkdtemp(join(tmpdir(),'siftpath-packed-'));
-const npm=process.platform==='win32'?'npm.cmd':'npm';
+// Windows Node cannot spawn .cmd directly with shell:false; invoke the bundled npm CLI via Node.
+const npm=process.platform==='win32'?process.execPath:'npm';
+const npmPrefix=process.platform==='win32'?[join(dirname(process.execPath),'node_modules','npm','bin','npm-cli.js')]:[];
 const run=(cmd,args,opts={})=>{
-  const result=spawnSync(cmd,args,{encoding:'utf8',cwd:root,timeout:120000,...opts});
+  const result=spawnSync(cmd,cmd===npm?[...npmPrefix,...args]:args,{encoding:'utf8',cwd:root,timeout:120000,...opts});
   assert.equal(result.status,0,cmd+' '+args.join(' ')+' failed: '+String(result.stderr).slice(-3000));
   return result.stdout;
 };
