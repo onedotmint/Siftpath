@@ -27,3 +27,17 @@ jobs:
       - run: npm run verify:source
       - run: npm run test:live
       - run: npm run pack:dry
+
+  mcp-official-interop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @modelcontextprotocol/client@2.3.1
+      - run: node tests/official-mcp-smoke.mjs
