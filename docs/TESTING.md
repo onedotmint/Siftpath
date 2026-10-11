@@ -12,7 +12,7 @@ Provider contracts: request endpoints/headers/bodies; normalized optional metada
 
 Reliability: normal fast/quality fanout, bounded alternate searches, partial/global/provider timeout, non-cooperative provider containment, actual AbortSignal propagation, query-aware batch cache, result-ID lifetime, PDF capability filtering, unresolved-only fallback, absent/failing optional services, one supplementary round, observer errors, request retries/body limits.
 
-Integrations: shared tool schemas, MCP initialization/cancel/progress, an actual child-process stdio server, authenticated local HTTP sessions, Pi's structural tool/command/cancellation contract, private configuration, CLI setup/errors/symlink invocation, manifest contents, canonical skill synchronization, architecture boundaries, and portable lock paths.
+Integrations: shared tool schemas, MCP initialization/cancel/progress, an actual child-process stdio server, authenticated modern-only stateless HTTP (including rejection of legacy sessions), Pi's structural tool/command/cancellation contract, private configuration, CLI setup/errors/symlink invocation, manifest contents, canonical skill synchronization, architecture boundaries, and portable lock paths.
 
 These tests do not certify official MCP conformance, Windows behavior, a running Pi UI, or actual third-party host installation.
 
@@ -62,7 +62,7 @@ When verification is authorized, inspect the pack preview, generate the tarball 
 
 ## MCP official-client interoperability
 
-The dedicated CI job installs `@modelcontextprotocol/client@2.3.1` **temporarily for tests only** and exercises both protocol eras over authenticated HTTP and stdio. This catches real SDK result-shape/negotiation incompatibilities that self-tests miss; production dependencies and npm lockfile remain unchanged. The test is a narrow smoke check, not the complete MCP conformance suite. In case of failure, do not claim the modern protocol is compatible or merge the draft PR.
+The dedicated CI job installs `@modelcontextprotocol/client@2.3.1` **temporarily for tests only** and exercises modern authenticated HTTP and both protocol eras over stdio, while confirming legacy HTTP is rejected. This catches real SDK result-shape/negotiation incompatibilities that self-tests miss; production dependencies and npm lockfile remain unchanged. The test is a narrow smoke check, not the complete MCP conformance suite. In case of failure, do not claim the modern protocol is compatible or merge the draft PR.
 
 ## BM25 lexical ranking experiment
 

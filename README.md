@@ -80,7 +80,7 @@ npm run bench:bm25
 
 ## MCP protocol compatibility
 
-The built-in zero-runtime-dependency MCP server handles modern `2026-07-28` `server/discover`, tool discovery and the existing three tool calls alongside legacy 2025 clients. Local stdio remains the default. Authenticated HTTP recognizes the modern per-request metadata envelope and standard headers; old HTTP sessions remain available. This is **minimal protocol compatibility**, not a claim of complete official MCP SDK/conformance support. No Express, Python, database, browser, or local AI model is required. Run the integration test suite after changes and validate against an independent official client before release.
+The built-in zero-runtime-dependency MCP server handles modern `2026-07-28` `server/discover`, tool discovery and the existing three tool calls alongside legacy 2025 clients. Local stdio remains the default and still accepts legacy 2025 initialization. Authenticated HTTP supports only the modern `2026-07-28` stateless protocol; older HTTP session/init clients must migrate to modern HTTP or use stdio. There is no session store or cleanup timer. This is **minimal protocol compatibility**, not a claim of complete official MCP SDK/conformance support. No Express, Python, database, browser, or local AI model is required. Run the integration test suite after changes and validate against an independent official client before release.
 
 ## SDK
 

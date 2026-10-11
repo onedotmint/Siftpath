@@ -48,21 +48,35 @@ test('MCP progress only emits when explicitly requested',async()=>{
  await session.dispatch({jsonrpc:'2.0',id:3,method:'tools/call',params:{name:'web_search',arguments:{query:'alpha'},_meta:{progressToken:'p'}}},m=>messages.push(m));
  assert.ok(messages.length);assert.ok(messages.every(m=>m.method==='notifications/progress'&&m.params.progressToken==='p'));session.close();
 });
-test('HTTP MCP supports authenticated sessions and rejects unsafe origins and methods',async t=>{
- const token='unit-test-only-not-a-real-secret-12345';const server=await serveHttp({createEngine:engine,token,port:0});t.after(()=>server.close());
- const url=`http://127.0.0.1:${server.port}/mcp`,headers={authorization:`Bearer ${token}`,'content-type':'application/json',accept:'application/json, text/event-stream'};
- assert.equal((await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(init)})).status,401);
- assert.equal((await fetch(url,{method:'POST',headers:{...headers,origin:'https://evil.test'},body:JSON.stringify(init)})).status,403);
- const first=await fetch(url,{method:'POST',headers,body:JSON.stringify(init)});assert.equal(first.status,200);const sid=first.headers.get('mcp-session-id');assert.ok(sid);await first.json();
- const sessionHeaders={...headers,'mcp-session-id':sid,'mcp-protocol-version':'2025-11-25'};
- const response=await fetch(url,{method:'POST',headers:sessionHeaders,body:JSON.stringify({jsonrpc:'2.0',id:2,method:'tools/call',params:{name:'web_gather',arguments:{query:'alpha beta'}}})});
- assert.equal(response.status,200);assert.ok(JSON.parse((await response.json()).result.content[0].text).evidence.length);
- assert.equal((await fetch(url,{method:'POST',headers:sessionHeaders,body:JSON.stringify({jsonrpc:'2.0',method:'notifications/initialized'})})).status,202);
- assert.equal((await fetch(url,{headers:sessionHeaders})).status,405);
- assert.equal((await fetch(url,{method:'POST',headers:{...sessionHeaders,'mcp-protocol-version':'9999'},body:'{}'})).status,400);
- assert.equal((await fetch(url,{method:'POST',headers:sessionHeaders,body:'not-json'})).status,400);
- assert.equal((await fetch(url,{method:'DELETE',headers:sessionHeaders})).status,200);
- assert.equal((await fetch(url,{method:'POST',headers:sessionHeaders,body:'{}'})).status,404);
+test('modern-only HTTP rejects legacy sessions and preserves security guards',async t=>{
+  const token='unit-test-only-not-a-real-secret-12345';
+  const server=await serveHttp({createEngine:engine,token,port:0});t.after(()=>server.close());
+  const url=`http://127.0.0.1:${server.port}/mcp`,headers={
+    authorization:`Bearer ${token}`,'content-type':'application/json',
+    accept:'application/json, text/event-stream','mcp-protocol-version':'2026-07-28'
+  };
+  const discover={jsonrpc:'2.0',id:1,method:'server/discover',params:{_meta:{
+    'io.modelcontextprotocol/protocolVersion':'2026-07-28',
+    'io.modelcontextprotocol/clientCapabilities':{}
+  }}};
+  const post=(message,overrides={})=>fetch(url,{method:'POST',
+    headers:{...headers,'mcp-method':message.method,...overrides},body:JSON.stringify(message)});
+  assert.equal((await fetch(url,{method:'POST',headers:{'content-type':'application/json'},
+    body:JSON.stringify(init)})).status,401);
+  assert.equal((await post(discover,{origin:'https://evil.test'})).status,403);
+  assert.equal((await fetch(url,{method:'POST',headers:{...headers,'mcp-protocol-version':'2025-11-25'},
+    body:JSON.stringify(init)})).status,400);
+  assert.equal((await fetch(url,{method:'POST',headers:{authorization:`Bearer ${token}`,'content-type':'application/json'},
+    body:JSON.stringify(init)})).status,400);
+  assert.equal((await fetch(url,{method:'POST',headers:{...headers,'mcp-session-id':'old-session','mcp-method':'server/discover'},
+    body:JSON.stringify(discover)})).status,400);
+  assert.equal((await fetch(url,{method:'DELETE',headers})).status,405);
+  assert.equal((await fetch(url,{headers})).status,405);
+  assert.equal((await fetch(url,{method:'POST',headers:{...headers,'mcp-method':'server/discover'},
+    body:'not-json'})).status,400);
+  const supported=await post(discover);assert.equal(supported.status,200);
+  assert.equal(supported.headers.get('mcp-session-id'),null);
+  assert.deepEqual((await supported.json()).result.supportedVersions,['2026-07-28']);
 });
 test('HTTP credentials are mandatory and not echoed',async()=>{
  await assert.rejects(serveHttp({createEngine:engine,token:'short',port:0}),{code:'INVALID_CONFIG'});

@@ -51,7 +51,7 @@ The server is single-tenant. Do not expose a shared provider account to multiple
 
 `fetch` accepts 1-20 URLs or session-scoped result IDs. `maxTokens` is 256-20,000 for fetch/gather. Search deliberately keeps a fixed compact budget and only exposes query, maxResults, recency, domains, and mode. Recency accepts `day`, `week`, `month`, `year`, an amount such as `7d`/`24h`, or a valid ISO calendar date. Domain filters are hostnames, not arbitrary URL expressions.
 
-The SDK supports custom timeouts/tokenizers/cache TTLs through `EvidenceEngine`. Process-local caches disappear when the CLI exits. For reuse and `resultIds`, keep one SDK engine, Pi instance, or MCP session alive.
+HTTP accepts only MCP `2026-07-28`; legacy MCP clients use `siftpath mcp` via stdio. The SDK supports custom timeouts/tokenizers/cache TTLs through `EvidenceEngine`. Process-local caches disappear when the CLI exits. For reuse and `resultIds`, keep one SDK engine, Pi instance, or stdio MCP connection alive. Modern HTTP reuses its bounded in-memory index within the same running process, not across restarts.
 
 ## Experimental local evidence ranking
 

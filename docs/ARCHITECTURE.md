@@ -53,6 +53,6 @@ Heuristic coverage combines lexical query coverage and source diversity. Clef ca
 
 ## Transport and privacy boundary
 
-Stdio is local. HTTP is a bounded, single-tenant, authenticated service with a shared server token, per-session engines, maximum sessions/concurrent calls, request size limits, host/origin checks, and explicit cancellation. It implements Streamable HTTP JSON response mode, not legacy SSE or an OAuth identity platform. HTTPS and stronger multi-user identity belong at the deployment boundary.
+Stdio is local. HTTP is a bounded, single-tenant, authenticated service with a shared server token, one in-memory engine, bounded concurrent requests, request size limits, host/origin checks, and explicit cancellation. The HTTP endpoint is modern `2026-07-28` only (no legacy sessions). It implements Streamable HTTP JSON response mode, not legacy SSE or an OAuth identity platform. HTTPS and stronger multi-user identity belong at the deployment boundary.
 
 Provider keys come from the private user configuration/environment and never enter tool schemas. The CLI stores only latest-operation usage, not query or page content. SDK/Pi usage is session-local. Trace is opt-in and omits provider payloads/credentials. See SECURITY.md for limitations.

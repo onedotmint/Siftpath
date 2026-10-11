@@ -20,7 +20,6 @@ const tasks = [];
 try {
   for (const [label,protocol,era] of [
     ['HTTP modern',{versionNegotiation:{mode:{pin:'2026-07-28'}}},'modern'],
-    ['HTTP legacy',{},'legacy'],
   ]) {
     const client = new Client({name:'siftpath-official-ci',version:'1'},protocol);
     try {
@@ -36,6 +35,14 @@ try {
       tasks.push(label);
     } finally {await client.close();}
   }
+  // HTTP deliberately refuses the old initialize handshake; stdio retains it.
+  const oldClient=new Client({name:'siftpath-legacy-probe',version:'1'});
+  try {
+    await assert.rejects(oldClient.connect(new StreamableHTTPClientTransport(new URL(URL_TEXT),{
+      requestInit:{headers:{authorization:`Bearer ${token}`}},
+    })));
+    tasks.push('HTTP legacy rejected');
+  } finally { await oldClient.close(); }
   for(const [label,protocol,era] of [
     ['stdio legacy',{},'legacy'],
     ['stdio modern',{versionNegotiation:{mode:{pin:'2026-07-28'}}},'modern'],
