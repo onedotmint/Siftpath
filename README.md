@@ -65,6 +65,10 @@ siftpath html --url https://example.com/article --query "retry policy" < article
 SDK: `await engine.fromHtml({ url: 'https://example.com/article', html, query: 'retry policy' })`.
 The `url` is source metadata only: no DNS lookup or HTTP fetch happens. Input is capped at 1 MiB; the normal complete-result token budget applies. This is deliberately **not** a fourth AI/MCP tool. Basic cleanup is dependency-free and may retain navigation. For article-oriented parsing, explicitly install `@mozilla/readability` and `linkedom` in the same Node resolution scope and use `--readability` (or `extractor: 'readability'`). These libraries are never installed by Siftpath itself. No Trawl, Chromium, Python, or local model is required.
 
+## MCP protocol compatibility
+
+The built-in zero-runtime-dependency MCP server handles modern `2026-07-28` `server/discover`, tool discovery and the existing three tool calls alongside legacy 2025 clients. Local stdio remains the default. Authenticated HTTP recognizes the modern per-request metadata envelope and standard headers; old HTTP sessions remain available. This is **minimal protocol compatibility**, not a claim of complete official MCP SDK/conformance support. No Express, Python, database, browser, or local AI model is required. Run the integration test suite after changes and validate against an independent official client before release.
+
 ## SDK
 
 在消费项目中安装本地打包产物后，使用当前包名：
