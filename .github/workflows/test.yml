@@ -41,3 +41,5 @@ jobs:
       - run: npm run build
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @modelcontextprotocol/client@2.3.1
       - run: node tests/official-mcp-smoke.mjs
+      - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @mozilla/readability@0.6.0 linkedom@0.18.12
+      - run: node tests/optional-html-smoke.mjs
