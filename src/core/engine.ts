@@ -55,7 +55,7 @@ export class EvidenceEngine {
     const budget = integer(value.maxTokens, 3000, 256, 20000, 'maxTokens');
     return this.run(options, async run => {
       const pages = await this.fetchStage(targets, query, run);
-      const evidence = rankEvidence(uniqueEvidence(pages.flatMap(page => pageEvidence(page, query))), query, this.options.evidenceRanking);
+      const evidence = rankEvidence(uniqueEvidence(pages.flatMap(page => this.evidence(page, query, run))), query, this.options.evidenceRanking);
       if (!evidence.length) throw this.empty(run, 'No usable page content. Configure an extract provider or inspect warnings.');
       return this.pack(query, diverse(evidence, item => item.url, 24), budget, run);
     });
@@ -67,7 +67,7 @@ export class EvidenceEngine {
     const budget = integer(value.maxTokens, 3000, 256, 20000, 'maxTokens');
     return this.run(options, async run => {
       const page = await htmlPage(value);
-      const evidence = rankEvidence(pageEvidence(page, query), query, this.options.evidenceRanking);
+      const evidence = rankEvidence(this.evidence(page, query, run), query, this.options.evidenceRanking);
       if (!evidence.length) throw this.empty(run, 'No usable HTML evidence.');
       if ((value.extractor ?? 'basic') === 'basic') run.warnings.push({
         code: 'BASIC_HTML_EXTRACTION', message: 'Basic HTML cleanup may retain navigation; use optional Readability for article-focused extraction.',
@@ -180,6 +180,12 @@ export class EvidenceEngine {
     this.emit(run, { stage: 'fuse', count: selectedResults.length, status: 'ok' });
     return selectedResults;
   }
+  private evidence(page: Page, query: string, run: Run, rank?: number): Evidence[] {
+    const items = pageEvidence(page, query, rank);
+    run.warnings.push(...uniqueWarnings(items.flatMap(item => item.warnings ?? [])).map(warning => ({ ...warning,
+      provider: warning.provider ?? page.provider, sourceId: warning.sourceId ?? sourceId(page.url) })));
+    return items;
+  }
   private async fetchStage(urls: string[], query: string, run: Run): Promise<Page[]> {
     const pages: Page[] = [], pending: string[] = [];
     for (const url of urls) {
@@ -204,7 +210,7 @@ export class EvidenceEngine {
       this.account(result, run);
       for (const page of result.items) {
         const key = canonicalUrl(page.url);
-        if (!expected.has(key) || !pageEvidence(page, query).length) continue;
+        if (!expected.has(key) || !this.evidence(page, query, run).length) continue;
         pages.push(page); expected.delete(key);
         this.pageCache.set(`${key}:${query}`, page, this.options.fetchTtlMs ?? 300000);
       }
@@ -218,10 +224,12 @@ export class EvidenceEngine {
     const pages = await this.fetchStage(selected.map(candidate => candidate.url), query, run);
     const fetched = new Set(pages.map(page => canonicalUrl(page.url)));
     for (const candidate of candidates) if (!fetched.has(canonicalUrl(candidate.url)) && candidate.excerpts.length) {
-      pages.push({ ...candidate, text: candidate.excerpts.join('\n\n'), sourceId: candidate.origins[0]?.sourceId });
+      pages.push({ ...candidate, text: candidate.excerpts.join('\n\n'), sourceId: candidate.origins[0]?.sourceId,
+        warnings: [...candidate.warnings ?? [], ...(candidate.truncated ? [{ code: 'CONTENT_TRUNCATED', provider: candidate.provider, sourceId: candidate.id,
+          message: 'Search excerpts were truncated; full page content was not retrieved.' }] : [])] });
       run.warnings.push({ code: 'EXCERPT_ONLY', message: 'Some evidence comes from search excerpts rather than a fetched page.' });
     }
-    const ranked = rankEvidence(uniqueEvidence(pages.flatMap(page => pageEvidence(page, query,
+    const ranked = rankEvidence(uniqueEvidence(pages.flatMap(page => this.evidence(page, query, run,
       candidates.findIndex(candidate => canonicalUrl(candidate.url) === canonicalUrl(page.url)) + 1))),
       query, this.options.evidenceRanking);
     return diverse(ranked, item => item.url, mode === 'quality' ? 16 : 8, mode === 'quality' ? 2 : Infinity);

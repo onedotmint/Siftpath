@@ -1,6 +1,6 @@
 import { EngineError, input } from './errors.js';
-import { cleanText } from './text.js';
-import { publicUrl } from './urls.js';
+import { cleanText, scanInjection } from './text.js';
+import { publicUrl, sourceId } from './urls.js';
 import type { HtmlInput, Page } from './types.js';
 
 /** Offline-only HTML ingestion: never follows links, resolves DNS, or runs scripts. */
@@ -14,6 +14,8 @@ export async function htmlPage(value: HtmlInput): Promise<Page> {
   const titleMarkup = /<title\b[^>]*>([\s\S]*?)<\/title\s*>/i.exec(value.html)?.[1] ?? '';
   let title = cleanText(titleMarkup);
   const body = /<body\b[^>]*>([\s\S]*?)<\/body\s*>/i.exec(value.html)?.[1] ?? value.html;
+  const warnings = scanInjection(value.html).map(warning => ({ ...warning, provider: 'local-html', sourceId: sourceId(url) }));
+  if (body.length > 1_000_000) warnings.push({ code: 'CONTENT_TRUNCATED', provider: 'local-html', sourceId: sourceId(url), message: 'HTML text exceeded the cleanup limit.' });
   let text = cleanText(body);
   if (extractor === 'readability') {
     // These packages are explicitly user-installed, not Siftpath runtime dependencies.
@@ -39,5 +41,5 @@ export async function htmlPage(value: HtmlInput): Promise<Page> {
   }
   input(text.length > 0, 'No readable text in HTML.');
   return { url, title: title.slice(0, 240) || new URL(url).hostname,
-    text, provider: 'local-html', retrievedAt: new Date().toISOString() };
+    text, provider: 'local-html', retrievedAt: new Date().toISOString(), ...(warnings.length ? { warnings } : {}) };
 }

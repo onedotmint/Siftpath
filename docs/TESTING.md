@@ -1,12 +1,12 @@
 # Testing and evaluation
 
-All commands and paths below are relative to the repository root. The package is `@onedotmint/siftpath`, the primary CLI is `siftpath`, and project environment variables use `SIFTPATH_*`. These are instructions for a later authorized verification run: this documentation update ran no dependency installation, tests, typecheck, build, packaging, benchmark, validation script, or real API call. Prior delivery outcomes are archived in [history/DELIVERY.md](history/DELIVERY.md), not claimed as fresh results.
+All commands and paths below are relative to the repository root. The package is `@onedotmint/siftpath`, the primary CLI is `siftpath`, and project environment variables use `SIFTPATH_*`. Prior delivery outcomes are archived in [history/DELIVERY.md](history/DELIVERY.md), not claimed as fresh results. The three-round live acceptance, D limitations, and final offline regression results are recorded in [ACCEPTANCE.md](ACCEPTANCE.md); historical successes do not establish complete original-text verification.
 
 ## Offline suite
 
 `npm test` compiles all production TypeScript and runs Node's test runner. The suite includes core units, mocked HTTP contracts, reliability, real local transport processes, packaging, and functional replay. There are no API-key requirements and no deliberate skipped assertions in this suite.
 
-Core: canonical/signed URLs, local-address rejection, Unicode/hidden content, decoded injection, code generics, publication-date validation, cache copy/expiry, deterministic routing, conservative deduplication that preserves conflicting numbers, complete serialized-output budgets, custom token counters, and provenance.
+Core: canonical/signed URLs, local-address rejection, Unicode/hidden content, decoded injection, code generics, publication-date validation, cache copy/expiry, deterministic routing, conservative deduplication that preserves conflicting numbers, complete serialized-output budgets, custom token counters, and provenance. `tests/budget.test.mjs` adds tight-budget clause/condition integrity, continuous sentence prefixes, Chinese/English punctuation, code/table handling through actual fetch, standalone-unit provenance cost, source synchronization, excerpt-only clipping, bounded full text versus duplicate highlights, and warning retention through deduplication, cache and local HTML.
 
 Provider contracts: request endpoints/headers/bodies; normalized optional metadata; missing/malformed rows; partial extraction failures; Jina index validation; Clef probability responses; optional configuration failures. Injected HTTP responses exercise actual adapters, not mocked adapter implementations.
 

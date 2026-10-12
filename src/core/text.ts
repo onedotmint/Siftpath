@@ -1,3 +1,4 @@
+import { input } from './errors.js';
 import type { Warning } from './types.js';
 export function cleanText(raw: string): string {
   let text = raw.slice(0, 1_000_000).replace(/<!--[\s\S]*?-->/g, '');
@@ -56,18 +57,58 @@ export function relevance(query: string, text: string): number {
   const haystack = text.toLocaleLowerCase();
   return wanted.filter(term => haystack.includes(term)).length / wanted.length;
 }
-export function passages(text: string, maxChars = 1600): { text: string; section?: string }[] {
-  const output: { text: string; section?: string }[] = []; let section: string | undefined;
-  for (const block of text.split(/\n\s*\n/)) {
-    const heading = block.match(/^#{1,6}\s+([^\n]+)/); if (heading) section = heading[1]?.trim();
-    let rest = block.trim();
+function sectionHeading(block: string): string | undefined {
+  const value = block.match(/^#{1,6}\s+([^\n]+)/)?.[1]?.trim();
+  if (!value || /(?:=>|::=|\s=\s|\b(?:OWS|DQUOTE|VCHAR|obs-text|etagc)\b|[%*][s]?['"]|[{};])/.test(value)) return;
+  if (/^\s*(?:const|let|var|function|class|import|export|return|if|for|while)\b/.test(value)) return;
+  return value;
+}
+export function passages(text: string, maxChars = 1600, markdownSections = true): Array<{ text: string; section?: string; truncated?: boolean }> {
+  input(Number.isInteger(maxChars) && maxChars > 0, 'Passage size must be a positive integer.');
+  const output: { text: string; section?: string; truncated?: boolean }[] = []; let section: string | undefined;
+  const blocks = text.split(/\n\s*\n/);
+  for (let i = 0; i < blocks.length; i++) {
+    let block = blocks[i]!.trim();
+    const heading = markdownSections ? sectionHeading(block) : undefined; if (heading) section = heading;
+    const metadata = section ? { section } : {};
+    const fence = /^(`{3,}|~{3,})[^\n]*(?:\n|$)/.exec(block);
+    if (fence) {
+      const closing = new RegExp(`^[ \\t]*${fence[1]}[ \\t]*$`, 'm');
+      let tail = block.slice(fence[0].length);
+      while (!closing.test(tail) && i + 1 < blocks.length) {
+        tail = blocks[++i]!; block += '\n\n' + tail;
+      }
+      output.push({ text: block.trim(), ...metadata, ...(!closing.test(tail) ? { truncated: true } : {}) });
+      continue;
+    }
+    // Code-looking paragraphs stay whole; budget handling may omit them rather than slicing syntax.
+    if (/[{}]/.test(block) || /^\s*(?:const|let|function|class|def|import|#include)\b/m.test(block)) {
+      if (block) output.push({ text: block, ...metadata });
+      continue;
+    }
+    const lines = block.split('\n');
+    if (/^\s*[|+]/.test(block) && lines.every(line => /^\s*[|+]/.test(line))) {
+      const headerSize = /^\s*\|/.test(lines[0]!) && /^[| :\-]+$/.test(lines[1] ?? '') ? 2 :
+        /^\s*\+/.test(lines[0]!) && /^\s*\+/.test(lines[2] ?? '') ? 3 : 0;
+      const header = lines.slice(0, headerSize); let chunk = [...header];
+      const split = block.length > maxChars;
+      for (const row of lines.slice(headerSize)) {
+        if (chunk.length > headerSize && chunk.join('\n').length + row.length + 1 > maxChars) {
+          output.push({ text: chunk.join('\n'), ...metadata, ...(split ? { truncated: true } : {}) }); chunk = [...header];
+        }
+        chunk.push(row);
+      }
+      if (chunk.length) output.push({ text: chunk.join('\n'), ...metadata, ...(split ? { truncated: true } : {}) });
+      continue;
+    }
+    let rest = block; const split = rest.length > maxChars;
     while (rest) {
       let end = Math.min(rest.length, maxChars);
       if (end < rest.length) {
         const window = rest.slice(0, end); const boundary = Math.max(window.lastIndexOf('. '), window.lastIndexOf('\n'));
         if (boundary > end / 2) end = boundary + 1;
       }
-      const chunk = rest.slice(0, end).trim(); if (chunk) output.push({ text: chunk, ...(section ? { section } : {}) });
+      const chunk = rest.slice(0, end).trim(); if (chunk) output.push({ text: chunk, ...metadata, ...(split ? { truncated: true } : {}) });
       rest = rest.slice(end).trim();
     }
   }

@@ -21,6 +21,13 @@ test('all generated integration skills match the single canonical skill', async 
     assert.equal(await read(`integrations/${client}/skills/web-research/SKILL.md`), source);
   for (const tool of toolDefinitions) assert.ok(source.includes(tool.name));
   assert.match(source, /coverage=good/); assert.match(source, /untrusted/); assert.match(source, /1\+1/);
+  const description = source.split('\n').find(line => line.startsWith('description:'));
+  assert.match(description, /web_search.*web_fetch.*web_gather.*strict official-domain/);
+  assert.match(source, /not guaranteed URL-anchor matches or complete original text/);
+  assert.match(source, /these labels alone do not justify more retrieval/);
+  assert.match(source, /at most one targeted follow-up call/);
+  assert.match(source, /Quote only text actually returned/);
+  assert.match(source, /Do not present search excerpts as fetched originals or attribute model background knowledge to a retrieved page/);
 });
 test('plugin manifests and transports use real packaged paths and no embedded credentials', async () => {
   const pkg = await json('package.json');

@@ -49,11 +49,15 @@ export function candidate(provider: string, rank: number, fields: DocumentFields
 }
 export function page(provider: string, fields: DocumentFields): Page {
   const url = publicUrl(text(fields.url));
-  const excerpts = strings(fields.excerpts).map(s => s.slice(0, 16000));
+  const rawText = text(fields.text), rawExcerpts = strings(fields.excerpts);
+  const excerpts = rawExcerpts.map(s => s.slice(0, 16000));
+  const truncated = rawText.length > 1_000_000 || rawExcerpts.some(s => s.length > 16000) ||
+    Array.isArray(fields.excerpts) && fields.excerpts.length > 20;
   return {
     url, title: text(fields.title).slice(0, 1000) || new URL(url).hostname,
     // Retain raw text for the shared injection scan BEFORE sanitization.
-    text: text(fields.text).slice(0, 1_000_000), provider, retrievedAt: new Date().toISOString(),
+    text: rawText.slice(0, 1_000_000), provider, retrievedAt: new Date().toISOString(),
+    ...(truncated ? { warnings: [{ code: 'CONTENT_TRUNCATED', provider, sourceId: sourceId(url), message: 'Provider content exceeded local input limits; only bounded text/excerpts were retained.' }] } : {}),
     ...(excerpts.length ? { excerpts } : {}),
     ...(date(fields.publishedAt) ? { publishedAt: date(fields.publishedAt) } : {}),
     ...(text(fields.sourceId) ? { sourceId: text(fields.sourceId).slice(0, 512) } : {}),
