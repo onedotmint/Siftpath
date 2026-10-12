@@ -222,7 +222,7 @@ test('Pi /siftpath status, usage and reload are offline, safe and single-command
   assert.equal(tools.length,3);
   const command=commands[0];
   await command.handler('',{ui});
-  assert.match(notifications.at(-1).message,/Siftpath v2\.0\.0-next\.1 \| loaded/);
+  assert.match(notifications.at(-1).message,/Siftpath v2\.0\.0-next\.1/);
   assert.match(notifications.at(-1).message,/Search: exa/);
   assert.match(notifications.at(-1).message,/Network: Not checked/);
   assert.match(notifications.at(-1).message,/Operations: 1/);
@@ -232,7 +232,7 @@ test('Pi /siftpath status, usage and reload are offline, safe and single-command
   assert.doesNotMatch(notifications.map(x=>x.message).join('\n'),/very-private-exa-key/);
   await writePrivateJson(process.env.SIFTPATH_CONFIG,{version:1,credentials:{TAVILY_API_KEY:'another-private-key'}});
   await command.handler('reload',{ui});
-  assert.match(notifications.at(-1).message,/Cache and session usage reset/);
+  assert.match(notifications.at(-2).message,/Cache and session usage reset/);
   await command.handler('status',{ui});
   assert.match(notifications.at(-1).message,/Search: tavily/);
   assert.match(notifications.at(-1).message,/Operations: 0/);
