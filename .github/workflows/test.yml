@@ -28,6 +28,9 @@ jobs:
       - run: npm run test:live
       - run: npm run pack:dry
       - run: node tests/installed-package-smoke.mjs
+      - name: Interactive Clack keyboard smoke (real PTY)
+        if: runner.os == 'Linux'
+        run: python3 tests/setup-pty-smoke.py
 
   mcp-official-interop:
     runs-on: ubuntu-latest
@@ -44,3 +47,7 @@ jobs:
       - run: node tests/official-mcp-smoke.mjs
       - run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @mozilla/readability@0.6.0 linkedom@0.18.12
       - run: node tests/optional-html-smoke.mjs
+      - name: Install published Pi host for extension compatibility smoke
+        run: npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund @earendil-works/pi-coding-agent@0.99.0
+      - name: Load and render packaged Pi extension at narrow terminal widths
+        run: node --test tests/pi-host-smoke.mjs

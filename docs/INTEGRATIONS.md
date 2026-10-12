@@ -6,7 +6,7 @@
 
 **当前 PR 的开发者试用**：按 [README](../README.md) 克隆并编译 `feat/lightweight-html-mcp-2026` 分支，再执行 `pi install /absolute/path/to/Siftpath`。直接安装尚未编译的 Git 源无法保证 `dist/` 存在；因此目前不宣传 git: 一键安装为可靠方式。
 
-Pi 原生集成只有 `web_search`、`web_fetch`、`web_gather` 三个工具，以及一个 `/siftpath` 命令（省略参数等同 `status`；支持 `usage` 和 `reload`）。旧 Pi 命令在 2.0 预发布阶段直接删除，不额外注册别名。不要再重复加载相同的 MCP 工具。验证安装请使用 `pi list` 并在 Pi 内运行 `/siftpath`；仅有仓库构建 CI 通过不代表 Pi 宿主已经完成真实安装测试。
+Pi 原生集成只有 `web_search`、`web_fetch`、`web_gather` 三个工具，以及一个 `/siftpath` 命令（省略参数等同 `status`；支持 `usage` 和 `reload`）。旧 Pi 命令在 2.0 预发布阶段直接删除，不额外注册别名。不要再重复加载相同的 MCP 工具。验证安装请使用 `pi list` 并在 Pi 内运行 `/siftpath`；CI 会额外使用 Pi 0.99 的真实组件和加载器测试扩展入口、输入及窄终端排版；但仍不等同于在用户终端中完整手动安装、操作 Pi。
 
 ## Codex and local ChatGPT desktop
 
