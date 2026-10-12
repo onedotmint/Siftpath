@@ -224,8 +224,8 @@ test('Pi /siftpath status, usage and reload are offline, safe and single-command
   await command.handler('',{ui});
   assert.match(notifications.at(-1).message,/Siftpath v2\.0\.0-next\.1 \| loaded/);
   assert.match(notifications.at(-1).message,/Search: exa/);
-  assert.match(notifications.at(-1).message,/Network: not checked/);
-  assert.match(notifications.at(-1).message,/Pi session: 1 operations/);
+  assert.match(notifications.at(-1).message,/Network: Not checked/);
+  assert.match(notifications.at(-1).message,/Operations: 1/);
   await command.handler('usage',{ui});
   assert.match(notifications.at(-1).message,/Operations: 1/);
   assert.match(notifications.at(-1).message,/HTTP requests: 0/);
@@ -235,7 +235,7 @@ test('Pi /siftpath status, usage and reload are offline, safe and single-command
   assert.match(notifications.at(-1).message,/Cache and session usage reset/);
   await command.handler('status',{ui});
   assert.match(notifications.at(-1).message,/Search: tavily/);
-  assert.match(notifications.at(-1).message,/Pi session: 0 operations/);
+  assert.match(notifications.at(-1).message,/Operations: 0/);
   await command.handler('usage',{ui});
   assert.match(notifications.at(-1).message,/Operations: 0/);
   await command.handler('help',{ui});
@@ -262,8 +262,8 @@ test('Pi /siftpath reload preserves working engine when new configuration is inv
   const ui={setStatus(){},notify:(message,level)=>notifications.push({message,level})};
   await writePrivateJson(process.env.SIFTPATH_CONFIG,{version:1,credentials:{INVALID_API_KEY:'do-not-echo'}});
   await commands[0].handler('reload',{ui});
-  assert.equal(notifications.at(-1).level,'error');
-  assert.match(notifications.at(-1).message,/Previous engine and session usage were kept/);
+  assert.equal(notifications.at(-2).level,'error');
+  assert.match(notifications.at(-2).message,/Previous engine and session usage were kept/);
   await commands[0].handler('usage',{ui});
   assert.match(notifications.at(-1).message,/Operations: 1/);
   assert.doesNotMatch(notifications.map(x=>x.message).join('\n'),/do-not-echo/);
