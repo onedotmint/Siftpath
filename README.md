@@ -12,7 +12,7 @@
 pi install npm:@onedotmint/siftpath
 ```
 
-重启 Pi，运行 `/siftpath` 查看版本、搜索服务、连接检查状态和本会话调用统计。`/siftpath usage` 查看使用情况，`/siftpath reload` 在修改 API Key 后重新加载配置（会清空当前内存缓存与会话计数）。这些命令不会联网或打印密钥；真实连接检查仍通过终端 `siftpath doctor --live` 明确触发。缺少密钥时，`/siftpath` 会给出在**系统终端**执行的配置命令；不要将 API Key 粘贴进 AI 对话。默认只需要一个 Exa 密钥，也支持 Tavily、Parallel 或 Brave。
+重启 Pi，运行 `/siftpath` 打开 Pi 内置的交互式 TUI 面板，查看版本、搜索服务、连接检查状态和本会话调用统计；可以使用 ↑↓ 和 Enter 在 Overview、Usage、Reload、Close 间切换。`/siftpath usage` 查看使用情况，`/siftpath reload` 在修改 API Key 后重新加载配置（会清空当前内存缓存与会话计数）。这些命令不会联网或打印密钥；真实连接检查仍通过终端 `siftpath doctor --live` 明确触发。缺少密钥时，`/siftpath` 会给出在**系统终端**执行的配置命令；不要将 API Key 粘贴进 AI 对话。默认只需要一个 Exa 密钥，也支持 Tavily、Parallel 或 Brave。
 
 ### CLI（正式发布后）
 

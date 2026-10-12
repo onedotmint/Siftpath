@@ -268,3 +268,31 @@ test('Pi /siftpath reload preserves working engine when new configuration is inv
   assert.match(notifications.at(-1).message,/Operations: 1/);
   assert.doesNotMatch(notifications.map(x=>x.message).join('\n'),/do-not-echo/);
 });
+
+test('Pi TUI presenter supports navigating status, usage and reload without a network call',async t=>{
+  const dir=await mkdtemp(join(tmpdir(),'siftpath-pi-tui-'));
+  const previous=process.env.SIFTPATH_CONFIG;
+  process.env.SIFTPATH_CONFIG=join(dir,'config.json');
+  t.after(async()=>{
+    if(previous===undefined) delete process.env.SIFTPATH_CONFIG;
+    else process.env.SIFTPATH_CONFIG=previous;
+    await rm(dir,{recursive:true,force:true});
+  });
+  await writePrivateJson(process.env.SIFTPATH_CONFIG,{version:1,credentials:{EXA_API_KEY:'never-print-this-key'}});
+  const cmds=[],panels=[],notices=[],actions=['usage','reload','close'];
+  const supplied=engine();
+  await supplied.search({query:'alpha'});
+  const Type={String:o=>({type:'string',...o}),Integer:o=>({type:'integer',...o}),
+    Array:(items,o)=>({type:'array',items,...o}),Literal:value=>({const:value}),
+    Union:(anyOf,o)=>({anyOf,...o}),Optional:item=>({...item,optional:true}),
+    Object:(properties,o)=>({type:'object',properties,...o})};
+  registerPi({registerTool(){},registerCommand:(name,c)=>cmds.push({name,...c})},Type,supplied,
+    async (_context,view)=>{panels.push(view);return actions.shift();});
+  await cmds[0].handler('',{ui:{setStatus(){},notify:(message,level)=>notices.push({message,level})}});
+  assert.deepEqual(panels.map(p=>p.selected),['status','usage','status']);
+  assert.equal(panels[0].rows.find(r=>r.label==='Operations').value,'1');
+  assert.equal(panels[1].rows.find(r=>r.label==='Operations').value,'1');
+  assert.equal(panels[2].rows.find(r=>r.label==='Operations').value,'0');
+  assert.ok(notices.some(n=>/Cache and session usage reset/.test(n.message)));
+  assert.doesNotMatch(JSON.stringify(panels)+JSON.stringify(notices),/never-print-this-key/);
+});

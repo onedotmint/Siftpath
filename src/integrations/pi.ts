@@ -35,7 +35,16 @@ export function hostSchema(schema: JsonSchema, Type: TypeFactory): SchemaObject 
   return Type.Object(properties, options);
 }
 /** A single on-demand Pi command: status (default), usage, reload. */
-export function registerPi(pi: PiApi, Type: TypeFactory, supplied?: EvidenceEngine): void {
+export type SiftpathPanelAction = 'status' | 'usage' | 'reload' | 'close';
+export interface SiftpathPanelSnapshot {
+  version: string;
+  selected: 'status' | 'usage';
+  rows: { label: string; value: string }[];
+  note: string;
+}
+export type SiftpathPanelPresenter = (context: PiContext, snapshot: SiftpathPanelSnapshot) => Promise<SiftpathPanelAction>;
+
+export function registerPi(pi: PiApi, Type: TypeFactory, supplied?: EvidenceEngine, present?: SiftpathPanelPresenter): void {
   let engine = supplied;
   let activeConfiguration: Configuration | undefined;
   const getEngine = async (): Promise<EvidenceEngine> => {
@@ -63,66 +72,84 @@ export function registerPi(pi: PiApi, Type: TypeFactory, supplied?: EvidenceEngi
     },
   });
 
+  async function snapshot(selected: 'status' | 'usage'): Promise<SiftpathPanelSnapshot> {
+    const counts = engine?.usage();
+    if (selected === 'usage') return {
+      version: packageVersion, selected,
+      rows: [
+        { label: 'Operations', value: String(counts?.operations ?? 0) },
+        { label: 'Provider calls', value: String(counts?.providerCalls ?? 0) },
+        { label: 'HTTP requests', value: String(counts?.httpRequests ?? 0) },
+        { label: 'Cache hits', value: String(counts?.cacheHits ?? 0) },
+        { label: 'Reported cost', value: counts?.reportedCostUSD ? '$' + counts.reportedCostUSD.toFixed(4) : 'Not reported' },
+      ],
+      note: 'Session totals only. Not a bill. Reload resets these values.',
+    };
+    const current = await readConfiguration();
+    const report = diagnostics(activeConfiguration ?? current);
+    const changed = activeConfiguration !== undefined &&
+      JSON.stringify(current) !== JSON.stringify(activeConfiguration);
+    const note = !report.readyForSearch
+      ? 'No search key. In your terminal run: node "' +
+        fileURLToPath(new URL('../cli.js', import.meta.url)) + '" setup. Never paste API keys into chat.'
+      : changed
+        ? 'Configuration changed on disk; select Reload to apply.'
+        : 'Keys are configured, not network-verified. CLI: siftpath doctor --live (may incur charges).';
+    return {
+      version: packageVersion, selected,
+      rows: [
+        { label: 'Search', value: report.routes.fast.join(', ') || 'Not configured' },
+        { label: 'Fetch', value: report.routes.fetch.join(', ') || 'Not configured' },
+        { label: 'Network', value: 'Not checked' },
+        { label: 'Tools', value: 'Search / Fetch / Gather' },
+        { label: 'Operations', value: String(counts?.operations ?? 0) },
+        { label: 'HTTP requests', value: String(counts?.httpRequests ?? 0) },
+      ],
+      note,
+    };
+  }
+
+  async function reload(context: PiContext): Promise<void> {
+    try {
+      const configuration = await readConfiguration();
+      const replacement = createEngine(configuration);
+      engine = replacement;
+      activeConfiguration = configuration;
+      context.ui.notify('Siftpath reloaded. Cache and session usage reset.', 'info');
+    } catch (error) {
+      context.ui.notify('Reload failed (' + errorCode(error) +
+        '). Previous engine and session usage were kept.', 'error');
+    }
+  }
+
   pi.registerCommand('siftpath', {
-    description: 'Siftpath status (default); usage; reload configuration.',
+    description: 'Open Siftpath TUI dashboard (status, usage, reload).',
     async handler(args, context) {
       const action = args.trim().toLowerCase() || 'status';
-      if (action === 'usage') {
-        // Reading usage must not initialize the engine, contact providers or reset the cache.
-        const usage = engine?.usage();
-        context.ui.notify('Siftpath session usage\nOperations: ' + (usage?.operations ?? 0) +
-          ' | provider calls: ' + (usage?.providerCalls ?? 0) +
-          ' | HTTP requests: ' + (usage?.httpRequests ?? 0) +
-          ' | cache hits: ' + (usage?.cacheHits ?? 0) +
-          '\nSession totals only; reload resets them. Not a billing statement.', 'info');
-        return;
-      }
-      if (action === 'reload') {
-        try {
-          // Validate and construct the replacement before discarding the working engine.
-          const configuration = await readConfiguration();
-          const replacement = createEngine(configuration);
-          engine = replacement;
-          activeConfiguration = configuration;
-          const report = diagnostics(configuration);
-          context.ui.notify('Siftpath configuration reloaded (offline). Cache and session usage reset.\n' +
-            (report.readyForSearch
-              ? 'Search: ' + report.routes.fast.join(', ') + ' (configured, not network-verified).'
-              : 'No search key; run siftpath setup in your system terminal.'),
-            report.readyForSearch ? 'info' : 'warning');
-        } catch (error) {
-          context.ui.notify('Siftpath reload failed (' + errorCode(error) +
-            '). Previous engine and session usage were kept. Fix the configuration and retry.', 'error');
-        }
-        return;
-      }
-      if (action !== 'status') {
+      if (!['status', 'usage', 'reload'].includes(action)) {
         context.ui.notify('Usage: /siftpath [status | usage | reload]', 'warning');
         return;
       }
-      try {
-        const current = await readConfiguration();
-        const changed = activeConfiguration !== undefined &&
-          JSON.stringify(current) !== JSON.stringify(activeConfiguration);
-        const report = diagnostics(activeConfiguration ?? current);
-        const usage = engine?.usage();
-        const lines = [
-          'Siftpath v' + packageVersion + ' | loaded',
-          'Search: ' + (report.routes.fast.join(', ') || 'not configured') +
-            ' | Fetch: ' + (report.routes.fetch.join(', ') || 'not configured'),
-          'Network: not checked | Tools: web_search, web_fetch, web_gather',
-          'Pi session: ' + (usage?.operations ?? 0) + ' operations, ' + (usage?.httpRequests ?? 0) + ' HTTP requests',
-        ];
-        if (changed) lines.push('Configuration changed since engine load; run /siftpath reload to apply.');
-        if (!report.readyForSearch) {
-          const cli = fileURLToPath(new URL('../cli.js', import.meta.url));
-          lines.push('No search key. In your system terminal run: node "' + cli + '" setup. Never paste keys into chat.');
-        } else lines.push('Check connectivity only when needed: siftpath doctor --live (may incur charges).');
-        lines.push('/siftpath usage | /siftpath reload');
-        context.ui.notify(lines.join('\n'), report.readyForSearch ? 'info' : 'warning');
-      } catch (error) {
-        context.ui.notify('Siftpath status unavailable (' + errorCode(error) +
-          '). Fix your local configuration; keys were not displayed.', 'error');
+      if (action === 'reload') await reload(context);
+      let selected: 'status' | 'usage' = action === 'usage' ? 'usage' : 'status';
+      for (;;) {
+        let view: SiftpathPanelSnapshot;
+        try { view = await snapshot(selected); }
+        catch (error) {
+          context.ui.notify('Siftpath status unavailable (' + errorCode(error) +
+            '). Check your local configuration; keys were not displayed.', 'error');
+          return;
+        }
+        if (!present) {
+          context.ui.notify('Siftpath v' + view.version + '\n' +
+            view.rows.map(row => row.label + ': ' + row.value).join('\n') + '\n' + view.note,
+            view.rows.some(row => row.label === 'Search' && row.value === 'Not configured') ? 'warning' : 'info');
+          return;
+        }
+        const next = await present(context, view);
+        if (next === 'close') return;
+        if (next === 'reload') { await reload(context); selected = 'status'; }
+        else selected = next;
       }
     },
   });
