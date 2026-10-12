@@ -5,6 +5,7 @@ import os
 import pty
 import select
 import subprocess
+import termios
 import tempfile
 import time
 from pathlib import Path
@@ -24,6 +25,10 @@ def wizard(path: Path, cancel: bool = False):
     env["SIFTPATH_CONFIG"] = str(path)
     env["TERM"] = "xterm-256color"
     master, slave = pty.openpty()
+    attrs = termios.tcgetattr(slave)
+    attrs[3] &= ~(termios.ECHO | termios.ECHONL)
+    attrs[1] &= ~termios.OPOST
+    termios.tcsetattr(slave, termios.TCSANOW, attrs)
     process = subprocess.Popen(
         ["node", str(CLI), "setup"], stdin=slave, stdout=slave, stderr=slave,
         env=env, start_new_session=True,
