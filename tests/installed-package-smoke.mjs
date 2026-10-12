@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, dirname } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 const root=resolve('.');
 const tmp=await mkdtemp(join(tmpdir(),'siftpath-packed-'));
@@ -27,6 +28,9 @@ try {
   for(const path of [json.bin.siftpath,json.exports['.'].import,json.pi.extensions[0],json.pi.skills[0],'integrations/pi/index.ts','docs/INTEGRATIONS.md'])
     await stat(join(pkg,path.replace(/^\.\//,'')));
   assert.equal(run(process.execPath,[join(pkg,'dist','cli.js'),'--version']).trim(),json.version);
+  assert.equal(Object.keys(json.dependencies ?? {}).length,0,'Runtime npm dependencies must stay empty');
+  const bundled = await import(pathToFileURL(join(pkg,'dist','setup-ui.js')).href);
+  assert.equal(typeof bundled.runSetupWizard,'function','Bundled Clack wizard must import with dev dependencies absent');
   const env={...process.env,SIFTPATH_CONFIG:join(tmp,'config.json')};
   for(const key of Object.keys(env))if(/^(EXA|TAVILY|PARALLEL|BRAVE|FIRECRAWL|JINA|CLOUDFLARE)_/.test(key))delete env[key];
   run(process.execPath,[join(pkg,'dist','cli.js'),'setup','--non-interactive'],{env});

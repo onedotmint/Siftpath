@@ -4,7 +4,7 @@ The package is `@onedotmint/siftpath`, the primary CLI is `siftpath`, and projec
 
 ## One-time setup
 
-`siftpath setup` 默认推荐一个 Exa 密钥（同时支持搜索与正文提取），也可选择 Tavily、Parallel、Brave 或高级服务商；已有搜索配置时默认不修改。输入在终端隐藏，不会出现在命令参数或聊天记录。 Press Enter to keep an existing value. It writes a private JSON file outside the workspace. `siftpath setup --non-interactive` does not prompt and does not persist environment secrets.
+`siftpath setup` 使用打包后的 Clack 交互向导：↑↓ 选择服务商、在 Advanced 中用 Space 多选、Enter 确认、Esc 取消，随后使用隐藏输入录入每个密钥。默认推荐 Exa（搜索与正文提取共用密钥），也支持 Tavily、Parallel、Brave 和高级服务商；已有搜索配置默认保留。仅在已存在本地或环境密钥时才能用 Enter 保留旧值；取消不会写入部分配置。 It writes a private JSON file outside the workspace. `siftpath setup --non-interactive` does not prompt and does not persist environment secrets.
 
 Explicit path precedence: `SIFTPATH_CONFIG` > the compatibility alias `SMARTSEARCH_CONFIG` > default selection. Use a nonempty path for an override; setting the new variable, even to an empty value, prevents fallback to the old variable. An explicit missing file does not trigger a legacy-default lookup.
 

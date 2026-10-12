@@ -24,7 +24,7 @@ siftpath doctor --live
 siftpath search "HTTP ETag"
 ```
 
-`setup` 首次默认推荐 Exa（搜索与正文提取共用密钥），已有配置则默认不修改。普通 `doctor` **不联网**；`--live` 明确触发一次可能收费的真实搜索检查，最多包含一次网络重试。
+`setup` 使用构建时打包的 Clack 终端向导（↑↓ 选择、Space 多选、Enter 确认、Esc 取消、密钥隐藏输入）；首次默认推荐 Exa（搜索与正文提取共用密钥），已有配置则默认不修改。无需额外安装交互库；`--non-interactive` 不受影响。普通 `doctor` **不联网**；`--live` 明确触发一次可能收费的真实搜索检查，最多包含一次网络重试。
 
 ### 现在试用 PR（开发者路径）
 

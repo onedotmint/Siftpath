@@ -1,0 +1,22 @@
+name: Temporary setup lock export
+on:
+  push:
+    branches:
+      - feat/lightweight-html-mcp-2026
+permissions:
+  contents: read
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Resolve lock file
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Print generated lock for review
+        run: |
+          echo SIFTPATH_LOCK_START_8dce
+          cat package-lock.json
+          echo SIFTPATH_LOCK_END_8dce
