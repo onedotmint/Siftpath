@@ -9,7 +9,7 @@ import { sourceId, domainKey } from '../dist/core/urls.js';
 export async function loadCases() {
   return JSON.parse(await readFile(new URL('./fixtures/evidence-cases.json', import.meta.url), 'utf8')).cases;
 }
-export function replayEngine(item) {
+export function replayEngine(item, evidenceRanking = 'legacy') {
   const candidates = id => item.sources.map((s, rank) => ({
     id: sourceId(s.url), url: s.url, title: s.title, provider: id, retrievedAt: item.asOf,
     publishedAt: s.publishedAt, excerpts: [s.excerpt], origins: [{ provider: id, url: s.url, rank: rank + 1 }],
@@ -25,7 +25,7 @@ export function replayEngine(item) {
     },
   });
   return new EvidenceEngine({ providers: { search: [search('replay-one'), search('replay-two')],
-    fetch: [extractor('replay-primary', false), extractor('replay-fallback', true)] } });
+    fetch: [extractor('replay-primary', false), extractor('replay-fallback', true)] }, evidenceRanking });
 }
 export function evaluate(item, search, pack) {
   const relevant = new Set(item.sources.filter(s => s.relevant).map(s => sourceId(s.url)));
@@ -40,10 +40,10 @@ export function evaluate(item, search, pack) {
     outputTokens: pack.usage.outputTokens, coveragePer1000Tokens: coverage * 1000 / Math.max(1, pack.usage.outputTokens),
     latencyMs: pack.usage.durationMs, failureRate: 0, reportedCostUSD: pack.usage.reportedCostUSD ?? null };
 }
-export async function runReplay() {
+export async function runReplay(evidenceRanking = 'legacy') {
   const results = [];
   for (const item of await loadCases()) for (const mode of ['fast', 'quality']) {
-    const engine = replayEngine(item), maxTokens = mode === 'fast' ? 2200 : 6000;
+    const engine = replayEngine(item, evidenceRanking), maxTokens = mode === 'fast' ? 2200 : 6000;
     try {
       const search = await engine.search({ query: item.query, mode });
       const pack = await engine.gather({ query: item.query, mode, maxTokens });

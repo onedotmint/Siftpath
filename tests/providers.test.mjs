@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { JsonHttp } from '../dist/core/http.js';
-import { exa, parallel, tavily, brave, firecrawl, jina, cloudflare, configureProviders } from '../dist/index.js';
+import { EvidenceEngine, exa, parallel, tavily, brave, firecrawl, jina, cloudflare, configureProviders } from '../dist/index.js';
 import { mockTransport, ctx } from './helpers.mjs';
 const search={query:'alpha beta',maxResults:5,mode:'quality',domains:['alpha.test'],since:'2026-10-01T00:00:00Z'};
 
@@ -18,6 +18,17 @@ test('Exa contents accepts URL batches and query highlights without answer gener
  const result=await exa('key',new JsonHttp(mock.transport)).fetch({urls:['https://alpha.test','https://beta.test'],query:'alpha'},ctx());
  assert.deepEqual(mock.calls[0].body.urls,['https://alpha.test','https://beta.test']);assert.equal(mock.calls[0].body.highlights.query,'alpha');
  assert.deepEqual(result.items[0].excerpts,['alpha selected']);assert.equal(result.warnings[0].code,'EXTRACT_FAILED');assert.equal(mock.calls[0].body.summary,undefined);
+});
+test('Exa fetch keeps relevant full text when highlights omit the requested clauses',async()=>{
+ const url='https://www.rfc-editor.org/rfc/rfc9110.html';
+ const body='A recipient MUST use the weak comparison function when comparing entity tags for If-None-Match.\n\nA recipient MUST ignore If-Modified-Since if the request contains an If-None-Match header field.';
+ const mock=mockTransport(()=>({results:[{url,text:body,highlights:['Requirements Notation: MUST and SHOULD are normative words.']}]}));
+ const provider=exa('test-key',new JsonHttp(mock.transport,0));
+ const pack=await new EvidenceEngine({providers:{search:[],fetch:[provider]}}).fetch({urls:[url],query:'If-None-Match If-Modified-Since weak comparison',maxTokens:2000});
+ const text=pack.evidence.map(e=>e.text).join('\n');
+ assert.match(text,/MUST use the weak comparison function/); assert.match(text,/MUST ignore If-Modified-Since/);
+ assert.match(text,/Requirements Notation/); assert.ok(pack.usage.outputTokens<=2000); assert.equal(mock.calls.length,1);
+ assert.equal(mock.calls[0].body.text,true); assert.equal(pack.sources[0].url,url);
 });
 test('Parallel uses v1 advanced_settings, not obsolete top-level filters',async()=>{
  const mock=mockTransport(()=>({results:[{url:'https://alpha.test',title:'Alpha',publish_date:'2026-10-02',excerpts:['alpha from Parallel']}],warnings:[{}]}));

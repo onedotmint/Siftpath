@@ -4,9 +4,9 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { EvidenceEngine } from './core/engine.js';
-import { EngineError } from './core/errors.js';
+import { EngineError, errorCode } from './core/errors.js';
 import { JsonHttp, type FetchTransport } from './core/http.js';
-import type { ProviderBase, Providers, Usage } from './core/types.js';
+import type { EvidenceRanking, ProviderBase, Providers, Usage } from './core/types.js';
 import { selectProviders } from './core/processing.js';
 import { exa } from './providers/exa.js';
 import { parallel } from './providers/parallel.js';
@@ -23,6 +23,7 @@ export interface Configuration {
   version?: 1; credentials?: Partial<Record<CredentialName, string>>;
   disabled?: string[]; priorities?: Record<string, number>;
   timeoutMs?: number; providerTimeoutMs?: number; jinaModel?: string; clefModel?: 'clef' | 'clef-flash';
+  evidenceRanking?: EvidenceRanking;
 }
 export interface ProviderStatus { id: string; roles: string[]; state: 'ready' | 'missing' | 'disabled' | 'invalid'; needs: string[] }
 const providerIds = ['exa', 'parallel', 'tavily', 'brave', 'firecrawl', 'jina', 'cloudflare'];
@@ -30,12 +31,13 @@ const bad = (): never => { throw new EngineError('INVALID_CONFIG', 'Invalid Sift
 export function parseConfiguration(value: unknown): Configuration {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return bad();
   const raw = value as Record<string, unknown>;
-  const allowed = ['version', 'credentials', 'disabled', 'priorities', 'timeoutMs', 'providerTimeoutMs', 'jinaModel', 'clefModel'];
+  const allowed = ['version', 'credentials', 'disabled', 'priorities', 'timeoutMs', 'providerTimeoutMs', 'jinaModel', 'clefModel', 'evidenceRanking'];
   if (Object.keys(raw).some(key => !allowed.includes(key)) || raw.version !== undefined && raw.version !== 1) return bad();
   for (const field of ['timeoutMs', 'providerTimeoutMs']) if (raw[field] !== undefined &&
     (typeof raw[field] !== 'number' || !Number.isInteger(raw[field]) || raw[field] < 1 || raw[field] > 120000)) return bad();
   if (raw.jinaModel !== undefined && (typeof raw.jinaModel !== 'string' || !/^[a-zA-Z0-9_.:/-]{1,100}$/.test(raw.jinaModel))) return bad();
   if (raw.clefModel !== undefined && raw.clefModel !== 'clef' && raw.clefModel !== 'clef-flash') return bad();
+  if (raw.evidenceRanking !== undefined && raw.evidenceRanking !== 'legacy' && raw.evidenceRanking !== 'bm25') return bad();
   if (raw.disabled !== undefined && (!Array.isArray(raw.disabled) || !raw.disabled.every(key => providerIds.includes(key)))) return bad();
   for (const field of ['credentials', 'priorities']) {
     const item = raw[field]; if (item === undefined) continue;
@@ -76,7 +78,8 @@ export async function readConfiguration(path = configPath(), env: NodeJS.Process
   const credentials = { ...saved.credentials };
   for (const key of credentialNames) if (env[key]?.trim()) credentials[key] = env[key]!.trim();
   if (!credentials.CLOUDFLARE_API_TOKEN && env.CLOUDFLARE_AUTH_TOKEN?.trim()) credentials.CLOUDFLARE_API_TOKEN = env.CLOUDFLARE_AUTH_TOKEN.trim();
-  return parseConfiguration({ ...saved, credentials });
+  const rankOverride = siftpathEnv('EVIDENCE_RANKING', env);
+  return parseConfiguration({ ...saved, credentials, ...(rankOverride === undefined ? {} : { evidenceRanking: rankOverride }) });
 }
 /** Private user storage, never a workspace .env file; atomic replace with mode 0600. */
 export async function writePrivateJson(path: string, value: unknown): Promise<void> {
@@ -121,14 +124,41 @@ export function configureProviders(config: Configuration, transport?: FetchTrans
   }
   return { providers, statuses };
 }
+/** Explicit bounded network check, against one search provider (never multi-provider gather). */
+export async function checkConnection(config: Configuration, transport?: FetchTransport): Promise<{
+  ok: boolean; provider?: string; results?: number; requests?: number; code?: string; next?: string;
+}> {
+  const { providers } = configureProviders(config, transport);
+  const selected = selectProviders(providers.search, { query: 'HTTP ETag', mode: 'fast', maxResults: 1 }, 1)[0];
+  if (!selected) return { ok: false, code: 'NO_SEARCH_PROVIDER', next: 'Run siftpath setup or set EXA_API_KEY / TAVILY_API_KEY.' };
+  let requests = 0;
+  const signal = AbortSignal.timeout(12_000);
+  try {
+    const result = await selected.search({ query: 'HTTP ETag', mode: 'fast', maxResults: 1 }, {
+      signal, recordHttp(event) { if (event.stage === 'http') requests++; },
+    });
+    if (result.items.length > 0) return { ok: true, provider: selected.id, results: result.items.length, requests };
+    return { ok: false, provider: selected.id, code: 'NO_RESULTS', requests,
+      next: 'The API responded, but no usable results were returned. Check your provider account and retry.' };
+  } catch (error) {
+    const code = signal.aborted ? 'TIMEOUT' : errorCode(error);
+    const next = code === 'AUTH_FAILED' ? 'Check the API key and account permissions for ' + selected.id + '.'
+      : code === 'RATE_LIMITED' ? 'Check your provider quota or rate limit.'
+      : code === 'TIMEOUT' || code === 'NETWORK_ERROR' ? 'Check DNS, connectivity and proxy settings, then retry.'
+      : 'The provider did not return a valid search result; check account status or retry later.';
+    return { ok: false, provider: selected.id, code, requests, next };
+  }
+}
+
 export function createEngine(config: Configuration, transport?: FetchTransport): EvidenceEngine {
   return new EvidenceEngine({ providers: configureProviders(config, transport).providers,
-    timeoutMs: config.timeoutMs, providerTimeoutMs: config.providerTimeoutMs });
+    timeoutMs: config.timeoutMs, providerTimeoutMs: config.providerTimeoutMs, evidenceRanking: config.evidenceRanking });
 }
 export function diagnostics(config: Configuration) {
   const { providers, statuses } = configureProviders(config);
   return {
     runtime: process.version, supportedRuntime: Number(process.versions.node.split('.')[0]) >= 22,
+    evidenceRanking: config.evidenceRanking ?? 'legacy',
     providers: statuses,
     routes: {
       fast: selectProviders(providers.search, { query: 'diagnostic', mode: 'fast', maxResults: 8 }, 1).map(p => p.id),

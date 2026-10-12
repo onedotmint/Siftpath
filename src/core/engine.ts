@@ -1,13 +1,14 @@
 import { abortable, scope } from './async.js';
 import { fitEvidence, fitSearch } from './budget.js';
 import { TtlCache } from './cache.js';
+import { htmlPage } from './html.js';
 import { cancelled, EngineError, input, toWarning } from './errors.js';
-import { diverse, fuseCandidates, pageEvidence, selectProviders, uniqueEvidence, uniqueWarnings } from './processing.js';
+import { diverse, fuseCandidates, pageEvidence, rankEvidence, selectProviders, uniqueEvidence, uniqueWarnings } from './processing.js';
 import { estimateTokens, relevance } from './text.js';
 import { canonicalUrl, domainKey, domainMatches, publicUrl, sourceId } from './urls.js';
 import { integer, modeValue, queryText, searchRequest, stringArray } from './validation.js';
 import type { CallOptions, Candidate, Decision, EngineOptions, Evidence, EvidencePack, FetchInput,
-  GatherInput, Page, ProviderBase, ProviderContext, ProviderResult, SearchInput, SearchPack,
+  GatherInput, HtmlInput, Page, ProviderBase, ProviderContext, ProviderResult, SearchInput, SearchPack,
   SearchRequest, Source, TraceEvent, Usage, Warning } from './types.js';
 interface Run {
   signal: AbortSignal; caller?: AbortSignal; warnings: Warning[]; usage: Usage;
@@ -54,9 +55,24 @@ export class EvidenceEngine {
     const budget = integer(value.maxTokens, 3000, 256, 20000, 'maxTokens');
     return this.run(options, async run => {
       const pages = await this.fetchStage(targets, query, run);
-      const evidence = uniqueEvidence(pages.flatMap(page => pageEvidence(page, query))).sort((a, b) => b.relevance! - a.relevance!);
+      const evidence = rankEvidence(uniqueEvidence(pages.flatMap(page => this.evidence(page, query, run))), query, this.options.evidenceRanking);
       if (!evidence.length) throw this.empty(run, 'No usable page content. Configure an extract provider or inspect warnings.');
       return this.pack(query, diverse(evidence, item => item.url, 24), budget, run);
+    });
+  }
+  /** Ingest caller-supplied raw HTML offline. No network and no additional MCP tool. */
+  async fromHtml(value: HtmlInput, options: CallOptions = {}): Promise<EvidencePack> {
+    input(value !== null && typeof value === 'object' && !Array.isArray(value), 'HTML input must be an object.');
+    const query = value.query === undefined ? '' : queryText(value.query);
+    const budget = integer(value.maxTokens, 3000, 256, 20000, 'maxTokens');
+    return this.run(options, async run => {
+      const page = await htmlPage(value);
+      const evidence = rankEvidence(this.evidence(page, query, run), query, this.options.evidenceRanking);
+      if (!evidence.length) throw this.empty(run, 'No usable HTML evidence.');
+      if ((value.extractor ?? 'basic') === 'basic') run.warnings.push({
+        code: 'BASIC_HTML_EXTRACTION', message: 'Basic HTML cleanup may retain navigation; use optional Readability for article-focused extraction.',
+      });
+      return this.pack(query, evidence.slice(0, 24), budget, run);
     });
   }
   async gather(value: GatherInput, options: CallOptions = {}): Promise<EvidencePack> {
@@ -164,6 +180,12 @@ export class EvidenceEngine {
     this.emit(run, { stage: 'fuse', count: selectedResults.length, status: 'ok' });
     return selectedResults;
   }
+  private evidence(page: Page, query: string, run: Run, rank?: number): Evidence[] {
+    const items = pageEvidence(page, query, rank);
+    run.warnings.push(...uniqueWarnings(items.flatMap(item => item.warnings ?? [])).map(warning => ({ ...warning,
+      provider: warning.provider ?? page.provider, sourceId: warning.sourceId ?? sourceId(page.url) })));
+    return items;
+  }
   private async fetchStage(urls: string[], query: string, run: Run): Promise<Page[]> {
     const pages: Page[] = [], pending: string[] = [];
     for (const url of urls) {
@@ -188,7 +210,7 @@ export class EvidenceEngine {
       this.account(result, run);
       for (const page of result.items) {
         const key = canonicalUrl(page.url);
-        if (!expected.has(key) || !pageEvidence(page, query).length) continue;
+        if (!expected.has(key) || !this.evidence(page, query, run).length) continue;
         pages.push(page); expected.delete(key);
         this.pageCache.set(`${key}:${query}`, page, this.options.fetchTtlMs ?? 300000);
       }
@@ -202,12 +224,14 @@ export class EvidenceEngine {
     const pages = await this.fetchStage(selected.map(candidate => candidate.url), query, run);
     const fetched = new Set(pages.map(page => canonicalUrl(page.url)));
     for (const candidate of candidates) if (!fetched.has(canonicalUrl(candidate.url)) && candidate.excerpts.length) {
-      pages.push({ ...candidate, text: candidate.excerpts.join('\n\n'), sourceId: candidate.origins[0]?.sourceId });
+      pages.push({ ...candidate, text: candidate.excerpts.join('\n\n'), sourceId: candidate.origins[0]?.sourceId,
+        warnings: [...candidate.warnings ?? [], ...(candidate.truncated ? [{ code: 'CONTENT_TRUNCATED', provider: candidate.provider, sourceId: candidate.id,
+          message: 'Search excerpts were truncated; full page content was not retrieved.' }] : [])] });
       run.warnings.push({ code: 'EXCERPT_ONLY', message: 'Some evidence comes from search excerpts rather than a fetched page.' });
     }
-    const ranked = uniqueEvidence(pages.flatMap(page => pageEvidence(page, query,
-      candidates.findIndex(candidate => canonicalUrl(candidate.url) === canonicalUrl(page.url)) + 1)))
-      .sort((a, b) => b.relevance! - a.relevance!);
+    const ranked = rankEvidence(uniqueEvidence(pages.flatMap(page => this.evidence(page, query, run,
+      candidates.findIndex(candidate => canonicalUrl(candidate.url) === canonicalUrl(page.url)) + 1))),
+      query, this.options.evidenceRanking);
     return diverse(ranked, item => item.url, mode === 'quality' ? 16 : 8, mode === 'quality' ? 2 : Infinity);
   }
   private async rerank(query: string, evidence: Evidence[], mode: 'fast' | 'quality', run: Run): Promise<Evidence[]> {

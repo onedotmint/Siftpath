@@ -3,18 +3,35 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { gradeInvocations } from '../scripts/eval-invocations.mjs';
 import { toolDefinitions } from '../dist/tools.js';
+import { setupOptions } from '../dist/setup-options.js';
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const json = async path => JSON.parse(await read(path));
 
+test('Bundled CLI wizard includes provider list without runtime dependencies', async () => {
+  const pkg = await json('package.json');
+  assert.equal(Object.keys(pkg.dependencies ?? {}).length, 0);
+  assert.equal(setupOptions.length, 7);
+  assert.deepEqual(setupOptions.slice(0,4).map(x=>x.id), ['exa','tavily','parallel','brave']);
+  const wizard=await import('../dist/setup-ui.js');
+  assert.equal(typeof wizard.runSetupWizard, 'function');
+});
 test('all generated integration skills match the single canonical skill', async () => {
   const source = await read('skills/web-research/SKILL.md');
   for (const client of ['codex', 'cursor', 'claude-code', 'deepseek-harness'])
     assert.equal(await read(`integrations/${client}/skills/web-research/SKILL.md`), source);
   for (const tool of toolDefinitions) assert.ok(source.includes(tool.name));
   assert.match(source, /coverage=good/); assert.match(source, /untrusted/); assert.match(source, /1\+1/);
+  const description = source.split('\n').find(line => line.startsWith('description:'));
+  assert.match(description, /web_search.*web_fetch.*web_gather.*strict official-domain/);
+  assert.match(source, /not guaranteed URL-anchor matches or complete original text/);
+  assert.match(source, /these labels alone do not justify more retrieval/);
+  assert.match(source, /at most one targeted follow-up call/);
+  assert.match(source, /Quote only text actually returned/);
+  assert.match(source, /Do not present search excerpts as fetched originals or attribute model background knowledge to a retrieved page/);
 });
 test('plugin manifests and transports use real packaged paths and no embedded credentials', async () => {
   const pkg = await json('package.json');
+  assert.ok(pkg.keywords.includes('pi-package'));
   const entries = [['codex','plugin.json','mcp.json'],['cursor','.cursor-plugin/plugin.json','mcp.json'],['claude-code','.claude-plugin/plugin.json','.mcp.json']];
   for (const [client, manifest, transport] of entries) {
     const metadata = await json(`integrations/${client}/${manifest}`);

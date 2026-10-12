@@ -1,0 +1,234 @@
+{
+  "schema_version": 1,
+  "description": "Hand-labeled synthetic examples, intentionally not a live quality benchmark.",
+  "cases": [
+    {
+      "id": "etag-short-section",
+      "query": "HTTP ETag revalidation",
+      "gold": "focused",
+      "passages": [
+        {
+          "id": "background",
+          "text": "HTTP ETag revalidation. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. The rest of this chapter discusses transport connection management, browser history, status classification, instrumentation and unrelated headers. "
+        },
+        {
+          "id": "focused",
+          "text": "HTTP ETag revalidation sends If-None-Match; a matching validator yields 304 Not Modified."
+        },
+        {
+          "id": "unrelated",
+          "text": "TCP congestion control responds to packet loss with a changing window size."
+        }
+      ]
+    },
+    {
+      "id": "cache-control",
+      "query": "Cache-Control max-age",
+      "gold": "focused",
+      "passages": [
+        {
+          "id": "background",
+          "text": "Cache-Control max-age overview. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. This handbook explains architecture, deployment, operations, debugging, credentials, naming, performance and monitoring. "
+        },
+        {
+          "id": "focused",
+          "text": "Cache-Control max-age sets the number of seconds a cached response remains fresh."
+        },
+        {
+          "id": "unrelated",
+          "text": "DNS negative answers are often cached by recursive resolvers."
+        }
+      ]
+    },
+    {
+      "id": "rust-borrow-checker",
+      "query": "Rust borrow checker lifetimes",
+      "gold": "focused",
+      "passages": [
+        {
+          "id": "background",
+          "text": "Rust borrow checker lifetimes. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. A general introduction to build tools, packages, unit tests and error handling follows in many sections. "
+        },
+        {
+          "id": "focused",
+          "text": "Rust borrow checker lifetimes prevent references from outliving the borrowed data."
+        },
+        {
+          "id": "unrelated",
+          "text": "The Rust formatter adjusts whitespace and imports."
+        }
+      ]
+    },
+    {
+      "id": "docker-restart",
+      "query": "Docker Compose restart policy",
+      "gold": "focused",
+      "passages": [
+        {
+          "id": "background",
+          "text": "Docker Compose restart policy. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. The deployment guide also covers networks, port mapping, images, secrets and file system permissions. "
+        },
+        {
+          "id": "focused",
+          "text": "Docker Compose restart policy on-failure restarts a container when it exits with a nonzero status."
+        },
+        {
+          "id": "unrelated",
+          "text": "Kubernetes pods can be scheduled onto nodes."
+        }
+      ]
+    },
+    {
+      "id": "ws-dns",
+      "query": "WSL DNS tunneling",
+      "gold": "focused",
+      "passages": [
+        {
+          "id": "background",
+          "text": "WSL DNS tunneling. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. Linux command-line shells and filesystems differ across operating systems and development machines. "
+        },
+        {
+          "id": "focused",
+          "text": "WSL DNS tunneling forwards DNS lookups through Windows to improve resolution behind a VPN."
+        },
+        {
+          "id": "unrelated",
+          "text": "WebSocket pings establish liveness for connections."
+        }
+      ]
+    },
+    {
+      "id": "github-workflows",
+      "query": "GitHub Actions cache restore",
+      "gold": "focused",
+      "passages": [
+        {
+          "id": "background",
+          "text": "GitHub Actions cache restore. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. Several chapters cover workflow syntax, artifact uploads, status checks, triggers, jobs and debugging. "
+        },
+        {
+          "id": "focused",
+          "text": "GitHub Actions cache restore reuses dependencies from an earlier workflow execution."
+        },
+        {
+          "id": "unrelated",
+          "text": "Git branches reference commits in a repository."
+        }
+      ]
+    },
+    {
+      "id": "chinese-cache",
+      "query": "浏览器 缓存 验证",
+      "gold": "focused",
+      "passages": [
+        {
+          "id": "background",
+          "text": "浏览器缓存验证。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。这篇说明还包括操作系统启动过程、服务部署流程、日志保留策略和接口联调步骤。"
+        },
+        {
+          "id": "focused",
+          "text": "浏览器缓存验证使用 ETag 与 If-None-Match 判断资源是否发生变化。"
+        },
+        {
+          "id": "unrelated",
+          "text": "浏览器开发工具可以查看页面颜色与字体设置。"
+        }
+      ]
+    },
+    {
+      "id": "chinese-dns",
+      "query": "域名 解析 超时",
+      "gold": "focused",
+      "passages": [
+        {
+          "id": "background",
+          "text": "域名解析超时。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。技术手册还介绍项目目录结构、权限管理流程、硬件设备选型与系统升级步骤。"
+        },
+        {
+          "id": "focused",
+          "text": "域名解析超时可检查 DNS 请求重试、递归服务器延迟和网络丢包。"
+        },
+        {
+          "id": "unrelated",
+          "text": "域名可以通过注册商购买并续费。"
+        }
+      ]
+    },
+    {
+      "id": "chinese-coordination",
+      "query": "模型 变更 复核",
+      "gold": "focused",
+      "passages": [
+        {
+          "id": "background",
+          "text": "模型变更复核。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。文档后面是团队讨论纪要、项目里程碑、版本命名规则与展示截图制作流程。"
+        },
+        {
+          "id": "focused",
+          "text": "模型变更复核应关联修订版本、证据、问题与关闭确认记录。"
+        },
+        {
+          "id": "unrelated",
+          "text": "模型训练需要大量算力和训练数据。"
+        }
+      ]
+    },
+    {
+      "id": "rare-vs-common",
+      "query": "quasar telemetry latency",
+      "gold": "rare",
+      "passages": [
+        {
+          "id": "common",
+          "text": "Telemetry latency affects telemetry performance and latency budgets in telemetry systems."
+        },
+        {
+          "id": "rare",
+          "text": "Quasar telemetry latency is measured at the gateway."
+        },
+        {
+          "id": "noise",
+          "text": "Telemetry collection aggregates common metrics and service traces."
+        }
+      ]
+    },
+    {
+      "id": "mixed-technical",
+      "query": "SQLite WAL checkpoint",
+      "gold": "focused",
+      "passages": [
+        {
+          "id": "background",
+          "text": "SQLite WAL checkpoint. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. This introduction surveys database clients, query planners, data types and migration tooling. "
+        },
+        {
+          "id": "focused",
+          "text": "SQLite WAL checkpoint copies committed frames from the write-ahead log into the database."
+        },
+        {
+          "id": "unrelated",
+          "text": "SQLite transactions support rollbacks and isolation levels."
+        }
+      ]
+    },
+    {
+      "id": "exact-short-baseline",
+      "query": "HTTP status 304",
+      "gold": "first",
+      "passages": [
+        {
+          "id": "first",
+          "text": "HTTP status 304 Not Modified means the cached representation is still valid."
+        },
+        {
+          "id": "second",
+          "text": "Status 304 tells a client to reuse its cached content after a conditional HTTP request."
+        },
+        {
+          "id": "noise",
+          "text": "A 503 response indicates service unavailability."
+        }
+      ]
+    }
+  ]
+}

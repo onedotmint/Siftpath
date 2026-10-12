@@ -1,10 +1,10 @@
 # Configuration
 
-The package is `@onedotmint/siftpath`, the primary CLI is `siftpath`, and project environment variables use `SIFTPATH_*`. Legacy CLI/Pi commands and `SMARTSEARCH_*` variables remain limited compatibility aliases; new variables take precedence. Provider credential names do not change. See [MIGRATION.md](MIGRATION.md); no keys or configuration files are automatically moved.
+The package is `@onedotmint/siftpath`, the primary CLI is `siftpath`, and project environment variables use `SIFTPATH_*`. Legacy CLI aliases and `SMARTSEARCH_*` variables remain limited compatibility aliases; Pi's old commands have been consolidated into `/siftpath` with `usage` and `reload` subcommands. New variables take precedence. Provider credential names do not change. See [MIGRATION.md](MIGRATION.md); no keys or configuration files are automatically moved.
 
 ## One-time setup
 
-`siftpath setup` detects existing environment keys, displays available roles, and offers masked interactive credential entry. Press Enter to keep an existing value. It writes a private JSON file outside the workspace. `siftpath setup --non-interactive` does not prompt and does not persist environment secrets.
+`siftpath setup` 使用打包后的 Clack 交互向导：↑↓ 选择服务商、在 Advanced 中用 Space 多选、Enter 确认、Esc 取消，随后使用隐藏输入录入每个密钥。默认推荐 Exa（搜索与正文提取共用密钥），也支持 Tavily、Parallel、Brave 和高级服务商；已有搜索配置默认保留。仅在已存在本地或环境密钥时才能用 Enter 保留旧值；取消不会写入部分配置。 It writes a private JSON file outside the workspace. `siftpath setup --non-interactive` does not prompt and does not persist environment secrets.
 
 Explicit path precedence: `SIFTPATH_CONFIG` > the compatibility alias `SMARTSEARCH_CONFIG` > default selection. Use a nonempty path for an override; setting the new variable, even to an empty value, prevents fallback to the old variable. An explicit missing file does not trigger a legacy-default lookup.
 
@@ -31,9 +31,9 @@ Files created by setup use atomic replacement and mode 0600 on POSIX, with newly
 
 ## Diagnostics
 
-`siftpath doctor` reports runtime version, configuration presence, provider readiness, and deterministic routes. It makes no network calls. Exit 2 means no configured search or fetch role, or an unsupported runtime; a missing optional reranker/decision provider alone is not an error. `--json` gives a machine-readable report.
+`siftpath doctor` 检查本地环境、配置与路由，不联网，配置存在不代表 API Key 有效。`siftpath doctor --live` 由用户明确触发一次可能收费的搜索 API 检查，默认只选一个服务商且允许一次网络重试；返回状态、结果数和安全的错误提示，不打印密钥或搜索内容。 Exit 2 means no configured search or fetch role, or an unsupported runtime; a missing optional reranker/decision provider alone is not an error. `--json` gives a machine-readable report.
 
-`siftpath providers` lists roles and states. `siftpath usage` reads only the last CLI operation; it is not cumulative billing. `engine.usage()` and `/siftpath-usage` in Pi retain in-process totals. Pi also exposes `/siftpath-doctor`. `--trace` writes provider timing/call/retry/cache events to stderr for CLI and MCP, not into returned agent evidence.
+`siftpath providers` lists roles and states. `siftpath usage` reads only the last CLI operation; it is not cumulative billing. `engine.usage()` and `/siftpath usage` in Pi report in-process totals. `/siftpath` displays an offline summary and `/siftpath reload` reapplies configuration while resetting process-local caches and counters. `--trace` writes provider timing/call/retry/cache events to stderr for CLI and MCP, not into returned agent evidence.
 
 ## HTTP serving
 
@@ -51,4 +51,8 @@ The server is single-tenant. Do not expose a shared provider account to multiple
 
 `fetch` accepts 1-20 URLs or session-scoped result IDs. `maxTokens` is 256-20,000 for fetch/gather. Search deliberately keeps a fixed compact budget and only exposes query, maxResults, recency, domains, and mode. Recency accepts `day`, `week`, `month`, `year`, an amount such as `7d`/`24h`, or a valid ISO calendar date. Domain filters are hostnames, not arbitrary URL expressions.
 
-The SDK supports custom timeouts/tokenizers/cache TTLs through `EvidenceEngine`. Process-local caches disappear when the CLI exits. For reuse and `resultIds`, keep one SDK engine, Pi instance, or MCP session alive.
+HTTP accepts only MCP `2026-07-28`; legacy MCP clients use `siftpath mcp` via stdio. The SDK supports custom timeouts/tokenizers/cache TTLs through `EvidenceEngine`. Process-local caches disappear when the CLI exits. For reuse and `resultIds`, keep one SDK engine, Pi instance, or stdio MCP connection alive. Modern HTTP reuses its bounded in-memory index within the same running process, not across restarts.
+
+## Experimental local evidence ranking
+
+The optional `evidenceRanking` configuration key accepts `legacy` (default) or `bm25`. For a one-command trial use `SIFTPATH_EVIDENCE_RANKING=bm25 siftpath gather "your question"` instead of editing configuration. This setting also applies to Pi/MCP when read from the user configuration. It changes only the ordering of extracted evidence passages; search source selection, providers, tool schemas and network behavior are unchanged. No model, background service, dependency, or index is added. Remove the key/environment override to revert immediately. See `npm run bench:bm25` for a synthetic A/B test; it is not a real-world quality guarantee.

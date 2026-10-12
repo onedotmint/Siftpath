@@ -1,16 +1,15 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, timingSafeEqual } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import type { TraceEvent } from '../core/types.js';
 import type { EvidenceEngine } from '../core/engine.js';
 import { EngineError } from '../core/errors.js';
-import { McpSession, protocolVersions, rpcError } from './session.js';
+import { McpSession, rpcError } from './session.js';
 
 export interface HttpServerOptions {
   createEngine: () => EvidenceEngine; token: string; host?: string; port?: number;
-  allowedOrigins?: string[]; allowedHosts?: string[]; idleMs?: number; maxSessions?: number; onTrace?: (event: TraceEvent) => void;
+  allowedOrigins?: string[]; allowedHosts?: string[]; onTrace?: (event: TraceEvent) => void;
 }
-interface Entry { session: McpSession; touched: number }
 const digest = (value: string) => createHash('sha256').update(value).digest();
 async function body(request: IncomingMessage): Promise<unknown> {
   let size = 0; const chunks: Buffer[] = [];
@@ -27,14 +26,14 @@ function respond(response: ServerResponse, status: number, value?: unknown): voi
   response.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
   response.end(value === undefined ? undefined : JSON.stringify(value));
 }
-/** Single-tenant Streamable HTTP, JSON response mode. TLS/OAuth belong at the deployment boundary. */
+/** Single-tenant modern MCP HTTP only. Older hosts can still use local stdio. */
 export async function serveHttp(options: HttpServerOptions) {
   if (typeof options.token !== 'string' || options.token.length < 24 || /[\r\n]/.test(options.token))
     throw new EngineError('INVALID_CONFIG', 'Set SIFTPATH_SERVER_TOKEN to a random secret of at least 24 characters.');
-  const host = options.host ?? '127.0.0.1', sessions = new Map<string, Entry>();
-  const tokenHash = digest(`Bearer ${options.token}`), idleMs = options.idleMs ?? 900000;
-  const maxSessions = options.maxSessions ?? 64;
-  let port = options.port ?? 7337;
+  const host = options.host ?? '127.0.0.1';
+  const tokenHash = digest(`Bearer ${options.token}`);
+  const engine = options.createEngine(); // Shared bounded in-memory cache, no HTTP sessions.
+  let active = 0, port = options.port ?? 7337;
   const server = createServer((request, response) => {
     void (async () => {
       const hosts = new Set([`${host}:${port}`, `localhost:${port}`, `127.0.0.1:${port}`, `[::1]:${port}`, ...options.allowedHosts ?? []]);
@@ -45,56 +44,58 @@ export async function serveHttp(options: HttpServerOptions) {
         response.setHeader('www-authenticate', 'Bearer'); respond(response, 401); return;
       }
       if (request.url !== '/mcp') { respond(response, 404); return; }
-      const version = request.headers['mcp-protocol-version'];
-      if (version !== undefined && !(protocolVersions as readonly unknown[]).includes(version)) { respond(response, 400); return; }
-      const id = request.headers['mcp-session-id'];
-      let entry = typeof id === 'string' ? sessions.get(id) : undefined;
-      if (typeof id === 'string' && !entry) { respond(response, 404); return; }
-      if (entry) entry.touched = Date.now();
-      if (request.method === 'DELETE') {
-        if (typeof id !== 'string' || !entry) { respond(response, 400); return; }
-        entry.session.close(); sessions.delete(id); respond(response, 200); return;
+      if (request.headers['mcp-protocol-version'] !== '2026-07-28') {
+        respond(response, 400, rpcError(null, -32022, 'HTTP requires MCP 2026-07-28. Use stdio for legacy clients.'));
+        return;
       }
-      if (request.method !== 'POST') { response.setHeader('allow', 'POST, DELETE'); respond(response, 405); return; }
+      if (request.headers['mcp-session-id']) { respond(response, 400); return; }
+      if (request.method !== 'POST') { response.setHeader('allow', 'POST'); respond(response, 405); return; }
       if (!request.headers['content-type']?.toLowerCase().startsWith('application/json')) { respond(response, 415); return; }
-      if (request.headers.accept && !/application\/json|\*\/\*/.test(request.headers.accept)) { respond(response, 406); return; }
-      let value: unknown;
-      try { value = await body(request); }
-      catch (error) { respond(response, error instanceof EngineError ? 413 : 400, rpcError(null, -32700, 'Invalid or oversized JSON body.')); return; }
-      const record = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
-      let createdId: string | undefined;
-      if (!entry) {
-        if (record?.method !== 'initialize') { respond(response, 400, rpcError(null, -32002, 'Session initialization required.')); return; }
-        if (sessions.size >= maxSessions) { respond(response, 503); return; }
-        createdId = randomUUID(); entry = { session: new McpSession(options.createEngine(), options.onTrace), touched: Date.now() };
-        sessions.set(createdId, entry); response.setHeader('mcp-session-id', createdId);
-      }
+      if (!/application\/json|\*\/\*/.test(request.headers.accept ?? '')) { respond(response, 406); return; }
+      if (active >= 16) { respond(response, 503); return; }
+      active++;
       const controller = new AbortController();
       const disconnected = () => { if (!response.writableEnded) controller.abort(); };
       response.once('close', disconnected);
+      const session = new McpSession(engine, options.onTrace);
       try {
-        const result = await entry.session.dispatch(value, undefined, controller.signal);
-        if (createdId && (!result || result.error)) { entry.session.close(); sessions.delete(createdId); response.removeHeader('mcp-session-id'); }
-        respond(response, result ? 200 : 202, result);
-      } finally { response.off('close', disconnected); }
+        let value: unknown;
+        try { value = await body(request); }
+        catch (error) {
+          respond(response, error instanceof EngineError ? 413 : 400, rpcError(null, -32700, 'Invalid or oversized JSON body.'));
+          return;
+        }
+        const record = value && typeof value === 'object' && !Array.isArray(value)
+          ? value as Record<string, unknown> : undefined;
+        const params = record?.params && typeof record.params === 'object' && !Array.isArray(record.params)
+          ? record.params as Record<string, unknown> : undefined;
+        const meta = params?._meta && typeof params._meta === 'object' && !Array.isArray(params._meta)
+          ? params._meta as Record<string, unknown> : undefined;
+        if (meta?.['io.modelcontextprotocol/protocolVersion'] !== '2026-07-28') {
+          respond(response, 400, rpcError(null, -32022, 'Invalid modern MCP protocol envelope.')); return;
+        }
+        if (request.headers['mcp-method'] !== record?.method ||
+            (record?.method === 'tools/call' && request.headers['mcp-name'] !== params?.name) ||
+            (record?.method !== 'tools/call' && request.headers['mcp-name'] !== undefined)) {
+          respond(response, 400, rpcError(null, -32600, 'MCP standard headers do not match the request.')); return;
+        }
+        const answer = await session.dispatch(value, undefined, controller.signal);
+        respond(response, answer ? 200 : 202, answer);
+      } finally { session.close(); active--; response.off('close', disconnected); }
     })().catch(() => respond(response, 500, rpcError(null, -32603, 'Internal server error.')));
   });
   server.requestTimeout = 30000; server.headersTimeout = 10000;
-  // A bounded socket inactivity timeout also handles a sender that never finishes its JSON body.
   server.setTimeout(35000, socket => socket.destroy());
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject); server.listen(port, host, () => { server.off('error', reject); resolve(); });
   });
   port = (server.address() as AddressInfo).port;
-  const sweep = setInterval(() => {
-    for (const [id, entry] of sessions) if (Date.now() - entry.touched >= idleMs) { entry.session.close(); sessions.delete(id); }
-  }, Math.min(idleMs, 60000)); sweep.unref();
   let closing: Promise<void> | undefined;
   return { server, host, port,
     close(): Promise<void> {
       return closing ??= new Promise<void>((resolve, reject) => {
-        clearInterval(sweep); for (const entry of sessions.values()) entry.session.close(); sessions.clear();
-        server.close(error => error ? reject(error) : resolve()); server.closeAllConnections();
+        server.close(error => error ? reject(error) : resolve());
+        server.closeAllConnections();
       });
     },
   };

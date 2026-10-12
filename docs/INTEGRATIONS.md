@@ -1,26 +1,12 @@
 # Integrations
 
-First build/link the root source package and run `siftpath setup` as described in the [root README](../README.md). Alternatively, generate a local tarball with `npm pack` and install that actual file; no npm publication or Release tarball is assumed. Host packages invoke `siftpath mcp` on PATH and therefore never need a second set of API keys or provider logic. A host launched by a GUI may have a different PATH/environment; the saved user configuration avoids environment duplication.
+## Pi：推荐的原生集成
 
-The package is `@onedotmint/siftpath`; MCP/plugin IDs are `siftpath`, and local marketplace IDs are `siftpath-local`. All relative paths and npm commands below start at the repository root. These are installation instructions, not commands executed during this documentation update.
+**正式发布 npm 后**：在 Pi 中执行 `pi install npm:@onedotmint/siftpath`，重启后运行 `/siftpath` 打开基于 Pi 原生 `SelectList` 的 TUI 状态面板。可用 ↑↓ 选择、Enter 确认、Esc 关闭；面板不会额外启动后台终端应用。还可以使用 `/siftpath usage` 查看本会话调用和缓存数据，或 `/siftpath reload` 在更改配置后重新建立检索引擎（清空内存缓存及计数）。三个操作均不联网、不会计费或暴露密钥；状态中的“已配置”不代表真实连通。如果没有配置 API Key，`/siftpath` 会给出需要在**系统终端**执行的设置命令；密钥不得粘贴在 AI 对话中。
 
-`siftpath integration <host>` prints the installed package root, host entry, canonical skill, guide, and an absolute Node/MCP command for troubleshooting. Restart the host after installation. Installing a package is not evidence that its live calls work: the delivery tests use host contracts and protocol sessions, not actual installed agent applications.
+**当前 PR 的开发者试用**：按 [README](../README.md) 克隆并编译 `feat/lightweight-html-mcp-2026` 分支，再执行 `pi install /absolute/path/to/Siftpath`。直接安装尚未编译的 Git 源无法保证 `dist/` 存在；因此目前不宣传 git: 一键安装为可靠方式。
 
-## Pi: native first
-
-From a source checkout after `npm ci --ignore-scripts` and `npm run build` at the repository root:
-
-```bash
-pi install /absolute/path/to/Siftpath
-```
-
-Or reuse the global compiled package without building:
-
-```bash
-pi install "$(npm root -g)/@onedotmint/siftpath"
-```
-
-The package `pi` manifest loads `integrations/pi/index.ts` and `skills/`. The extension imports the host's current `@earendil-works/pi-ai` Type factory, registers exactly three native tools, forwards cancellation, sends progress/status updates, and exposes `/siftpath-doctor` and `/siftpath-usage`. The old `/smartsearch-doctor` and `/smartsearch-usage` spellings remain compatibility aliases. All retrieval calls use the shared engine. Current official Pi contracts were inspected; older namespace/version combinations and real terminal rendering still require a host smoke test. Do not enable the MCP copy alongside the native tools unnecessarily.
+Pi 原生集成只有 `web_search`、`web_fetch`、`web_gather` 三个工具，以及一个 `/siftpath` 命令（省略参数等同 `status`；支持 `usage` 和 `reload`）。旧 Pi 命令在 2.0 预发布阶段直接删除，不额外注册别名。不要再重复加载相同的 MCP 工具。验证安装请使用 `pi list` 并在 Pi 内运行 `/siftpath`；CI 会额外使用 Pi 0.99 的真实组件和加载器测试扩展入口、输入及窄终端排版；但仍不等同于在用户终端中完整手动安装、操作 Pi。
 
 ## Codex and local ChatGPT desktop
 
@@ -73,7 +59,7 @@ Restart Cursor or run Developer: Reload Window, then inspect Customize. Local pl
 
 For executable-resolution problems, use the absolute `process.execPath` and script path returned by `siftpath integration codex`. Do not paste API keys into shared repository MCP JSON. Stdio stdout is reserved for JSON-RPC; diagnostics go to stderr.
 
-HTTP deployments use `siftpath mcp --http`. Send authenticated POST requests to `/mcp`; retain the returned `mcp-session-id` and negotiated protocol header. JSON Streamable HTTP is supported; GET/SSE streaming is not advertised. DELETE closes the session. Cancellation notifications and connection termination propagate to engine calls. See CONFIGURATION.md and SECURITY.md.
+HTTP deployments use `siftpath mcp --http`. Modern `2026-07-28` requests use a per-request `_meta` envelope, matching `MCP-Protocol-Version` and `Mcp-Method` headers (also `Mcp-Name` for tool calls), and receive stateless JSON replies with no `mcp-session-id`. This is a bounded implementation of the three core tools and `server/discover`, not the full surface of the official SDK/conformance suite; official v2 client smoke tests are required in CI. Legacy HTTP `initialize`, session IDs, and `DELETE` termination are deliberately unsupported; those clients must upgrade or use local stdio. The stdio server retains legacy initialization alongside the modern envelope. TLS remains external. See CONFIGURATION.md and SECURITY.md.
 
 ## Public ChatGPT is a separate deployment step
 

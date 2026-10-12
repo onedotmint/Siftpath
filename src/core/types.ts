@@ -1,5 +1,6 @@
 /** The core has no knowledge of vendor names or host integrations. */
 export type Mode = 'fast' | 'quality';
+export type EvidenceRanking = 'legacy' | 'bm25';
 export type Capability = 'search' | 'fetch' | 'semanticSearch' | 'freshness' | 'domainFilter' |
   'dateFilter' | 'highlights' | 'objectiveExtract' | 'news' | 'pdf' | 'hardPages';
 export type Capabilities = Partial<Record<Capability, boolean>>;
@@ -41,6 +42,8 @@ export interface FetchInput {
   url?: string; urls?: string[]; resultIds?: string[]; query?: string; maxTokens?: number;
 }
 export interface GatherInput { query: string; mode?: Mode; maxTokens?: number }
+/** Caller-supplied HTML, never a URL fetched by Siftpath. */
+export interface HtmlInput { url: string; html: string; query?: string; maxTokens?: number; extractor?: 'basic' | 'readability' }
 export interface SearchRequest {
   query: string; maxResults: number; mode: Mode; domains?: string[]; since?: string;
 }
@@ -87,4 +90,6 @@ export interface EngineOptions {
   providers: Providers; timeoutMs?: number; providerTimeoutMs?: number;
   cacheMaxEntries?: number; searchTtlMs?: number; fetchTtlMs?: number;
   countTokens?: (text: string) => number;
+  /** Opt-in lexical experiment; existing ranking stays the default. */
+  evidenceRanking?: EvidenceRanking;
 }

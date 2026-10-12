@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | npm / SDK | `@onedotmint/siftpath` | 不提供旧 npm 包名或旧 import 的自动重定向 |
 | CLI | `siftpath` | 新包同时提供 `smartsearch`、`smart-search` 可执行别名，调用同一 CLI |
-| Pi | `/siftpath-doctor`、`/siftpath-usage` | `/smartsearch-doctor`、`/smartsearch-usage` 调用相同逻辑 |
+| Pi | `/siftpath`，支持 `status`（默认）、`usage`、`reload` | 不再注册 `/siftpath-doctor`、`/siftpath-usage`、`/smartsearch-doctor`、`/smartsearch-usage`；请更新旧命令 |
 | 项目环境变量 | `SIFTPATH_*` | 对应的 `SMARTSEARCH_*` 仍可作为回退；新名称优先 |
 | MCP / plugin ID | `siftpath` | 旧客户端配置需自行更新，不自动改写客户端文件 |
 | 本地 marketplace ID | `siftpath-local` | 不将旧 marketplace 自动重命名或重新安装 |
