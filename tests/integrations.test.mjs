@@ -296,3 +296,36 @@ test('Pi TUI presenter supports navigating status, usage and reload without a ne
   assert.ok(notices.some(n=>/Cache and session usage reset/.test(n.message)));
   assert.doesNotMatch(JSON.stringify(panels)+JSON.stringify(notices),/never-print-this-key/);
 });
+
+test('Bundled Clack setup wizard handles selection, advanced space-choice and cancellation',async()=>{
+  const { runSetupWizard } = await import('../dist/setup-ui.js');
+  const prompts=({
+    intro(){},outro(){},cancel(){},
+    log:{info(){},warn(){}},
+    async select(){return 'tavily';},
+    async multiselect(){throw new Error('basic setup should not open advanced selection');},
+    async password(){return 'private-tavily-key';},
+  });
+  const simple=await runSetupWizard(false,[],prompts);
+  assert.deepEqual(simple.providers,['tavily']);
+  assert.equal(simple.credentials.TAVILY_API_KEY,'private-tavily-key');
+  const advanced={
+    ...prompts,
+    async select(){return 'advanced';},
+    async multiselect(args){
+      assert.deepEqual(args.options.map(option=>option.value),
+        ['exa','tavily','parallel','brave','firecrawl','jina','cloudflare']);
+      assert.equal(args.required,true);
+      return ['exa','brave'];
+    },
+    async password(args){
+      assert.match(args.message,/API_KEY/);
+      return 'mock-sensitive-value';
+    },
+  };
+  const multi=await runSetupWizard(false,[],advanced);
+  assert.deepEqual(multi.providers,['exa','brave']);
+  assert.equal(multi.credentials.BRAVE_API_KEY,'mock-sensitive-value');
+  const keep=await runSetupWizard(true,['EXA_API_KEY'],{...prompts,async select(){return 'keep';}});
+  assert.deepEqual(keep,{providers:[],credentials:{}});
+});
