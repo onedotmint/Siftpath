@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Exercise the installed Clack wizard in a real Linux pseudo-terminal."""
 import json
+import fcntl
+import struct
 import os
 import pty
 import select
@@ -25,6 +27,8 @@ def wizard(path: Path, cancel: bool = False):
     env["SIFTPATH_CONFIG"] = str(path)
     env["TERM"] = "xterm-256color"
     master, slave = pty.openpty()
+    # A raw PTY starts with 0 columns on CI and Clack wraps every character.
+    fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 30, 100, 0, 0))
     attrs = termios.tcgetattr(slave)
     attrs[3] &= ~(termios.ECHO | termios.ECHONL)
     attrs[1] &= ~termios.OPOST
