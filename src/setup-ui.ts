@@ -59,8 +59,8 @@ export async function runSetupWizard(ready: boolean, existingNames: readonly str
       const value = await prompts.password({
         message: name + (alreadySet ? ' (Enter to keep existing key)' : ' (required)'),
         validate: text => {
-          if (!text.trim() && !alreadySet) return 'Enter an API key, or press Esc to cancel.';
-          if (text.length > 4096 || /[\r\n\0]/.test(text)) return 'Invalid key format.';
+          if (!(text ?? '').trim() && !alreadySet) return 'Enter an API key, or press Esc to cancel.';
+          if ((text?.length ?? 0) > 4096 || /[\r\n\0]/.test(text ?? '')) return 'Invalid key format.';
         },
       });
       if (isCancel(value)) { prompts.cancel('Cancelled; no changes saved.'); return null; }
