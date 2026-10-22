@@ -1,58 +1,33 @@
 # Architecture
 
-## One package, four boundaries
+One npm package, TypeScript, Node.js 22+.
 
+```text
+src/inputs.ts       strict shared Zod inputs + public URL guard
+src/defaults.ts     five official MCP definitions (Brave, Exa, Tavily, Jina, Firecrawl), no vendor branches in Router
+src/config.ts       JSON config, private storage, credential references, diagnostics
+src/diagnostics.ts  CLI-only phased provider probes, private latest-test records and summaries
+extensions/siftpath.mjs  optional Pi slash command; invokes CLI JSON only
+src/client.ts       official SDK Client, lazy/reused stdio or Streamable HTTP
+src/router.ts       choose one provider, map arguments, sequential fallback
+src/output.ts       official text + citation envelope + serialized character bound
+src/tools.ts        exactly web_search and web_read, shared CLI/MCP dispatcher
+src/mcp/stdio.ts    official SDK Server + StdioServerTransport
+src/cli.ts         mcp / search / read / doctor / setup / status / test
+src/setup.ts       private config orchestration + opt-in existing diagnostics
+src/setup-ui.ts    historically reused Clack prompts, separately bundled and lazy-loaded
+src/version.ts     package version
+src/index.ts       public TypeScript SDK exports
 ```
-src/core/          typed contracts + deterministic evidence pipeline
-src/providers/     hosted HTTP adapters + shared response normalization
-src/tools.ts       three compact schemas + shared invocation
-src/cli.ts         terminal boundary
-src/integrations/  Pi boundary
-src/mcp/           shared JSON-RPC dispatcher + stdio / HTTP transports
-skills/            one canonical instruction bundle
-integrations/      generated host manifests, commands, and skill copies
-```
 
-There are no workspace packages, inheritance framework, local inference servers, vector databases, LLM routers, or planner DSLs. Native tools and MCP call the same engine. Host-specific manifests are generated; retrieval code is not copied between integrations.
+No HTTP server, HTTP API adapters, parsing, fusion, RRF, cache, local ranking, sufficiency judgment, Gather, LLM router or agent planner remains. The runtime directly depends only on the official MCP SDK and Zod (the SDK has its own transitive dependencies).
 
-## Pipeline
+Each operation gets an overall deadline (60s default), each provider attempt gets a deadline (20s default, including first connection), and cancellation is forwarded through the official SDK. Configuration limits both to 120s. No automatic retry or parallel provider fan-out; each configured fallback is tried once. In-flight calls share a lazy initialization promise and successful connections. On disconnection or an HTTP 404 expired session the client removes the cached connection; the next operation can reconnect. HTTP cancellation reaches the actual fetch/body, with a 4 MiB response bound; shutdown sends a best-effort session DELETE bounded to 2s, then always closes locally.
 
-`search`: validate -> deterministic selection -> bounded parallel requests -> canonical/RRF fusion -> domain diversity -> budgeted candidates.
+`content` preserves the official tool output and ordering, including available dates/authors/metadata. `sources` indexes public URLs present in structured results, JSON text, Markdown or plain text; it is not a semantic citation verifier. Siftpath does not claim every outgoing link supports the query. Read results always include the exact requested URL. Long text is cut, never summarized or rearranged. The entire returned JSON is bounded by maxOutputChars, not an estimated model token count.
 
-`fetch`: validate public URLs / resolve session IDs -> query-keyed TTL cache -> batch extract -> one alternate for unresolved URLs -> clean/scan/chunk -> lexical rank -> fit budget.
+Shutdown on stdin EOF, SIGINT/SIGTERM or transport close aborts the Router and closes upstream SDK connections/stdio children. SDK users must call `close()` in `finally`. Official stdio processes are children of this process, not separately managed daemons.
 
-`gather`: search -> select URLs -> fetch -> preserve useful search excerpts when extraction fails -> lexical rank -> optional hosted rerank -> budget -> optional sufficiency check -> at most one supplementary round -> fit final pack.
+Output is normalized and budgeted once after the Router has assembled all warnings. URL delimiter cleanup counts unmatched brackets in linear scans rather than repeatedly rescanning each shortened URL. Concurrent calls to `close()` all await the same teardown, including the bounded HTTP session DELETE.
 
-An operation fails only when it has no usable evidence, invalid input/configuration, explicit cancellation, or insufficient space even for essential provenance. Provider failures normally become typed warnings. Global deadline expiration returns partial evidence when available; explicit user cancellation rejects with `ABORTED`.
-
-## Contracts and provenance
-
-`SearchProvider`, `FetchProvider`, `RerankProvider`, and `DecisionProvider` are small function contracts in `core/types.ts`. Capabilities are typed booleans. Adapter response validation, auth, URL endpoints, date filters, and vendor field mapping stay outside core.
-
-`Candidate.origins` retains contributing providers, original URLs, ranks, and available vendor IDs. `Evidence` carries its own source URL and identifier. Cosmetic near-duplicate candidates may share a representative; their origins remain distinct. Text from a different URL is not concatenated into the representative's excerpt. Evidence text deduplication retains a representative rather than claiming several URLs said identical things independently.
-
-Canonical identities remove common tracking parameters, normalize query order and fragments, and retain meaningful query parameters. Requests use the original URL, not a rewritten signed URL. Domain diversity uses a small conservative suffix table, not a full public-suffix parser. Search with explicit domain filters permits same-domain results; quality gather caps passages per domain.
-
-## Routing and bounds
-
-Normal fast search selects one provider. If empty/failed, it can try one alternate. Quality selects at most two per round. Optional decision insufficiency can use previously unused providers in one additional round; the query is not rewritten and the decision model cannot plan tools.
-
-Selection first excludes missing capabilities, then compares configured priority, optional SDK quality score, latency estimate, and deterministic ID tie-break. Built-in priorities are provisional Exa/Parallel/Tavily/Brave; they are **not validated winners from a live benchmark**. No hidden query-intent taxonomy changes them.
-
-Default deadlines: 25 seconds per operation, 8 seconds per provider attempt. At most one retry for retryable HTTP/network failures; backoff is bounded by the same cancellation scope. Firecrawl maps a requested batch into at most three concurrent synchronous scrape calls. Extract fallback retries unresolved URLs only.
-
-Search cache: 60 seconds. Page cache: 5 minutes, keyed by canonical URL and extraction query. Both are bounded at 256 entries by default, copy on storage/read, and process-local. Result IDs last up to one hour within a bounded 1,024-entry index. No persistent search history, Redis, or distributed cache is created.
-
-## Budgets and coverage
-
-The budget accounts for the complete serialized result, including source metadata, warnings, and usage. Character-based token estimation is a conservative heuristic, not a guarantee for any model tokenizer. Supply `new EvidenceEngine({providers, countTokens})` to enforce a specific tokenizer's count. Counts must be nonnegative safe integers.
-
-Passages are selected query-first and domain-interleaved. Oversized text is shortened with `truncated` flags; trailing low-priority evidence is removed if needed. Source entries are synchronized to retained evidence. If provenance alone cannot fit, the engine reports `BUDGET_TOO_SMALL` rather than discarding attribution silently. Coverage is downgraded when truncation or insufficient retained diversity weakens it.
-
-Heuristic coverage combines lexical query coverage and source diversity. Clef can add a sufficiency judgment, but is optional. Neither certifies truth, detects all contradiction, or guarantees source independence. The consuming agent must examine dates and evidence and cite actual source URLs.
-
-## Transport and privacy boundary
-
-Stdio is local. HTTP is a bounded, single-tenant, authenticated service with a shared server token, per-session engines, maximum sessions/concurrent calls, request size limits, host/origin checks, and explicit cancellation. It implements Streamable HTTP JSON response mode, not legacy SSE or an OAuth identity platform. HTTPS and stronger multi-user identity belong at the deployment boundary.
-
-Provider keys come from the private user configuration/environment and never enter tool schemas. The CLI stores only latest-operation usage, not query or page content. SDK/Pi usage is session-local. Trace is opt-in and omits provider payloads/credentials. See SECURITY.md for limitations.
+Diagnostics deliberately perform stricter discovery/output-contract checks than normal business calls. Their per-config history files do not share provider records across neighboring configuration files; see DIAGNOSTICS.md. SSE response interruption is bounded by the existing provider deadline without automatic replay; a notification GET disconnect does not cancel unrelated POST work.

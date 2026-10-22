@@ -20,9 +20,9 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci --ignore-scripts
-      - run: npm run sync:integrations
-      - run: git diff --exit-code -- integrations .agents .cursor-plugin .claude-plugin
       - run: npm run check
+      - if: runner.os == 'Linux'
+        run: npm run test:setup
       - run: npm run verify:source
       - run: npm run test:live
       - run: npm run pack:dry

@@ -1,48 +1,33 @@
-import type { Readable, Writable } from 'node:stream';
-import type { EvidenceEngine } from '../core/engine.js';
-import type { TraceEvent } from '../core/types.js';
-import { McpSession, rpcError, type RpcMessage } from './session.js';
-
-export async function serveStdio(engine: EvidenceEngine, input: Readable = process.stdin,
-  output: Writable = process.stdout, trace?: (event: TraceEvent) => void): Promise<void> {
-  const session = new McpSession(engine, trace), pending = new Set<Promise<void>>();
-  let buffer = '', ended = false;
-  let writes = Promise.resolve();
-  const send = (message: RpcMessage) => {
-    writes = writes.then(() => new Promise<void>((resolve, reject) => {
-      output.write(JSON.stringify(message) + '\n', error => error ? reject(error) : resolve());
-    }));
-    // An EPIPE closes this session; it must not become an unhandled rejection.
-    void writes.catch(() => session.close());
-  };
-  const handle = (line: string) => {
-    if (!line.trim()) return;
-    let value: unknown;
-    try { value = JSON.parse(line); } catch { send(rpcError(null, -32700, 'Invalid JSON.')); return; }
-    const work = session.dispatch(value, send).then(message => { if (message) send(message); })
-      .catch(() => { send(rpcError(null, -32603, 'Internal protocol error.')); });
-    pending.add(work); void work.finally(() => pending.delete(work));
-  };
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { safeError } from '../errors.js';
+import type { Siftpath } from '../router.js';
+import { invokeTool, toolDefinitions } from '../tools.js';
+import { packageVersion } from '../version.js';
+export async function serveStdio(router: Siftpath): Promise<void> {
+  const server = new Server({ name: 'siftpath', version: packageVersion }, { capabilities: { tools: {} } });
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: toolDefinitions }));
+  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+    try {
+      const result = await invokeTool(router, request.params.name, request.params.arguments, { signal: extra.signal });
+      return { content: [{ type: 'text', text: JSON.stringify(result) }], isError: false };
+    } catch (error) { return { content: [{ type: 'text', text: JSON.stringify(safeError(error)) }], isError: true }; }
+  });
   await new Promise<void>((resolve, reject) => {
-    const finish = (error?: Error) => {
-      if (ended) return; ended = true;
-      input.off('data', data); input.off('end', end); input.off('error', fail); output.off('error', fail);
-      session.close();
-      void Promise.allSettled([...pending]).then(() => writes).then(() => error ? reject(error) : resolve(), reject);
+    let closing = false;
+    const stop = () => {
+      if (closing) return; closing = true;
+      process.off('SIGINT', stop); process.off('SIGTERM', stop);
+      process.stdin.off('end', stop); process.stdout.off('error', stop);
+      void Promise.allSettled([router.close(), server.close()]).then(() => resolve());
     };
-    const data = (chunk: string) => {
-      buffer += chunk;
-      let newline: number;
-      while ((newline = buffer.indexOf('\n')) >= 0) {
-        const line = buffer.slice(0, newline); buffer = buffer.slice(newline + 1);
-        if (Buffer.byteLength(line) > 1_048_576) { finish(new Error('MCP line exceeds 1 MiB.')); return; }
-        handle(line);
-      }
-      if (Buffer.byteLength(buffer) > 1_048_576) finish(new Error('MCP line exceeds 1 MiB.'));
-    };
-    const end = () => { if (buffer.trim()) handle(buffer); finish(); };
-    const fail = (error: Error) => finish(error);
-    input.setEncoding('utf8'); input.on('data', data); input.once('end', end);
-    input.once('error', fail); output.once('error', fail);
+    process.once('SIGINT', stop); process.once('SIGTERM', stop);
+    process.stdin.once('end', stop); process.stdout.once('error', stop);
+    server.onclose = stop;
+    server.onerror = () => {}; // SDK transport errors are not safe to print verbatim.
+    server.connect(new StdioServerTransport(process.stdin, process.stdout, { maxBufferSize: 1024 * 1024 })).catch(() => {
+      stop(); reject(new Error('Cannot start MCP stdio transport.'));
+    });
   });
 }
