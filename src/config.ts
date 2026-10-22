@@ -10,7 +10,9 @@ import { defaultProviders, defaultRoutes } from './defaults.js';
 
 export const configurationMaxBytes = 65536;
 const clean = z.string().min(1).max(4096).regex(/^[^\r\n\0]+$/);
-const bindingSchema = z.strictObject({ name: clean, arguments: z.record(z.string(), z.unknown()).default({}) });
+const bindingSchema = z.strictObject({ name: clean, arguments: z.record(z.string(), z.unknown()).default({}),
+  // Some official tools reject fewer results than their native minimum; the Router raises the request and warns.
+  minResults: z.number().int().min(1).max(20).optional() });
 const connectionSchema = z.discriminatedUnion('transport', [
   z.strictObject({ transport: z.literal('stdio'), command: clean.refine(value => !value.includes('${')), args: z.array(clean.refine(value => !value.includes('${'))).default([]), env: z.record(z.string(), clean).default({}) }),
   z.strictObject({ transport: z.literal('http'), url: clean.refine(value => {

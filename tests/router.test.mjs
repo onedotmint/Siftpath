@@ -173,3 +173,28 @@ test('fallback diagnostics are included before the single final output trim', as
   assert.ok(result.content.length > 300); assert.ok(JSON.stringify(result).length > 1900);
   assert.ok(JSON.stringify(result).length <= 2000);
 });
+
+test('a provider minimum raises too-small result requests and says so, without touching other providers', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'siftpath-min-results-')); t.after(() => rm(dir, { recursive: true, force: true }));
+  const log = join(dir, 'calls.jsonl'), tavily = provider('search', { MOCK_LOG: log });
+  tavily.search.minResults = 5;
+  const r = await router(t, config({ tavily }, { routes: { search: 'tavily', read: 'tavily', intents: {}, searchFallback: [] } }));
+  const raised = await r.search({ query: 'x', maxResults: 1 });
+  assert.ok(raised.warnings.some(warning => warning.code === 'MAX_RESULTS_RAISED'));
+  assert.equal(JSON.parse((await readFile(log, 'utf8')).trim().split('\n')[0]).args.count, 5);
+  const exact = await r.search({ query: 'y', maxResults: 5 });
+  assert.ok(!exact.warnings.some(warning => warning.code === 'MAX_RESULTS_RAISED'));
+  const plain = await router(t, config());
+  assert.ok(!(await plain.search({ query: 'z', maxResults: 1 })).warnings.some(warning => warning.code === 'MAX_RESULTS_RAISED'));
+});
+
+test('retiring a router after a configuration change lets in-flight calls finish instead of aborting them', async t => {
+  const r = new Siftpath(config({ brave: { ...provider('slow'), timeoutMs: 8000 } }), {});
+  const work = r.search({ query: 'in flight' });
+  await new Promise(resolve => setTimeout(resolve, 100));
+  r.retire();
+  const result = await work;
+  assert.equal(result.provider, 'brave');
+  await new Promise(resolve => setTimeout(resolve, 50));
+  await assert.rejects(r.search({ query: 'after retirement' }), { code: 'CLOSED' });
+});

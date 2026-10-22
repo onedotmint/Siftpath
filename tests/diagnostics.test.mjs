@@ -8,7 +8,7 @@ import { createServer } from 'node:http';
 import { once } from 'node:events';
 import { parseConfiguration } from '../dist/config.js';
 import { Siftpath } from '../dist/index.js';
-import { statusReport, testReport, testHistoryPath } from '../dist/diagnostics.js';
+import { statusReport, testReport, testHistoryPath, formatStatus, formatTests } from '../dist/diagnostics.js';
 const fixture = resolve('tests/fixtures/official-mcp.mjs');
 function provider(name = 'search', env = {}) {
   return { connection: { transport: 'stdio', command: process.execPath, args: [fixture, '--stdio'], env },
@@ -188,4 +188,44 @@ test('ambiguous legacy directory history is not imported or overwritten for a se
   await testReport(s.config, 'exa', s.path, {});
   assert.equal(await readFile(legacyPath, 'utf8'), legacy);
   assert.equal((await statusReport(s.config, s.path, {})).providers.find(p => p.provider === 'exa').lastTest.outcome, 'passed');
+});
+
+test('disabled providers are skipped without failing the run, and nothing testable is never a success', async t => {
+  const mixed = await setup(t, { exa: provider(), jina: { ...provider(), enabled: false } });
+  const partial = await testReport(mixed.config, 'all', mixed.path, {});
+  assert.equal(partial.ok, true); assert.deepEqual(partial.counts, { passed: 1, failed: 0, skipped: 1 });
+  assert.match(formatTests(partial), /1 passed, 0 failed, 1 skipped/);
+  assert.match(formatTests(partial), /Overall: OK/);
+  const none = await setup(t, { exa: { ...provider(), enabled: false }, jina: { ...provider(), enabled: false } });
+  const empty = await testReport(none.config, 'all', none.path, {});
+  assert.equal(empty.ok, false); assert.deepEqual(empty.counts, { passed: 0, failed: 0, skipped: 2 });
+  assert.equal(empty.networkChecked, false);
+  assert.match(formatTests(empty), /Overall: nothing testable/);
+  assert.match((await cli(none.path, ['test', 'all'])).stdout, /nothing testable/);
+});
+
+test('enabled but unconfigured providers are reported as pending setup, not as healthy', async t => {
+  const s = await setup(t, { brave: provider('search', { KEY: '${ABSENT_KEY}' }), exa: provider() });
+  const report = await testReport(s.config, 'all', s.path, {});
+  assert.equal(report.results[0].configuration, 'MISSING_CREDENTIALS');
+  assert.equal(report.results[0].outcome, 'skipped');
+  assert.equal(report.ok, true);
+  const status = await statusReport(s.config, s.path, {});
+  assert.equal(status.providers.find(row => row.provider === 'brave').code, 'MISSING_CREDENTIALS');
+  assert.match(status.nextStep, /待配置: brave/);
+});
+
+test('status names the effective config file and separates READY from actually tested providers', async t => {
+  const s = await setup(t, { exa: provider() });
+  const untested = await statusReport(s.config, s.path, {});
+  assert.equal(untested.configPath, s.path);
+  assert.match(untested.nextStep, /Test the configured services/);
+  assert.ok(formatStatus(untested).includes('Config: ' + s.path));
+  assert.match(formatStatus(untested), /NOT_TESTED/);
+  await testReport(s.config, 'exa', s.path, {});
+  const tested = await statusReport(s.config, s.path, {});
+  assert.equal(tested.providers.find(row => row.provider === 'exa').lastTest.outcome, 'passed');
+  assert.match(formatStatus(tested), /exa: READY · search · last test passed/);
+  assert.match(formatStatus(tested), /Ready: ask the model/);
+  assert.ok(!JSON.stringify(tested).includes('PRIVATE_KEY'));
 });

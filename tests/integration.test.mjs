@@ -118,3 +118,40 @@ test('MCP tools/call cancellation reaches upstream and the stdio server remains 
   const read = await client.callTool({ name: 'web_read', arguments: { url: 'https://example.com' } });
   assert.equal(read.isError, false);
 });
+
+test('a saved configuration takes effect on the next call without restarting the MCP server', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'siftpath-reload-')); t.after(() => rm(dir, { recursive: true, force: true }));
+  const path = join(dir, 'config.json'), log = join(dir, 'calls.jsonl');
+  const logged = { ...provider, connection: { ...provider.connection, env: { MOCK_LOG: log } } };
+  const routes = { search: 'brave', read: 'jina', intents: {}, searchFallback: [] };
+  const write = value => writeFile(path, JSON.stringify(value));
+  const settle = () => new Promise(resolve => setTimeout(resolve, 25));
+  await write({ providers: { brave: logged, jina: provider }, routes });
+  const transport = new StdioClientTransport({ command: process.execPath, args: [resolve('dist/cli.js'), 'mcp'], env: { SIFTPATH_CONFIG: path }, stderr: 'pipe' });
+  const client = new Client({ name: 'reload-test', version: '1' }); t.after(() => client.close());
+  await client.connect(transport);
+  assert.equal(JSON.parse((await client.callTool({ name: 'web_search', arguments: { query: 'one' } })).content[0].text).provider, 'brave');
+
+  await settle(); // same-millisecond writes must not be confused with a reload
+  await write({ providers: { brave: { ...logged, search: { name: 'read', arguments: { url: 'https://example.com', question: '$query' } } }, jina: provider }, routes });
+  const rebound = await client.callTool({ name: 'web_search', arguments: { query: 'two' } });
+  assert.match(JSON.parse(rebound.content[0].text).content, /Native reader text/);
+
+  await settle();
+  await write({ providers: { brave: { ...logged, enabled: false }, jina: provider }, routes });
+  const disabled = await client.callTool({ name: 'web_search', arguments: { query: 'three' } });
+  assert.equal(disabled.isError, true);
+  assert.equal(JSON.parse(disabled.content[0].text).code, 'NO_PROVIDER_SUCCEEDED');
+
+  await settle();
+  await write({ version: 2, providerTypo: true });
+  const broken = await client.callTool({ name: 'web_search', arguments: { query: 'four' } });
+  assert.equal(JSON.parse(broken.content[0].text).code, 'INVALID_CONFIG');
+  assert.match(JSON.parse(broken.content[0].text).hint, /configuration file/);
+
+  await settle();
+  await write({ providers: { brave: provider, jina: provider }, routes });
+  const recovered = await client.callTool({ name: 'web_search', arguments: { query: 'five' } });
+  assert.equal(recovered.isError, false);
+  await client.close();
+});

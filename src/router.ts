@@ -18,6 +18,8 @@ export class Siftpath {
   readonly configuration: Configuration;
   private clients: McpClients;
   private shutdown = new AbortController();
+  private active = 0;
+  private retiring = false;
   constructor(config: unknown = {}, private env: NodeJS.ProcessEnv = process.env) {
     this.configuration = parseConfiguration(config);
     this.clients = new McpClients(this.configuration, env);
@@ -32,7 +34,14 @@ export class Siftpath {
     return this.route('read', args, options.signal);
   }
   async close(): Promise<void> { this.shutdown.abort(); await this.clients.close(); }
+  /** Close only after in-flight calls finish, so a configuration reload never interrupts unrelated work. */
+  retire(): void { this.retiring = true; if (!this.active) void this.close(); }
   private async route(kind: 'search' | 'read', input: Record<string, unknown>, caller?: AbortSignal): Promise<WebResult> {
+    this.active++;
+    try { return await this.attempt(kind, input, caller); }
+    finally { this.active--; if (this.retiring && !this.active) void this.close(); }
+  }
+  private async attempt(kind: 'search' | 'read', input: Record<string, unknown>, caller?: AbortSignal): Promise<WebResult> {
     const c = this.configuration, routes = c.routes, deadline = AbortSignal.timeout(c.timeoutMs);
     const signal = AbortSignal.any([deadline, this.shutdown.signal, ...(caller ? [caller] : [])]);
     const primary = kind === 'search' ? routes.intents[input.intent as keyof typeof routes.intents] ?? routes.search : routes.read;
@@ -50,9 +59,13 @@ export class Siftpath {
       if (!binding) { diagnostics.push({ provider: id, code: 'UNSUPPORTED_OPERATION' }); continue; }
       const attempt = AbortSignal.timeout(provider!.timeoutMs ?? c.providerTimeoutMs);
       try {
-        const raw = await this.clients.call(id, binding.name, mapArguments(binding.arguments, input), AbortSignal.any([signal, attempt]));
+        const effective = { ...input };
+        const raised = kind === 'search' && !!binding.minResults && Number(effective.maxResults) < binding.minResults;
+        if (raised) effective.maxResults = binding.minResults;
+        const raw = await this.clients.call(id, binding.name, mapArguments(binding.arguments, effective), AbortSignal.any([signal, attempt]));
         cancelled();
         const warnings: WebResult['warnings'] = [];
+        if (raised) warnings.push({ provider: id, code: 'MAX_RESULTS_RAISED' });
         if (kind === 'read' && input.focus && !JSON.stringify(binding.arguments).includes('"$focus"')) warnings.push({ provider: id, code: 'FOCUS_UNSUPPORTED' });
         warnings.push(...diagnostics.map(({ provider, code }) => ({ provider, code })));
         return normalize(raw, id, binding.name, c.maxOutputChars, kind === 'read' ? String(input.url) : undefined, warnings);

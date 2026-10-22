@@ -109,12 +109,21 @@ export async function providerTest(id: string, config: Configuration, env: NodeJ
 export async function statusReport(config: Configuration, path = configPath(), env: NodeJS.ProcessEnv = process.env) {
   const history = await readHistory(testHistoryPath(path));
   const local = diagnostics(config, env);
-  return { version: packageVersion, ok: true, ...local, warnings: history.warning ? [history.warning] : [],
-    providers: local.providers.map(provider => {
-      const saved = Object.hasOwn(history.data.tests, provider.provider) ? history.data.tests[provider.provider] : undefined;
-      return { ...provider, configured: Object.hasOwn(config.providers, provider.provider), lastTest: saved?.result ?? null,
-        lastTestStale: saved ? saved.fingerprint !== fingerprint(provider.provider, config, env) : false };
-    }) };
+  const providers = local.providers.map(provider => {
+    const saved = Object.hasOwn(history.data.tests, provider.provider) ? history.data.tests[provider.provider] : undefined;
+    return { ...provider, configured: Object.hasOwn(config.providers, provider.provider), lastTest: saved?.result ?? null,
+      lastTestStale: saved ? saved.fingerprint !== fingerprint(provider.provider, config, env) : false };
+  });
+  // READY is configuration only; the next step follows from what is configured and what was actually tested.
+  const ready = providers.filter(provider => provider.code === 'READY');
+  const verified = ready.filter(provider => provider.lastTest?.outcome === 'passed' && !provider.lastTestStale);
+  const pending = providers.filter(provider => provider.configured && ['MISSING_CREDENTIALS', 'AUTH_FAILED', 'NOT_CONFIGURED'].includes(provider.code));
+  const pendingText = pending.length ? `待配置: ${pending.map(provider => `${provider.provider}(${provider.needs?.join(', ') ?? provider.code})`).join(', ')}. ` : '';
+  const nextStep = pendingText + (pending.length && !ready.length ? 'Run /siftpath (Pi) or `siftpath setup` to finish the Keys above.'
+    : !ready.length ? 'Run /siftpath (Pi) or `siftpath setup` and add one search or one read service.'
+    : verified.length < ready.length ? 'Test the configured services: /siftpath → test, or `siftpath test all` (may use API quota).'
+    : 'Ready: ask the model to search, or run `siftpath search "..."` for an end-to-end check.');
+  return { version: packageVersion, ok: true, ...local, configPath: path, providers, nextStep, warnings: history.warning ? [history.warning] : [] };
 }
 export async function testReport(config: Configuration, target: string, path = configPath(), env: NodeJS.ProcessEnv = process.env, signal?: AbortSignal) {
   if (target !== 'all' && !/^[a-z][a-z0-9_-]{0,63}$/.test(target)) throw new SiftpathError('INVALID_INPUT', 'Use siftpath test <provider|all>.');
@@ -133,24 +142,39 @@ export async function testReport(config: Configuration, target: string, path = c
     }
     try { await writePrivateJson(testHistoryPath(path), history.data); } catch { warnings.add('TEST_HISTORY_WRITE_FAILED'); }
   }
-  return { version: packageVersion, ok: results.length > 0 && results.every(result => result.outcome === 'passed') && !signal?.aborted,
+  const counts = tally(results);
+  return { version: packageVersion, ok: counts.passed > 0 && counts.failed === 0 && !signal?.aborted, counts,
     networkChecked: results.some(result => result.stages.connection !== 'not_tested'),
     results: results.map(result => ({ ...result, configuration: providerStatus(result.provider, config, env).code })), warnings: [...warnings] };
 }
+/** Disabled providers are skipped, not failures; nothing testable is never a success. */
+function tally(results: ProviderTest[]) {
+  return { passed: results.filter(result => result.outcome === 'passed').length,
+    failed: results.filter(result => result.outcome === 'failed').length,
+    skipped: results.filter(result => result.outcome === 'skipped').length };
+}
 export function formatStatus(report: Awaited<ReturnType<typeof statusReport>>): string {
-  const route = report.routes;
-  return [`Siftpath ${report.version} — status (offline)`, ...report.providers.map(provider => {
-    const recent = provider.lastTest;
-    return `${provider.provider}: ${provider.code}${provider.needs?.length ? ' (' + provider.needs.join(', ') + ')' : ''} | ${provider.operations.join('/') || 'no tools'} | ` +
-      (recent ? `${provider.lastTestStale ? 'CONFIG_CHANGED; ' : ''}last test ${recent.outcome} ${recent.testedAt} ${recent.durationMs}ms${recent.code ? ' — ' + recent.code : ''}` : 'NOT_TESTED');
-  }), `Search: default=${route.search}; intent=${route.defaultIntent}; ${Object.entries(route.intents).map(([intent, id]) => intent + '=' + id).join(', ')}; fallback=${route.searchFallback.join(' → ') || 'none'}`,
-  `Read: ${route.read}; fallback=${route.readFallback.join(' → ') || 'none'}`, ...report.warnings,
-  'READY means configuration/credentials only, not verified availability. Test explicitly: /siftpath test <provider|all> (may use API quota).'].join('\n');
+  const route = report.routes, describe = (id: string) => {
+    const found = report.providers.find(row => row.provider === id);
+    return found ? `${id} (${found.code}${found.lastTest?.outcome === 'passed' && !found.lastTestStale ? ', tested' : ''})` : `${id} (NOT_CONFIGURED)`;
+  };
+  const chain = (primary: string, fallback: string[]) => primary === 'unconfigured' ? 'not configured' : [describe(primary), ...fallback.map(describe)].join(' → ');
+  return [`Siftpath ${report.version} — status (offline, configuration only)`, `Config: ${report.configPath}`,
+    `Search: ${chain(route.search, route.searchFallback)}`, `Read: ${chain(route.read, route.readFallback)}`,
+    `Intent: default=${route.defaultIntent}${Object.entries(route.intents).map(([intent, id]) => `, ${intent}=${id}`).join('')}`,
+    'Providers:', ...report.providers.map(provider => {
+      const recent = provider.lastTest;
+      return `  ${provider.provider}: ${provider.code}${provider.needs?.length ? ' (' + provider.needs.join(', ') + ')' : ''} · ${provider.operations.join('/') || 'no tools'} · ` +
+        (recent ? `${provider.lastTestStale ? 'CONFIG_CHANGED; ' : ''}last test ${recent.outcome} ${recent.testedAt}${recent.code ? ' — ' + recent.code : ''}` : 'NOT_TESTED');
+    }), ...(report.warnings.length ? ['Warnings: ' + report.warnings.join(', ')] : []), `Next: ${report.nextStep}`,
+    'READY means configuration/credentials only, not verified availability. Test explicitly: /siftpath test <provider|all> (may use API quota).'].join('\n');
 }
 export function formatTests(report: Awaited<ReturnType<typeof testReport>>): string {
   return [`Siftpath ${report.version} — provider tests (no fallback)`, ...report.results.flatMap(result => [
     `${result.provider}: ${result.outcome.toUpperCase()} ${result.durationMs}ms — config=${result.configuration}, connect=${result.stages.connection}, tools=${result.stages.discovery}, request=${result.stages.request}`,
     ...result.operations.map(operation => `  ${operation.operation}: ${operation.state} ${operation.durationMs}ms`),
     ...(result.code ? [`  ${result.code}: ${reasons[result.code]}`] : []),
-  ]), ...report.warnings, ...(report.results.length ? [] : ['No providers tested.']), 'Results record this test only; no fallback or retries.'].join('\n');
+  ]), `${report.counts.passed} passed, ${report.counts.failed} failed, ${report.counts.skipped} skipped (disabled or unconfigured providers are skipped, not failures)`,
+  report.ok ? 'Overall: OK' : report.counts.failed ? 'Overall: FAILED — see the codes above.' : 'Overall: nothing testable — configure at least one provider, then test again.',
+  ...report.warnings, ...(report.results.length ? [] : ['No providers tested.']), 'Results record this test only; no fallback or retries.'].join('\n');
 }
