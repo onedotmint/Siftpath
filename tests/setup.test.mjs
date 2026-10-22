@@ -155,14 +155,14 @@ test('quick setup asks only for services and Keys, then chooses recommended rout
   assert.ok(!JSON.stringify(p.notices).includes('quick-test-key'));
 });
 
-test('quick setup keeps a saved Key, supports anonymous access and disables unselected services', async () => {
+test('quick setup keeps a saved Key, supports anonymous access and preserves unselected services', async () => {
   const saved = parseConfiguration({ credentials: { EXA_API_KEY: 'saved-quick-key' }, providers: { exa: providerPresets.exa, jina: anonymousPresets.jina, brave: providerPresets.brave } });
   const p = prompts({ providers: ['exa', 'jina'], action: 'anonymous' });
   p.select = async options => options.message.endsWith('credentials') ? 'anonymous' : options.initialValue;
   const result = await runQuickSetup(saved, {}, p);
   assert.equal(result.configuration.credentials.EXA_API_KEY, 'saved-quick-key');
   assert.equal(result.configuration.providers.exa.connection.transport, 'http');
-  assert.equal(result.configuration.providers.brave.enabled, false);
+  assert.deepEqual(result.configuration.providers.brave, saved.providers.brave);
   assert.ok(!p.calls.some(call => call.name === 'password'));
 });
 

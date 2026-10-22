@@ -117,14 +117,13 @@ export async function runQuickSetup(saved: Configuration, env: NodeJS.ProcessEnv
   let config = structuredClone(saved);
   try {
     prompts.intro('Siftpath setup (quick)');
-    prompts.log.info('Space: toggle, Enter: confirm, Esc: cancel. Keys are never displayed; recommended routes are chosen for you.');
+    prompts.log.info('Space: toggle, Enter: confirm, Esc: cancel. Keys are never displayed. Unselected services are kept; routes are recommended again. Use advanced setup to disable services.');
     // Preselect what is actually usable: the configured services, or the keyless recommended pair on a fresh install.
     const usable = catalog.filter(entry => config.providers[entry.id]?.enabled && providerStatus(entry.id, config, env).code === 'READY').map(entry => entry.id);
     const initialValues = usable.length ? usable : ['exa', 'jina'].filter(id => config.providers[id]);
     const chosen = await ask(prompts.multiselect({ message: 'What should Siftpath search and read with?', required: true,
       options: catalog.map(p => ({ value: p.id as string, label: p.label, hint: p.hint })), initialValues }));
     for (const id of chosen) config = await askCredential(id, config, env, prompts, ask);
-    for (const entry of catalog) if (!chosen.includes(entry.id) && config.providers[entry.id]) config.providers[entry.id]!.enabled = false;
     config = applyRecommendedRoutes(config, env);
     const routes = config.routes;
     if (routes.search === 'unconfigured' && routes.read === 'unconfigured') { prompts.log.error('No ready Search or Read connection. Nothing saved.'); return null; }

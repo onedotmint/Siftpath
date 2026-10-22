@@ -1,5 +1,34 @@
 # 测试与本轮验证记录
 
+## 2.0.1 安全修复与真实 Pi 模型验收（最新）
+
+以下为 2.0.1 的本轮记录；后文各轮是历史记录，不代表本轮重复执行或当前发布状态。
+
+- Pi 快速/高级编辑均使用空环境读取磁盘草稿；回归先在旧实现复现四项失败，再验证环境 Key 不落盘、不覆盖磁盘 Key。显式输入替换 Key 的保存与环境优先级继续通过。
+- Pi/CLI 快速配置只添加或更新所选服务，未选中的已有服务（含自定义 MCP）保持原样。推荐路由仍会重新生成；停用与手动路由使用高级配置。
+- 官方 Pi TUI helpers 修复 CSI-u/kitty 按键、粘贴、中文/ANSI 窄窗口。补测高级子菜单取消丢弃草稿、两种配置保存前的明文/权限提示、RPC 报告、搜索共享后备、默认取消的费用确认和运行中 Esc 取消。
+- 当前 Node 24.21.0 完整离线套件 **134/134 通过**，TypeScript 检查与 Linux Clack PTY 通过；`npm ci --ignore-scripts`、`verify:source`、默认全部跳过的 `test:live`、`pack:dry`、`git diff --check` 均通过，生产依赖审计 0 已知漏洞。跨平台 GitHub Actions 结果在发布门禁完成后记录。
+- 2.0.1 tarball 生产依赖隔离安装通过：CLI version/help、SDK 两工具断言、安装包 Clack PTY 均通过；确认 CLI/MCP 安装无需 Clack、esbuild 或 Pi TUI。再用安装包扩展运行真实 Pi 模型验收 **通过（15.3 秒）**，证明 Pi 从宿主提供 TUI helpers，不依赖开发目录。临时安装目录已清理。
+
+### 模型端到端验收，不是 MCP 直连
+
+新增 `tests/live/pi-model.test.mjs`：真实启动 Pi CLI JSON 模式，加载包内扩展及 Pi 官方 MCP 扩展，仅开放两个 Siftpath 工具。断言模型实际产生两个 toolCall、对应执行均成功、结果包含正文与来源、模型正常 stop、最终回答引用来源；不以进程退出码 0 或工具列表可见代替成功。
+
+```bash
+# Pi >=1.4，必须明确选择模型；会消耗模型及供应商额度：
+SIFTPATH_PI_LIVE=1 SIFTPATH_PI_MODEL=provider/model node --test tests/live/pi-model.test.mjs
+# 对隔离安装的 tarball 包做同样验收：
+SIFTPATH_PI_LIVE=1 SIFTPATH_PI_MODEL=provider/model SIFTPATH_PI_PACKAGE_DIR=/absolute/installed/package node --test tests/live/pi-model.test.mjs
+```
+
+测试使用临时 Pi/工作/配置目录，无个人扩展或 MCP 配置，无持久会话；通过临时符号链接复用已有 auth/models 文件而不复制密钥值，结束清理。已有模型配置仍是可信输入，认证可能按 Pi 的正常逻辑刷新；Windows 手动运行需允许创建符号链接。普通 CI 未设置 opt-in 时跳过模型测试，不消耗额度。可用 `SIFTPATH_PI_BIN` 指定 Pi 可执行文件。
+
+本轮真实成功：Pi **1.4.0**，模型 **wjapi/deepseek-v4.1-flash-1017**，约 **15.4 秒**；模型调用 `mcp__siftpath__web_search`，经 Exa 匿名得到 `https://nodejs.org/api/documentation.html`（正文 2961 字符），调用 `mcp__siftpath__web_read`，经 Jina 匿名得到 Example Domain（正文 1016 字符）。最终回答说明 example.com 用于文档示例，并引用两者真实来源。未调用 bash/read 等其它模型工具，没有使用假模型或模拟 MCP。
+
+探索性失败如实记录：最初脚本未关闭 stdin 而超时，修正后本机 OpenAI 代理对所选模型返回 HTTP 400/not supported，Anthropic 路径返回 HTTP 503；均未算成功。未改用户模型配置或输出凭据。真实验收只证明上述可用模型/匿名服务的当次调用，不保证所有模型、付费 Key 或未来匿名额度可用。
+
+发布状态：版本已准备为 **2.0.1**；npm 当前授权返回 401，用户选择稍后配置发布授权。本轮不运行 npm 登录或发布，不创建虚假的 npm 发布记录。旧版本已复制到磁盘的环境 Key 不自动删除，应在私有环境检查配置/备份，暴露过则轮换。
+
 ## 基线与边界
 
 - 开始时位于 `main`，工作区干净，已有提交 `8fc8a3c`；创建独立 `rebuild/lightweight-mcp-router` 分支，没有修改/合并 main。
@@ -22,8 +51,8 @@ npm audit --omit=dev
 | 检查 | 结果 |
 |---|---|
 | `npm run typecheck` / TypeScript 5.8.3 | 通过 |
-| Node 24.21.0 当前离线测试 | **97/97 通过**（本轮；历史条目见下文各轮） |
-| Node 22.23.3 当前离线测试 | **97/97 通过**（本轮；历史条目见下文各轮） |
+| Node 24.21.0 当前离线测试 | **134/134 通过**（2.0.1；历史条目见下文各轮） |
+| Node 22 当前离线测试 | 2.0.1 由下方发布门禁的 GitHub Actions 矩阵记录；97/97 是前轮结果 |
 | 源码分发/lock 一致性检查 | 通过 |
 | 运行时依赖审计 | 0 已知漏洞（不代表安全保证） |
 | `git diff --check` | 通过 |

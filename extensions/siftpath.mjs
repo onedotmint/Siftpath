@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { CancellableLoader, decodeKittyPrintable, isKeyRelease, matchesKey, truncateToWidth } from '@earendil-works/pi-tui';
 
 /**
  * Pi command: registers Siftpath as a Pi MCP server (only web_search/web_read reach the model) and
@@ -8,29 +9,44 @@ import { fileURLToPath } from 'node:url';
  */
 const SERVER = 'siftpath';
 export function validateSecret(value) {
-  if (/[\r\n\0]/.test(value) || value.length > 4096) return 'Key 格式无效（不能包含换行或控制字符）。';
+  if (/[\x00-\x1f\x7f-\x9f]/.test(value) || value.length > 4096) return 'Key 格式无效（不能包含换行或控制字符）。';
   return undefined;
 }
-/** Dependency-free masked input: Pi has no native password dialog, and ctx.ui.input echoes in plain text. */
+/** Pi has no native password dialog; never render the input itself. */
 function secretPrompt(ui, title) {
   return ui.custom((tui, theme, _keybindings, done) => {
-    let value = '', error = '';
+    let value = '', error = '', paste;
     const render = width => {
       const mask = value ? '•'.repeat(Math.min(value.length, 40)) + (value.length > 40 ? ` (${value.length})` : '') : theme.fg('dim', '（未输入）');
       const lines = [theme.fg('accent', title), '  ' + mask, theme.fg('dim', error || 'Enter 确认 · Esc 取消 · 输入不回显、不进入聊天记录')];
-      return lines.map(line => line.length > width ? line.slice(0, Math.max(0, width - 1)) + '…' : line);
+      return lines.map(line => truncateToWidth(line, width));
     };
     return {
       render,
       handleInput(data) {
-        if (data === '\r' || data === '\n') {
+        if (data.startsWith('\x1b[200~')) { paste = ''; data = data.slice(6); }
+        if (paste !== undefined) {
+          paste += data;
+          const end = paste.indexOf('\x1b[201~');
+          if (end < 0) return;
+          value += paste.slice(0, end);
+          const rest = paste.slice(end + 6); paste = undefined;
+          error = ''; tui.requestRender();
+          if (rest) this.handleInput(rest);
+          return;
+        }
+        if (isKeyRelease(data)) return;
+        if (matchesKey(data, 'enter') || data === '\n') {
           const problem = validateSecret(value); if (problem) { error = problem; tui.requestRender(); return; }
           done(value.trim()); return;
         }
-        if (data === '\x1b' || data === '\x03') { done(undefined); return; }
-        if (data === '\x7f' || data === '\b') value = value.slice(0, -1);
-        else if (data.length > 1) value += data.replace(/\x1b\[[0-9;~]*[A-Za-z~]/g, '').replace(/[\r\n\0]/g, '');
-        else if (data >= ' ' && data !== '\x7f') value += data;
+        if (matchesKey(data, 'escape') || matchesKey(data, 'ctrl+c')) { done(undefined); return; }
+        if (matchesKey(data, 'backspace') || matchesKey(data, 'delete')) value = [...value].slice(0, -1).join('');
+        else {
+          const text = decodeKittyPrintable(data) ?? data;
+          if (/[\x00-\x1f\x7f-\x9f]/.test(text)) return;
+          value += text;
+        }
         error = ''; tui.requestRender();
       },
       invalidate() {},
@@ -46,12 +62,13 @@ function infoScreen(ui, title, lines) {
       render(width) {
         const visible = lines.slice(offset, offset + height);
         visible.push(theme.fg('dim', offset + height < lines.length ? '↑/↓ 滚动 · Enter/Esc 关闭' : 'Enter/Esc 关闭'));
-        return [theme.fg('accent', title), ...visible].map(line => line.length > width ? line.slice(0, Math.max(0, width - 1)) + '…' : line);
+        return [theme.fg('accent', title), ...visible].map(line => truncateToWidth(line, width));
       },
       handleInput(data) {
-        if (data === '\x1b[A') offset = Math.max(0, offset - 1);
-        else if (data === '\x1b[B') offset = Math.min(Math.max(0, lines.length - height), offset + 1);
-        else if (data === '\x1b' || data === '\r' || data === '\n' || data === '\x03' || data === 'q') { done(undefined); return; }
+        if (isKeyRelease(data)) return;
+        if (matchesKey(data, 'up')) offset = Math.max(0, offset - 1);
+        else if (matchesKey(data, 'down')) offset = Math.min(Math.max(0, lines.length - height), offset + 1);
+        else if (matchesKey(data, 'escape') || matchesKey(data, 'enter') || data === '\n' || matchesKey(data, 'ctrl+c') || matchesKey(data, 'q')) { done(undefined); return; }
         else return;
         tui.requestRender();
       },
@@ -86,13 +103,14 @@ export default function (pi) {
     } catch (error) {
       ctx.ui.notify(error?.code === 'ERR_MODULE_NOT_FOUND'
         ? 'Siftpath 安装不完整（缺少运行时依赖）。用 pi install npm:@onedotmint/siftpath 安装，或在包目录运行 npm install。'
-        : 'Siftpath 配置文件无法读取。运行 /siftpath 修复或重新配置。', 'warning');
+        : 'Siftpath 配置文件无法读取。请先手动检查 JSON 格式与文件权限，再运行 /siftpath。', 'warning');
     }
   });
-  const exec = async (ctx, args) => {
-    const controller = new AbortController(); running.add(controller);
+  const exec = async (ctx, args, controller = new AbortController()) => {
+    running.add(controller);
     try {
       const result = await pi.exec(process.execPath, [cli, ...args], { cwd: ctx.cwd, signal: controller.signal });
+      controller.signal.throwIfAborted();
       // Nonzero exit is expected for failed/skipped tests; their safe report is still on stdout.
       const report = JSON.parse(result.stdout || result.stderr || '{}');
       if (typeof report.code === 'string' && typeof report.message === 'string') throw Object.assign(new Error(), report);
@@ -126,6 +144,7 @@ export default function (pi) {
       'READY 只表示配置可用，不代表已验证可用。',
       `下一步: ${data.nextStep}`,
     ];
+    if (ctx.mode !== 'tui') { ctx.ui.notify(`Siftpath ${data.version}\n${lines.join('\n')}`, data.ok ? 'info' : 'warning'); return; }
     await infoScreen(ctx.ui, `Siftpath ${data.version}`, lines);
   };
   /** One provider decision through Pi's native UI; returns null when the user cancelled the whole flow. */
@@ -135,7 +154,7 @@ export default function (pi) {
     const status = config.providerStatus(id, draft, process.env), saved = process.env[info.key]?.trim() || draft.credentials[info.key];
     const options = [
       ...(status.code === 'READY' ? ['保留当前连接'] : []),
-      ...(saved ? ['继续使用已保存的 API Key'] : []),
+      ...(saved ? ['继续使用现有 API Key（环境或本地）'] : []),
       saved ? '输入新的 API Key（替换现有）' : '输入 API Key',
       ...(defaults.anonymousPresets[id] ? ['使用官方匿名访问'] : []),
       '暂不配置此服务',
@@ -144,7 +163,7 @@ export default function (pi) {
     if (choice === undefined) return null;
     if (choice === '暂不配置此服务') return draft;
     if (choice === '保留当前连接') return plan.applySelection(draft, { id, mode: 'keep' });
-    if (choice === '继续使用已保存的 API Key') return plan.applySelection(draft, { id, mode: 'existing' });
+    if (choice === '继续使用现有 API Key（环境或本地）') return plan.applySelection(draft, { id, mode: 'existing' });
     if (choice === '使用官方匿名访问') return plan.applySelection(draft, { id, mode: 'anonymous' });
     if (process.env[info.key]?.trim()) ctx.ui.notify(`${info.key} 已由环境变量提供，环境变量优先于本地保存的 Key。`, 'warning');
     const value = await secretPrompt(ctx.ui, `${info.label} API Key`);
@@ -152,6 +171,7 @@ export default function (pi) {
     if (!value) { if (!saved) ctx.ui.notify('未输入 Key，该服务保持未配置。', 'warning'); return draft; }
     return plan.applySelection(draft, { id, mode: 'key', key: value });
   };
+  const storageNotice = path => `保存到: ${path}\n仅显式输入的 Key 写入本地明文私有 JSON（未加密；POSIX 0600；Windows 不保证 POSIX 权限，请使用用户 ACL）。环境 Key 不复制到文件，不进入聊天记录或日志。`;
   const save = async (ctx, draft) => {
     const { config } = await core();
     const path = config.configPath();
@@ -160,17 +180,18 @@ export default function (pi) {
   };
   const quick = async ctx => {
     const { config, plan } = await core();
-    let draft = await config.readConfiguration(config.configPath());
+    // Editing starts from disk only; environment credentials are resolved at runtime, never saved implicitly.
+    let draft = await config.readConfiguration(config.configPath(), {});
     const searches = catalog.filter(entry => entry.search).map(entry => entry.id);
     const readers = catalog.filter(entry => entry.read).map(entry => entry.id);
-    const search = resolve(searches, await pick(ctx.ui, '用哪个服务搜索网页？', searches, '不配置搜索'), '不配置搜索');
+    ctx.ui.notify('快速配置只添加或更新所选服务，保留其它服务并重新推荐路由；如需停用服务，请使用高级配置。', 'info');
+    const search = resolve(searches, await pick(ctx.ui, '用哪个服务搜索网页？', searches, '保持现有搜索'), '保持现有搜索');
     if (search === undefined) return;
-    const read = resolve(readers, await pick(ctx.ui, '用哪个服务阅读网页？', readers, '不配置阅读'), '不配置阅读');
+    const read = resolve(readers, await pick(ctx.ui, '用哪个服务阅读网页？', readers, '保持现有阅读'), '保持现有阅读');
     if (read === undefined) return;
     const chosen = [search, read].filter(Boolean);
     if (!chosen.length) { ctx.ui.notify('没有选择任何服务，未保存。', 'warning'); return; }
     for (const id of chosen) { const next = await configure(ctx, draft, id); if (!next) return; draft = next; }
-    for (const entry of catalog) if (!chosen.includes(entry.id) && draft.providers[entry.id]) draft.providers[entry.id].enabled = false;
     draft = plan.applyRecommendedRoutes(draft, process.env);
     if (draft.routes.search === 'unconfigured' && draft.routes.read === 'unconfigured') {
       ctx.ui.notify('所选服务仍缺少凭据，未保存。运行 /siftpath 重新配置，或选择官方匿名访问。', 'error'); return;
@@ -178,13 +199,14 @@ export default function (pi) {
     const route = (primary, fallback) => primary === 'unconfigured' ? '未配置' : `${primary}（后备: ${fallback.join(' → ') || '无'}）`;
     const summary = `搜索: ${route(draft.routes.search, draft.routes.searchFallback)}`
       + `\n阅读: ${route(draft.routes.read, draft.routes.readFallback)}`
-      + `\n保存到: ${config.configPath()}\nKey 只写入本地私有配置（0600），不进入聊天记录或日志。`;
+      + `\n${storageNotice(config.configPath())}`;
     if (!await ctx.ui.confirm('保存 Siftpath 配置？', summary)) { ctx.ui.notify('未保存任何更改。', 'info'); return; }
     await save(ctx, draft);
   };
   const advanced = async ctx => {
     const { config, plan } = await core();
-    let draft = await config.readConfiguration(config.configPath());
+    // Editing starts from disk only; environment credentials are resolved at runtime, never saved implicitly.
+    let draft = await config.readConfiguration(config.configPath(), {});
     const order = async (title, ids) => {
       const picked = []; let remaining = [...ids];
       while (remaining.length) {
@@ -202,13 +224,14 @@ export default function (pi) {
       if (action === '保存并退出') break;
       if (action === '配置或更换某个服务的凭据') {
         const id = resolve(catalog.map(entry => entry.id), await pick(ctx.ui, '选择服务', catalog.map(entry => entry.id)));
-        if (!id) continue;
+        if (!id) return;
         const next = await configure(ctx, draft, id); if (!next) return; draft = next; continue;
       }
       if (action === '停用某个服务') {
         const enabled = Object.keys(draft.providers).filter(id => draft.providers[id].enabled);
         if (!enabled.length) { ctx.ui.notify('没有已启用的服务。', 'info'); continue; }
         const choice = await ctx.ui.select('停用哪个服务？', enabled.map(option));
+        if (choice === undefined) return;
         const id = enabled.find(candidate => option(candidate) === choice);
         if (id) draft = plan.disableProvider(draft, id);
         continue;
@@ -224,7 +247,7 @@ export default function (pi) {
           if (intent === 'general') draft.routes.search = id; else draft.routes.intents[intent] = id;
         }
         draft.routes.intents.general = draft.routes.search;
-        const fallback = await order('搜索后备顺序', choices.filter(id => id !== draft.routes.search));
+        const fallback = await order('搜索后备顺序', choices);
         if (!fallback) return; draft.routes.searchFallback = fallback;
         continue;
       }
@@ -236,14 +259,33 @@ export default function (pi) {
       const fallback = await order('阅读后备顺序', readers.filter(id => id !== draft.routes.read));
       if (!fallback) return; draft.routes.readFallback = fallback;
     }
+    if (!await ctx.ui.confirm('保存 Siftpath 配置？', storageNotice(config.configPath()))) { ctx.ui.notify('未保存任何更改。', 'info'); return; }
     await save(ctx, draft);
   };
   const runTest = async (ctx, target) => {
+    if (await ctx.ui.select(`真实请求：逐个测试 ${target}，不使用后备，可能消耗 API 额度或匿名配额。`, ['取消', '确认测试']) !== '确认测试') return;
     ctx.ui.notify('Siftpath: 逐个测试服务（不启用后备），可能消耗 API 额度。', 'info');
+    const controller = new AbortController();
     try {
-      const report = await exec(ctx, ['test', target, '--json']);
-      await infoScreen(ctx.ui, 'Siftpath 测试结果', String(report.summary ?? '').split('\n'));
+      let report;
+      if (ctx.mode === 'tui') {
+        let loader;
+        try {
+          const result = await ctx.ui.custom((tui, theme, _keybindings, done) => {
+            loader = new CancellableLoader(tui, text => theme.fg('accent', text), text => theme.fg('dim', text), 'Siftpath 测试中 · Esc 取消');
+            loader.onAbort = () => controller.abort();
+            exec(ctx, ['test', target, '--json'], controller).then(report => done({ report }), error => done({ error }));
+            return loader;
+          });
+          if (!result) { controller.abort(); return; }
+          if (result.error) throw result.error;
+          report = result.report;
+        } finally { loader?.dispose(); }
+      } else report = await exec(ctx, ['test', target, '--json'], controller);
+      if (ctx.mode !== 'tui') ctx.ui.notify(`Siftpath 测试结果\n${String(report.summary ?? '')}`, report.ok ? 'info' : 'warning');
+      else await infoScreen(ctx.ui, 'Siftpath 测试结果', String(report.summary ?? '').split('\n'));
     } catch (error) {
+      if (controller.signal.aborted) { ctx.ui.notify('Siftpath 测试已取消。', 'info'); return; }
       ctx.ui.notify(typeof error.code === 'string' ? `${error.code}: ${error.message}${error.hint ? ` — ${error.hint}` : ''}` : 'Siftpath 测试没有返回诊断结果。', 'warning');
     }
   };
@@ -273,7 +315,8 @@ export default function (pi) {
         return;
       }
       const report = await statusOf(ctx);
-      const firstTime = !report?.providers?.some(provider => provider.code === 'READY');
+      if (!report) return;
+      const firstTime = !report.providers?.some(provider => provider.code === 'READY');
       const menu = firstTime ? ['快速配置（推荐）', '高级配置', '查看服务状态', '测试连接'] : ['查看服务状态', '快速配置', '高级配置', '测试连接'];
       const choice = await ctx.ui.select('Siftpath', menu);
       if (choice === '快速配置（推荐）' || choice === '快速配置') return quick(ctx);
@@ -284,7 +327,6 @@ export default function (pi) {
         if (!ids.length) { await showStatus(ctx, report); ctx.ui.notify('没有 READY 的服务可以测试：先完成快速配置。', 'warning'); return; }
         const target = await ctx.ui.select('测试哪个服务？（会真实请求，可能消耗额度）', ['all', ...ids]);
         if (!target) return;
-        if (!await ctx.ui.confirm('真实请求', `逐个测试 ${target}，不使用后备。这会消耗 API 额度或匿名配额。`)) return;
         return runTest(ctx, target);
       }
     },

@@ -150,7 +150,7 @@ with tempfile.TemporaryDirectory(prefix="siftpath-clack-pty-") as directory:
     assert saved_quick["routes"]["search"] == "exa" and saved_quick["routes"]["read"] == "jina"
     assert saved_quick["credentials"] == {}, "Quick path stored a Key without one being entered"
     assert saved_quick["providers"]["jina"]["connection"]["headers"] == {}
-    assert not saved_quick["providers"]["brave"]["enabled"]
+    assert saved_quick["providers"]["brave"]["enabled"], "Quick path must not disable an unselected provider"
 
     for mode in ("keep", "replace", "cancel-after-secret"):
         original = path.read_bytes()

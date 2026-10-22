@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import extension from '../extensions/siftpath.mjs';
+import { CancellableLoader } from '@earendil-works/pi-tui';
 
 const theme = { fg: (_color, text) => text, dim: text => text, accent: text => text };
 const missing = provider => ({ provider, code: 'MISSING_CREDENTIALS', needs: [provider.toUpperCase() + '_API_KEY'], operations: [provider === 'jina' ? 'read' : 'search'], lastTest: null, lastTestStale: false, configured: true });
@@ -26,10 +27,11 @@ function harness({ exec, select, confirm = true, drivers = [], tools = [] } = {}
   const queue = [...drivers];
   const ui = {
     notify: (text, kind) => notices.push({ text, kind }),
-    select: async (title, options) => (select ? select(title, options) : options[0]),
+    select: async (title, options) => title.startsWith('真实请求') ? '确认测试' : (select ? select(title, options) : options[0]),
     confirm: async () => confirm,
     custom: factory => new Promise(resolve => {
       const component = factory({ requestRender() {} }, theme, {}, resolve);
+      if (component instanceof CancellableLoader) return;
       (queue.shift() ?? ((_component, done) => done(undefined)))(component, resolve);
     }),
   };
@@ -171,11 +173,13 @@ test('arbitrary arguments are rejected, closed sessions abort their CLI child, a
   await command(rejected).handler('test brave; echo secret', rejected.ctx);
   await command(rejected).handler('rm -rf /', rejected.ctx);
   assert.equal(rejected.calls.length, 0);
-  let signal;
+  let signal, started;
+  const ready = new Promise(resolve => { started = resolve; });
   const aborted = harness({ exec: async (_command, _args, options) => {
-    signal = options.signal; return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))));
+    signal = options.signal; started(); return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('aborted'))));
   } });
   const work = command(aborted).handler('test all', aborted.ctx);
+  await ready;
   aborted.events.get('session_shutdown')(); await work;
   assert.equal(signal.aborted, true);
   const broken = harness({ exec: async () => ({ code: 1, stdout: '', stderr: JSON.stringify({ code: 'INVALID_CONFIG', message: 'Invalid configuration; values are never echoed.' }) }) });
@@ -202,3 +206,64 @@ test('reloading the extension re-registers the same server name and never declar
   extension(api()); extension(api());
   assert.deepEqual(calls, [['siftpath', 'direct'], ['siftpath', 'direct']]);
 });
+
+for (const mode of ['快速配置', '高级配置']) {
+  for (const savedKey of [undefined, 'disk-only-test-key']) {
+    test('Pi ' + mode + ' never persists environment credentials or overwrites a saved Key', async t => {
+      const { path } = await isolatedConfig(t);
+      const original = process.env.EXA_API_KEY;
+      process.env.EXA_API_KEY = 'env-must-not-be-saved';
+      t.after(() => { if (original === undefined) delete process.env.EXA_API_KEY; else process.env.EXA_API_KEY = original; });
+      await writeFile(path, JSON.stringify({ version: 2, credentials: savedKey ? { EXA_API_KEY: savedKey } : {} }));
+      const app = harness({ select: title => title === 'Siftpath' ? mode
+        : title.startsWith('用哪个服务搜索') ? 'Exa (exa)'
+        : title.startsWith('用哪个服务阅读') ? 'Jina (jina)'
+        : title === 'Exa 凭据' ? '继续使用现有 API Key（环境或本地）'
+        : title === 'Jina 凭据' ? '使用官方匿名访问'
+        : title === 'Siftpath 高级配置' ? '保存并退出' : undefined });
+      await command(app).handler('', app.ctx);
+      const raw = await readFile(path, 'utf8'), saved = JSON.parse(raw);
+      assert.equal(saved.credentials.EXA_API_KEY, savedKey);
+      assert.ok(!raw.includes('env-must-not-be-saved'));
+      assert.ok(!JSON.stringify(app.notices).includes('env-must-not-be-saved'));
+    });
+  }
+}
+
+test('Pi quick setup only adds the selected service and preserves other providers and saved Keys', async t => {
+  const { path } = await isolatedConfig(t);
+  const { parseConfiguration } = await import('../dist/config.js');
+  const { anonymousPresets } = await import('../dist/defaults.js');
+  const saved = parseConfiguration({ credentials: { OLD_KEY: 'keep-private-key' }, providers: {
+    exa: anonymousPresets.exa, jina: anonymousPresets.jina,
+    custom: { enabled: true, connection: { transport: 'http', url: 'https://custom.example/mcp' }, search: { name: 'search' } },
+  } });
+  await writeFile(path, JSON.stringify(saved));
+  const app = harness({ select: title => title === 'Siftpath' ? '快速配置'
+    : title.startsWith('用哪个服务搜索') ? '保持现有搜索'
+    : title.startsWith('用哪个服务阅读') ? 'Firecrawl (firecrawl)'
+    : title === 'Firecrawl 凭据' ? '使用官方匿名访问' : undefined });
+  await command(app).handler('', app.ctx);
+  const after = JSON.parse(await readFile(path, 'utf8'));
+  for (const id of ['exa', 'jina', 'custom']) assert.deepEqual(after.providers[id], saved.providers[id]);
+  assert.deepEqual(after.credentials, saved.credentials);
+  assert.equal(after.providers.firecrawl.enabled, true);
+});
+
+for (const cancelAt of ['search', 'reader', 'credential', 'password', 'confirm', 'advanced']) {
+  test('Pi cancellation at ' + cancelAt + ' leaves existing config byte-for-byte unchanged', async t => {
+    const { path } = await isolatedConfig(t);
+    const before = '{ "version": 2, "credentials": { "EXA_API_KEY": "old-disk-key" } }\n';
+    await writeFile(path, before);
+    const app = harness({ confirm: false,
+      select: title => title === 'Siftpath' ? cancelAt === 'advanced' ? '高级配置' : '快速配置'
+        : title.startsWith('用哪个服务搜索') ? cancelAt === 'search' ? undefined : 'Exa (exa)'
+        : title.startsWith('用哪个服务阅读') ? cancelAt === 'reader' ? undefined : 'Jina (jina)'
+        : title === 'Exa 凭据' ? cancelAt === 'credential' ? undefined : '输入新的 API Key（替换现有）'
+        : title === 'Jina 凭据' ? '使用官方匿名访问' : undefined,
+      drivers: [component => { component.handleInput('new-unsaved-key'); component.handleInput(cancelAt === 'password' ? '\x1b' : '\r'); }],
+    });
+    await command(app).handler('', app.ctx);
+    assert.equal(await readFile(path, 'utf8'), before);
+  });
+}

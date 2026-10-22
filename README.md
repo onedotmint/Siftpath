@@ -25,11 +25,9 @@ Restart Pi (or run `/reload`). The extension registers Siftpath as a Pi MCP serv
 That is the whole first-run path. No global CLI install, no `node_modules` hunting, no `pi mcp add`,
 no JSON editing, no tool-name knowledge.
 
-> **Source vs published package.** `main` and the published npm `2.0.0` contain the rebuild whose Pi
-> extension only printed status and did **not** register the MCP server. The branch
-> `rebuild/lightweight-mcp-router` (this tree) is ahead of that release: it adds the server
-> registration, the interactive `/siftpath` menu, hot configuration reload and the test-semantics
-> fixes. Until a new version is published, install this tree instead:
+> **Version note.** npm `2.0.0` has the older Pi extension without automatic MCP registration.
+> This tree targets **2.0.1**: native Pi setup, registration, hot reload, environment-Key persistence
+> and additive quick-setup fixes. Until 2.0.1 is published by the maintainer, install this tree instead:
 >
 > ```bash
 > pi install /absolute/path/to/Siftpath          # directory, dependencies already installed by npm ci
@@ -39,7 +37,7 @@ no JSON editing, no tool-name knowledge.
 > extension file). Unpack or npm-install it first:
 >
 > ```bash
-> mkdir -p /tmp/siftpath-pkg && tar xzf onedotmint-siftpath-2.0.0.tgz -C /tmp/siftpath-pkg
+> mkdir -p /tmp/siftpath-pkg && tar xzf onedotmint-siftpath-2.0.1.tgz -C /tmp/siftpath-pkg
 > cd /tmp/siftpath-pkg/package && npm install --omit=dev --ignore-scripts
 > pi install /tmp/siftpath-pkg/package
 > ```
@@ -55,7 +53,8 @@ Both front ends share one private configuration file and one set of rules.
 
 - **Quick setup** asks two things — what should search, what should read — then the Keys, then saves
   recommended routes (Tavily/Exa for search, Jina for reading, remaining services as fallbacks). It
-  never asks about intents, tool names or fallback order.
+  never asks about intents, tool names or fallback order. It adds/updates the selected services without
+  disabling others; routes are recommended again. Use advanced setup to disable services or edit routes.
 - **Advanced setup** keeps everything: per-provider credentials, default/semantic/research search,
   reader, and ordered fallback. In Pi it is a small native menu; in a terminal it is the Clack wizard.
 
@@ -65,11 +64,13 @@ Credential rules, identical in both:
 - Official anonymous access is offered where the provider supports it (Exa, Jina, Tavily stdio,
   Firecrawl); no Key is stored for it.
 - A Key from the environment (`BRAVE_API_KEY`, `EXA_API_KEY`, `TAVILY_API_KEY`, `JINA_API_KEY`,
-  `FIRECRAWL_API_KEY`) wins over the saved Key, and the UIs say so.
+  `FIRECRAWL_API_KEY`) wins over the saved Key, and the UIs say so. Saving configuration never copies
+  environment Keys into JSON or overwrites stored Keys with them; only explicitly entered replacements are saved.
 - Cancelling at any point saves nothing. Nothing is written until you confirm.
 - Storage: `~/.config/siftpath/config.json` (`$XDG_CONFIG_HOME`, `SIFTPATH_CONFIG`, or the legacy
-  `~/.config/smartsearch/config.json`) — private JSON, atomic replace, mode `0600`. Keys are never
-  put in argv, notifications, logs or the model context.
+  `~/.config/smartsearch/config.json`) — private JSON, atomic replace, POSIX mode `0600` (protect user ACLs on Windows). Keys are never
+  put in argv, notifications, logs or the model context by this input flow. The JSON is plaintext,
+  not a vault: another process or model tool with the same user permissions can read it.
 
 Changing a Key or a route takes effect on the next tool call: the running MCP server notices the
 changed file, builds a new router, and retires the old one after its in-flight calls finish. You do
@@ -136,8 +137,8 @@ finally { await siftpath.close(); }
 | Firecrawl | read (optional) | official anonymous hosted MCP | higher quota |
 
 Anonymous access is free but limited and can change upstream. Any authenticated call uses your
-provider account and may consume quota — that is why `siftpath test` and `/siftpath → 测试连接` ask for
-confirmation first and are never run automatically. `status` makes no network calls at all.
+provider account and may consume quota. CLI `siftpath test` is itself an explicit request and does
+not ask again; Pi test commands/menu ask for confirmation, with Cancel first. No tests run automatically. `status` makes no network calls at all.
 
 ## Status, tests and troubleshooting
 
@@ -177,9 +178,9 @@ diagnostics and the two-tool contract.
 
 ## Repository, versions and releases
 
-- `main` — published release line (`2.0.0` on npm).
-- `rebuild/lightweight-mcp-router` — this work: Pi auto-registration, native `/siftpath`, quick setup,
-  config hot reload, test-semantics and Tavily minimum fixes, docs.
+- Package version: **2.0.1**. Registry publication is separate from merging; check
+  `npm view @onedotmint/siftpath version` before assuming the npm release is available.
+- Real Pi model acceptance and release-check results: [TESTING.md](docs/TESTING.md).
 - Publishing and merging are deliberate maintainer actions; CI only verifies and packages.
 
 ## Development

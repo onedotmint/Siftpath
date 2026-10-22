@@ -4,7 +4,7 @@ The repository's MIT LICENSE is preserved from SmartSearch at `a6e310d8c51d1fb9e
 
 This rebuild retains and adapts the project's private JSON configuration storage, hidden credential entry, public URL guard, CLI conventions and package-version reader. The old evidence engine and historical evaluation fixtures are no longer distributed.
 
-Runtime npm dependencies are @modelcontextprotocol/sdk (MIT) and Zod (MIT), with transitive dependencies installed from their registries; inspect package-lock.json and the installed packages' licenses. TypeScript (Apache-2.0), @types/node (MIT), undici-types (MIT) are development dependencies. Official provider MCP packages are launched separately on demand and retain their own licenses/terms.
+Runtime npm dependencies are @modelcontextprotocol/sdk (MIT) and Zod (MIT), with transitive dependencies installed from their registries; inspect package-lock.json and the installed packages' licenses. TypeScript (Apache-2.0), @types/node (MIT), undici-types (MIT) are development dependencies. The Pi extension uses the host-provided @earendil-works/pi-tui (MIT), declared as an optional peer and pinned to 1.4.0 for development tests; it is not bundled or needed by the standalone CLI/MCP runtime. Official provider MCP packages are launched separately on demand and retain their own licenses/terms.
 
 Official provider source and web-search-plus-mcp/agntn-web were interface/design references, not vendored implementation. Precise links and inspected revisions: docs/PROVIDERS.md. No upstream search/reader/ranking implementation is copied into Siftpath.
 

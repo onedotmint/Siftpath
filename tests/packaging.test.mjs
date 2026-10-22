@@ -48,3 +48,10 @@ test('Clack is a build-only dependency and only the lazy setup module bundles it
   assert.ok((await readFile('dist/router.js', 'utf8')).includes('class Siftpath'));
   assert.ok(!(await readFile('dist/router.js', 'utf8')).includes('@clack'));
 });
+
+test('Pi terminal helpers come from the host, not standalone runtime dependencies', async () => {
+  const pkg = JSON.parse(await readFile('package.json', 'utf8'));
+  assert.equal(pkg.devDependencies['@earendil-works/pi-tui'], '1.4.0');
+  assert.equal(pkg.peerDependenciesMeta['@earendil-works/pi-tui'].optional, true);
+  assert.equal(pkg.dependencies['@earendil-works/pi-tui'], undefined);
+});

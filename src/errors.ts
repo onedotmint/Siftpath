@@ -15,7 +15,8 @@ const hints: Record<string, string> = {
   TOOL_NOT_FOUND: 'The official tool name changed upstream: run `siftpath test <provider>` and update the binding or Siftpath.',
   INVALID_UPSTREAM_ARGUMENTS: 'The official server rejected the mapped arguments; its schema changed. Update the binding or Siftpath.',
   NO_PROVIDER_SUCCEEDED: 'Nothing could serve this request: run /siftpath or `siftpath status` to see what is READY.',
-  INVALID_CONFIG: 'Fix the configuration file, or re-run /siftpath / `siftpath setup`.',
+  INVALID_CONFIG: 'Fix the configuration file JSON/schema manually before re-running /siftpath or `siftpath setup`; keep private backups secure.',
+  CONFIG_READ_FAILED: 'Check the configuration file JSON syntax and permissions; the setup menu cannot repair unreadable JSON.',
   INVALID_INPUT: 'Check the command or tool arguments (run `siftpath --help` for CLI usage).',
   CLOSED: 'The Siftpath process was closed; start a new connection.',
 };
