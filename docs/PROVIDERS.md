@@ -18,7 +18,7 @@ Jina 官方仓库不是可直接 `npx jina-mcp` 安装的本地 CLI；直接调�
 
 ## Tavily / Firecrawl 内置可选预设
 
-- Tavily：`https://mcp.tavily.com/mcp` + Bearer，或 `npx -y tavily-mcp@0.2.22` + `TAVILY_API_KEY`。工具为 `tavily_search` / `tavily_extract`（下划线，不是旧 README 的连字符）；query/max_results、urls/query 可分别映射搜索/原生聚焦读取。max_results 5–20，见配置文档的边界。远程匿名发现返回 401；官方 stdio 包原生支持 Keyless，已在干净工作目录中通过真实 MCP 握手、发现、搜索。认证 stdio 与匿名 stdio 两种预设均可由 setup 直接选择。不开启 `tavily_research` 多步编排。
+- Tavily：`https://mcp.tavily.com/mcp` + Bearer，或 `npx -y tavily-mcp@0.2.22` + `TAVILY_API_KEY`。工具为 `tavily_search` / `tavily_extract`（下划线，不是旧 README 的连字符）；query/max_results、urls/query 可分别映射搜索/原生聚焦读取。发布包 `build/index.js` 的 `max_results` 声明为 `minimum: 5, maximum: 20, default: 5`，因此内置预设的 search binding 带 `minResults: 5`，1–4 的结果请求由 Router 提升到 5 并给出 `MAX_RESULTS_RAISED`；不再因参数校验失败而白白走后备。远程匿名发现返回 401；官方 stdio 包原生支持 Keyless，已在干净工作目录中通过真实 MCP 握手、发现、搜索。认证 stdio 与匿名 stdio 两种预设均可由 setup 直接选择。不开启 `tavily_research` 多步编排。
 - Firecrawl：`npx -y firecrawl-mcp@3.33.4` + `FIRECRAWL_API_KEY`，或 `https://mcp.firecrawl.dev/v2/mcp` + Bearer/匿名额度。工具 `firecrawl_scrape` / `firecrawl_search` / `firecrawl_parse`；读取最小 URL + markdown。原生问题模式为 formats/queryOptions；不默认增加搜索后逐结果 scrape 费用。托管端本次工具发现也出现额外 objective，与源码存在差异，匿名预设显式提供固定阅读 objective；已通过真实 MCP 阅读。
 
 本轮通过 Siftpath 现有 providerTest 实际执行 Tavily 匿名 stdio `tavily_search`（basic，max_results=5），以及 Firecrawl 匿名托管 `firecrawl_scrape`（markdown，不用 LLM 格式）。两者连接/发现/实际请求均通过。独立工具发现还验证了固定的官方 npm 发布包；没有把调查过程中的 REST 测试当成 MCP 成功。

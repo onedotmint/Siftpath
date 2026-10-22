@@ -1,6 +1,19 @@
 # 配置
 
-## 最简单：交互式向导
+## 两条路径：快速配置与高级配置
+
+配置入口有两个，读写同一份私有文件、同一套凭据与路由规则：
+
+| 界面 | 命令 |
+|---|---|
+| Pi | `/siftpath` → 快速配置（推荐）/ 高级配置 |
+| 终端 | `siftpath setup`（询问选哪条）、`siftpath setup --quick`、`siftpath setup --advanced` |
+
+**快速配置**只问两件事——用什么搜索、用什么阅读——然后只问这两家的 Key，最后按推荐路由保存：搜索优先 Tavily → Exa → Brave，阅读优先 Jina → Firecrawl，其余已就绪的服务自动成为顺序后备。不需要理解 tool name、JSON Schema、意图或后备顺序，第一次使用建议走这条。
+
+**高级配置**保留全部选项：逐家选择供应商与认证模式、默认/语义/研究搜索、阅读供应商、顺序后备。Pi 里是原生菜单循环（可反复配置/停用/改路由，最后保存），终端里是 Clack 向导。Pi 内不会启动第二套 Clack TUI。
+
+## 交互式向导（Clack）
 
 ```bash
 node dist/cli.js setup
@@ -96,9 +109,9 @@ Exa 官方远程也支持 `x-api-key: ${EXA_API_KEY}`。`${NAME}` 从环境变�
 - `routes.search/read` 定义默认主供应商，`routes.defaultIntent` 默认为 general，`routes.intents` 只覆盖明确列出的意图。默认 general 使用 routes.search，semantic→exa，research→tavily；`intents: {}` 可清空意图覆盖。不存在或未配置的 optional Tavily 不阻塞其它路由。
 - 省略 `routes`、填写 `routes: {}` 或只覆盖某个字段，均使用同一份默认值；默认搜索后备顺序为 Brave → Exa。
 - `searchFallback/readFallback` 是**顺序**；对重复 ID 去重，每家只试一次，无自动并行或重试。可为空；不要用很长后备链放大费用。
-- 默认每次操作 60s、每次供应商尝试 20s（包含首次连接），可配置 `timeoutMs/providerTimeoutMs`；供应商可覆盖自己的 `timeoutMs`，范围 100–120000ms。冷启动下载 npm 包可能较慢，可提前运行 CONTRACT 检查下载固定版本，或把 providerTimeoutMs 提高到 60000。
+- 默认每次操作 60s、每次供应商尝试 20s（包含首次连接），可配置 `timeoutMs/providerTimeoutMs`；供应商可覆盖自己的 `timeoutMs`，范围 100–120000ms。内置 `npx` 预设（Brave/Exa/Tavily/Firecrawl）已默认 60s，首次下载官方包不会被 20s 期限误判为失败；更慢的网络可再提高 providerTimeoutMs。
 - `maxOutputChars` 默认 16000，范围 2000–50000；限制完整序列化 JSON（UTF-16 字符数），不是下载大小或模型 token 数。先保留出处，截断文本；sources 最多 50 条并有单独标志。官方附带的日期、作者等留在 content，未虚构统一字段。
-- `maxResults` 默认 5，范围 1–20，映射给原生参数。Siftpath 不自行解析/重排每家结果来强制精确条数，最终数量由官方服务决定。
+- `maxResults` 默认 5，范围 1–20，映射给原生参数。若官方工具本身有更高下限（Tavily `max_results` 最小 5），binding 可写 `minResults: 5`：请求小于它时由 Router 提升到下限并附带 `MAX_RESULTS_RAISED` 警告，不会因参数校验失败而白白触发后备；其它供应商不受影响。最终数量仍由官方服务决定，Siftpath 不自行截断/重排。
 
 ## 可选 Tavily / Firecrawl
 
@@ -120,8 +133,8 @@ Exa 官方远程也支持 `x-api-key: ${EXA_API_KEY}`。`${NAME}` 从环境变�
 }
 ```
 
-例如 `routes.readFallback: ["firecrawl"]`、`routes.intents.research: "tavily"`。Tavily 当前 max_results 最小 5：research 请求 1–4 时官方可能拒绝并走后备，不做品牌特例变换。Firecrawl 上例未映射 focus，将返回 `FOCUS_UNSUPPORTED`；确需原生问题提取时按官方 `formats:["query"]` 与 `queryOptions.prompt` 配置，先验证自己套餐/版本。不要默认开 crawl/agent/research 编排或给每个搜索结果附加 scrape。
+例如 `routes.readFallback: ["firecrawl"]`、`routes.intents.research: "tavily"`。内置 Tavily 预设的 search binding 带 `minResults: 5`（官方 `max_results` 最小 5）：用户或模型请求 1–4 条时，Router 会提升到 5 并在结果 `warnings` 里给出 `MAX_RESULTS_RAISED`，不触发无意义的后备。自定义 Tavily binding 时也要自己写 `minResults: 5`。Firecrawl 上例未映射 focus，将返回 `FOCUS_UNSUPPORTED`；确需原生问题提取时按官方 `formats:["query"]` 与 `queryOptions.prompt` 配置，先验证自己套餐/版本。不要默认开 crawl/agent/research 编排或给每个搜索结果附加 scrape。
 
 ## 手动状态与供应商测试
 
-使用 `siftpath status [--json]` 查看离线配置与最近结果；`siftpath test <provider|all> [--json]` 才发起真实 MCP 测试，绝不故障回退。Pi 可选 `/siftpath` 命令只转发 CLI。分阶段状态、记录文件与安装方法见 [DIAGNOSTICS.md](DIAGNOSTICS.md)。
+使用 `siftpath status [--json]` 查看离线配置与最近结果（含生效配置路径和下一步）；`siftpath test <provider|all> [--json]` 才发起真实 MCP 测试，绝不故障回退。Pi 的 `/siftpath` 菜单会在同一套逻辑上提供快速配置、高级配置、状态面板与确认后的真实测试。分阶段状态、`test all` 判定、热更新与安装方法见 [DIAGNOSTICS.md](DIAGNOSTICS.md)。

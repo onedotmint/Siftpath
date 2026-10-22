@@ -1,166 +1,197 @@
 # Siftpath
 
-Siftpath is a small TypeScript/Node.js 22+ MCP router for AI agents. It exposes exactly two model-facing tools:
+Siftpath gives a coding agent two web tools — `web_search` and `web_read` — backed by the official MCP
+servers of five providers (Brave, Exa, Tavily, Jina, Firecrawl). It is a router, not a search engine:
+it lazily connects to the provider you configured, maps two stable inputs to that provider's native
+tool, returns the official result with its source URLs, and falls back to the next configured provider
+when one fails. No LLM, no scraping framework, no re-ranking, no database, no daemon.
 
 - `web_search({ query, intent?, maxResults? })`
 - `web_read({ url, focus? })`
 
-It does not search, parse HTML, chunk, rerank, merge, or run an LLM. It lazily connects to configured official MCP servers, maps the two stable inputs to their configured tool names, forwards the official result, keeps source URLs, bounds the serialized output, and tries configured fallbacks sequentially.
-
-## Install and run
-
-Install the stable release (Node.js 22+; npm `latest` tag):
+## Install in Pi
 
 ```bash
-npm install -g @onedotmint/siftpath@latest
-siftpath --version
-siftpath setup
+pi install npm:@onedotmint/siftpath
+```
+
+Restart Pi (or run `/reload`). The extension registers Siftpath as a Pi MCP server, so after that:
+
+1. Run `/siftpath`.
+2. Choose **快速配置（推荐） / Quick setup**.
+3. Pick a search service and a read service, paste a Key when asked (input is masked), confirm.
+4. Just ask the model to search; it now has `web_search` and `web_read`.
+
+That is the whole first-run path. No global CLI install, no `node_modules` hunting, no `pi mcp add`,
+no JSON editing, no tool-name knowledge.
+
+> **Source vs published package.** `main` and the published npm `2.0.0` contain the rebuild whose Pi
+> extension only printed status and did **not** register the MCP server. The branch
+> `rebuild/lightweight-mcp-router` (this tree) is ahead of that release: it adds the server
+> registration, the interactive `/siftpath` menu, hot configuration reload and the test-semantics
+> fixes. Until a new version is published, install this tree instead:
+>
+> ```bash
+> pi install /absolute/path/to/Siftpath          # directory, dependencies already installed by npm ci
+> ```
+>
+> A bare `npm pack` tarball is not a valid `pi install` argument (Pi treats a file path as a single
+> extension file). Unpack or npm-install it first:
+>
+> ```bash
+> mkdir -p /tmp/siftpath-pkg && tar xzf onedotmint-siftpath-2.0.0.tgz -C /tmp/siftpath-pkg
+> cd /tmp/siftpath-pkg/package && npm install --omit=dev --ignore-scripts
+> pi install /tmp/siftpath-pkg/package
+> ```
+
+## Configure
+
+Both front ends share one private configuration file and one set of rules.
+
+| Path | Command |
+|---|---|
+| Pi | `/siftpath` → quick setup / advanced setup |
+| Terminal | `siftpath setup` (asks quick or advanced), or `siftpath setup --quick` / `--advanced` |
+
+- **Quick setup** asks two things — what should search, what should read — then the Keys, then saves
+  recommended routes (Tavily/Exa for search, Jina for reading, remaining services as fallbacks). It
+  never asks about intents, tool names or fallback order.
+- **Advanced setup** keeps everything: per-provider credentials, default/semantic/research search,
+  reader, and ordered fallback. In Pi it is a small native menu; in a terminal it is the Clack wizard.
+
+Credential rules, identical in both:
+
+- Existing Keys are never displayed and never need re-entry; Enter keeps the saved Key.
+- Official anonymous access is offered where the provider supports it (Exa, Jina, Tavily stdio,
+  Firecrawl); no Key is stored for it.
+- A Key from the environment (`BRAVE_API_KEY`, `EXA_API_KEY`, `TAVILY_API_KEY`, `JINA_API_KEY`,
+  `FIRECRAWL_API_KEY`) wins over the saved Key, and the UIs say so.
+- Cancelling at any point saves nothing. Nothing is written until you confirm.
+- Storage: `~/.config/siftpath/config.json` (`$XDG_CONFIG_HOME`, `SIFTPATH_CONFIG`, or the legacy
+  `~/.config/smartsearch/config.json`) — private JSON, atomic replace, mode `0600`. Keys are never
+  put in argv, notifications, logs or the model context.
+
+Changing a Key or a route takes effect on the next tool call: the running MCP server notices the
+changed file, builds a new router, and retires the old one after its in-flight calls finish. You do
+not need to find a process or restart the terminal. In Pi, `/reload` is only needed if you upgrade
+the package itself.
+
+## Use it
+
+In Pi or any MCP client, ask normally ("search for the Node.js 22 release notes", "read this page")
+— the model calls `web_search` / `web_read`. From a terminal:
+
+```bash
+siftpath search "Node.js 22 release notes" --intent general --max-results 5
+siftpath search "similarity search API" --intent semantic
+siftpath read https://example.com --focus "What is this page about?"
+```
+
+`intent` picks the configured route: `general` (default), `semantic`, `research`. `focus` is forwarded
+only when the configured reader supports a native question parameter (Jina does); otherwise the result
+says `FOCUS_UNSUPPORTED` instead of pretending to extract locally. Output is the provider's own text
+plus traceable source URLs, bounded by `maxOutputChars`, marked `UNTRUSTED_WEB_CONTENT`. Some providers
+have a native minimum number of results (Tavily: 5), so a smaller `maxResults` is raised and the result
+carries a `MAX_RESULTS_RAISED` warning.
+
+## Other clients and the terminal CLI
+
+```bash
+npm install -g @onedotmint/siftpath
+siftpath setup          # quick or advanced wizard
 siftpath status
 ```
 
-Alternatively, build from an existing source checkout:
-
-```bash
-npm ci
-npm run build
-# Optional: npm link (installs the siftpath command for this source checkout)
-node dist/cli.js mcp
-```
-
-In an MCP client, the simplest local configuration is:
+Any MCP client that speaks stdio:
 
 ```json
 {
   "mcpServers": {
     "siftpath": {
       "command": "node",
-      "args": ["/absolute/path/to/Siftpath/dist/cli.js", "mcp"]
+      "args": ["/absolute/path/to/node_modules/@onedotmint/siftpath/dist/cli.js", "mcp"]
     }
   }
 }
 ```
 
-The same process serves stdio MCP. It requires no Docker, database, browser, background daemon, local model, or HTTP server.
-
-With the global npm install or `npm link` (otherwise replace `siftpath` with `node dist/cli.js`):
-
-```bash
-siftpath doctor
-siftpath search "Node.js 22 release notes" --intent general
-siftpath search "semantic similarity API" --intent semantic --max-results 5
-siftpath read https://example.com --focus "What is this page about?"
-```
-
-To install the single package elsewhere, run `npm pack` here, then `npm install /absolute/path/to/onedotmint-siftpath-2.0.0.tgz` in the consuming project (or `npm install -g` for the CLI). The tarball includes compiled runtime, declarations, docs and the anonymous config example.
-
-SDK example:
+The server exposes exactly two tools and starts even when the configuration is missing or invalid:
+the tools are always announced, and a call explains what to fix. TypeScript SDK:
 
 ```ts
 import { Siftpath, readConfiguration } from '@onedotmint/siftpath';
 const siftpath = new Siftpath(await readConfiguration());
-try {
-  const result = await siftpath.search({ query: 'Node.js documentation' });
-  console.log(result.content, result.sources);
-} finally { await siftpath.close(); }
+try { console.log((await siftpath.search({ query: 'Node.js documentation' })).content); }
+finally { await siftpath.close(); }
 ```
 
-## Try without provider keys
+## Keys, anonymous access and cost
 
-Exa and Jina currently offer anonymous hosted MCP access. To opt in (quotas/availability may change):
+| Provider | Role | Without a Key | With a Key |
+|---|---|---|---|
+| Tavily | search (recommended) | official keyless stdio mode | higher quota |
+| Exa | search (semantic), recommended | official anonymous hosted MCP | higher quota |
+| Brave | search | not available | required |
+| Jina | read (recommended) | official anonymous hosted MCP | higher quota, native focus |
+| Firecrawl | read (optional) | official anonymous hosted MCP | higher quota |
+
+Anonymous access is free but limited and can change upstream. Any authenticated call uses your
+provider account and may consume quota — that is why `siftpath test` and `/siftpath → 测试连接` ask for
+confirmation first and are never run automatically. `status` makes no network calls at all.
+
+## Status, tests and troubleshooting
 
 ```bash
-SIFTPATH_CONFIG="$PWD/examples/anonymous.json" node dist/cli.js search "Node.js documentation"
-SIFTPATH_CONFIG="$PWD/examples/anonymous.json" node dist/cli.js read https://example.com
-```
-
-For a local MCP client, add `"env": { "SIFTPATH_CONFIG": "/absolute/path/to/Siftpath/examples/anonymous.json" }` to the server entry above. Brave remains the general primary when a key exists, otherwise it falls back to Exa. These examples write no private configuration or secrets. See [配置与可选服务](docs/CONFIGURATION.md), [接口核验](docs/PROVIDERS.md), [验证记录](docs/TESTING.md), [迁移](docs/MIGRATION.md), and [安全边界](docs/SECURITY.md).
-
-## Configuration
-
-Run `siftpath setup` for the Clack wizard: arrows navigate, Space selects providers, Enter confirms, Esc/Ctrl+C cancels without saving. Select Brave/Exa/Tavily/Jina/Firecrawl, keep or replace hidden Keys (or explicitly choose supported anonymous access), choose default search/read and ordered fallback, then optionally confirm real tests. No tool-name/JSON editing is required.
-
-`setup --non-interactive` only creates minimal defaults at `~/.config/siftpath/config.json` (or `SIFTPATH_CONFIG`). Keys can also be supplied as environment variables. Configuration is private JSON, written atomically with mode 0600; secrets are never printed or put into model schemas.
-
-The built-in routes are:
-
-- general/default search → Brave `brave_web_search`
-- semantic search → Exa `web_search_exa`
-- research → optional configured provider (Tavily is an example)
-- read → Jina `read_url`, with `focus` mapped to its native `question` parameter
-
-Only a provider with a complete connection and all required credential references resolved is attempted. The default config uses:
-
-- Brave stdio: `npx -y @brave/brave-search-mcp-server@2.1.4 --transport stdio`, `BRAVE_API_KEY`
-- Exa stdio: `npx -y exa-mcp-server@3.4.2`, `EXA_API_KEY`
-- Jina Streamable HTTP: `https://mcp.jina.ai/v1`, `JINA_API_KEY` for the default authenticated route; anonymous reading is an explicit opt-in
-
-The versions and tool names above were checked against the official repositories on this rebuild. Check the official servers before upgrading: hosted/runtime schemas can change independently of their source README. Jina `question` is native; if a configured reader has no `$focus` mapping, Siftpath returns `FOCUS_UNSUPPORTED` rather than pretending to extract locally.
-
-Minimal custom provider example:
-
-```json
-{
-  "version": 2,
-  "providers": {
-    "brave": {
-      "enabled": true,
-      "connection": {
-        "transport": "stdio",
-        "command": "npx",
-        "args": ["-y", "@brave/brave-search-mcp-server@2.1.4", "--transport", "stdio"],
-        "env": { "BRAVE_API_KEY": "${BRAVE_API_KEY}" }
-      },
-      "search": {
-        "name": "brave_web_search",
-        "arguments": { "query": "$query", "count": "$maxResults" }
-      }
-    }
-  },
-  "routes": { "search": "brave", "read": "jina", "intents": {}, "searchFallback": [], "readFallback": [] }
-}
-```
-
-Connection transports are `stdio` (`command`, `args`, `env`) and Streamable HTTP (`url`, `headers`). HTTP URLs reject credentials, query-string secrets, and insecure non-loopback HTTP. Use `${ENV_NAME}` in connection env/headers, never in commands, arguments or URLs; environment variables override saved credentials. `doctor` reports `READY`, `MISSING_CREDENTIALS`, `DISABLED`, and unsupported route diagnostics without making network calls.
-
-Tavily and Firecrawl have built-in presets, disabled until selected in `setup`. Tavily uses official `tavily-mcp@0.2.22` / `tavily_search` (basic, 5–20 results), with a Key or its native stdio Keyless mode. Firecrawl uses official `firecrawl-mcp@3.33.4` / `firecrawl_scrape` with a Key, or the official anonymous hosted MCP. Both were verified through real MCP calls. See [配置向导](docs/CONFIGURATION.md). Clack 1.8.1 and esbuild 0.25.12 are build-only: the ~111 KiB setup bundle is dynamically loaded only in interactive setup, with no new runtime dependency.
-
-## Output and safety
-
-Each successful result includes the selected provider, official tool name, retrieval timestamp, original URL where relevant, traceable public source URLs, `UNTRUSTED_WEB_CONTENT`, fallback diagnostics, and `truncated`/`sourcesTruncated` flags. The returned `content` is official output, not a Siftpath-generated answer. Treat it as data, never instructions.
-
-Public HTTP(S) URLs only are accepted for reads. IP literals, local names, credentials and reverse-DNS names are rejected. Provider failures are sanitized into stable diagnostics; raw upstream bodies, API keys and URLs containing credentials are not returned. Connections are initialized on first use, reused within one process, and closed on normal MCP shutdown.
-
-## Status and Pi command
-
-```bash
-siftpath status                 # offline, never treats READY as tested availability
-siftpath status --json
-siftpath test brave --json      # real request to this provider only; no fallback
+siftpath status                 # offline: config path, READY vs tested, routes, next step
+siftpath test exa --json        # real request to one provider, no fallback
 siftpath test all               # sequential checks, may use API quota
-
-# Install the Pi command extension from the stable npm release:
-pi install npm:@onedotmint/siftpath@latest
-
-# Source-checkout alternatives (choose one instead of the npm install):
-# After building, try without changing Pi settings:
-pi -e /absolute/path/to/Siftpath/extensions/siftpath.mjs
-# Or install persistently: pi install /absolute/path/to/Siftpath
 ```
 
-After installation, restart Pi or run `/reload`. In Pi: `/siftpath`, `/siftpath test brave`, `/siftpath test all`. The extension uses the same private configuration and credential environment as the CLI; set `SIFTPATH_CONFIG` before starting Pi to select another file. The extension only invokes the packaged CLI and displays its summary using native notifications. No model tools are added. Connection, tool discovery and real-request stages are reported separately; recent results are stored privately alongside the selected config, with changed configurations marked stale. See [诊断与 Pi 安装/真实验收](docs/DIAGNOSTICS.md).
+`READY` means "configuration and credentials are complete", never "verified available". A provider you
+disabled is reported as disabled and does not fail a `test all` run; a provider that is enabled but has
+no credentials is reported as *pending setup*, not healthy. A run with nothing testable is reported as
+such instead of succeeding.
 
-## Tests and verification
+| Symptom | Meaning and fix |
+|---|---|
+| No `web_search` tool in Pi | Extension not loaded or older package version: `pi list`, then restart or `/reload`. `/siftpath → 查看服务状态` shows whether the tools are registered. |
+| `Warning: Siftpath 安装不完整（缺少运行时依赖）` | The package directory has no `node_modules`: install it from npm, or run `npm install --omit=dev` in the unpacked package before `pi install <dir>`. |
+| `MISSING_CREDENTIALS` | Run `/siftpath` / `siftpath setup` and add the Key, or export it. |
+| First call takes very long, then `PROVIDER_TIMEOUT` | The official server is being downloaded by `npx` on first use. Retry once; raise `providerTimeoutMs` if your network is slow. There is no infinite retry and no background daemon. |
+| `AUTH_FAILED` | The Key was rejected: replace it. |
+| `RATE_LIMITED` | Quota reached: wait, or configure a second provider as fallback. |
+| `TOOL_NOT_FOUND` | The provider renamed a tool upstream: update Siftpath or the binding. |
+| Wrong config file in use | `siftpath status` prints the effective path. `SIFTPATH_CONFIG` overrides it. |
+| Windows and WSL | Each environment has its own home directory, so each needs its own `siftpath setup`; a config written in WSL is not visible to a Windows terminal and vice versa. |
+
+Uninstalling (`pi remove`, `npm uninstall -g`) never deletes your configuration or Keys; remove
+`~/.config/siftpath/` yourself if you want them gone. Upgrading keeps credentials, providers and
+routes; legacy v1 configs are read and converted in memory without rewriting the file.
+
+## What Siftpath deliberately is not
+
+No internal LLM, no multi-provider fusion, no re-ranking, no HTML extraction, no cache, no server
+process. The old EvidenceEngine/Gather path, provider plugins, benchmarks and generated host plugins
+were removed. Official MCP services own search and reading; Siftpath owns routing, credentials,
+diagnostics and the two-tool contract.
+
+## Repository, versions and releases
+
+- `main` — published release line (`2.0.0` on npm).
+- `rebuild/lightweight-mcp-router` — this work: Pi auto-registration, native `/siftpath`, quick setup,
+  config hot reload, test-semantics and Tavily minimum fixes, docs.
+- Publishing and merging are deliberate maintainer actions; CI only verifies and packages.
+
+## Development
 
 ```bash
-npm run typecheck
-npm test
-npm run test:live                 # skips network/quota tests unless explicitly enabled
-SIFTPATH_LIVE=1 npm run test:live # Exa anonymous + Jina anonymous in this rebuild
-SIFTPATH_CONTRACT=1 npm run test:live # tools/list contract checks only
+npm ci
+npm run check                    # typecheck + offline tests (real MCP SDK fixtures)
+npm run test:setup               # PTY smoke for the Clack wizard (Linux)
+npm run test:live                # opt-in real calls: SIFTPATH_LIVE=1, SIFTPATH_CONTRACT=1
+npm run pack:dry
 ```
 
-Offline tests use real MCP SDK fixture processes and local HTTP MCP servers, not mocked vendor HTTP APIs: 81 tests cover tool exposure, stdio, Streamable HTTP, configuration, fallback, cancellation, timeout, output bounds, URL safety, provenance and shutdown. This repository run also verified real anonymous Exa search and Jina read, plus the full Siftpath stdio path. Brave real search was not verified because `BRAVE_API_KEY` was absent. Tavily anonymous official stdio search and Firecrawl anonymous hosted reading were also live-tested; account Key flows were not verified.
-
-## Deliberate non-goals
-
-The old EvidenceEngine, Gather path, multi-provider fusion, custom relevance scoring, sufficiency judgment, HTTP server, old Pi model-tool extension, generated host plugins, and research orchestration were removed from the active package. Siftpath is not a search engine or answer generator; official MCP services own those capabilities.
+See [配置](docs/CONFIGURATION.md), [诊断与 Pi 命令](docs/DIAGNOSTICS.md), [官方 MCP 接入](docs/PROVIDERS.md),
+[架构](docs/ARCHITECTURE.md), [安全边界](docs/SECURITY.md), [验证记录](docs/TESTING.md),
+[迁移](docs/MIGRATION.md).

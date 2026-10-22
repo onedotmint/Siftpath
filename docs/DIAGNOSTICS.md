@@ -1,6 +1,6 @@
 # 状态检查、供应商测试与 Pi 命令
 
-所有诊断业务在 CLI。Pi 扩展只是调用同包的 `dist/cli.js`、解析 JSON、用原生 `ctx.ui.notify()` 展示摘要；不注册模型工具，不加载供应商连接，不调用 LLM，不增加服务或依赖。
+诊断业务在 CLI：`status`、`test`、`doctor`。Pi 扩展复用同一套逻辑：状态和测试通过运行同包 `dist/cli.js --json` 获得，配置与凭据读写使用同包的 `config.js` / `setup-plan.js`。扩展自己只负责 Pi 原生交互（菜单、遮罩输入、状态面板）和 MCP 注册。
 
 ## CLI
 
@@ -13,15 +13,25 @@ node dist/cli.js test all --json
 
 如果已经 `npm link` 或安装包到全局，可直接使用 `siftpath`。
 
-- `status` **不联网、不创建文件**：版本、运行时、配置/凭据状态、搜索/阅读/意图/后备路由、最近测试结果与时间。
+- `status` **不联网、不创建文件**：版本、**生效配置文件路径**、配置/凭据状态、搜索/阅读/意图/后备路由、最近测试结果、以及下一步建议。
 - `test <provider>` 仅测试该 ID，**不经过 Router、不故障回退、不重试**。
 - `test all` 按配置的 providers 顺序逐个检查；禁用/缺 Key 会明确跳过，不会启动它们。不自动加入未配置的 Tavily/Firecrawl 或其它供应商。
 - 每家先 initialize，再分页 tools/list，确认配置的工具均存在，最后按配置的 Search/Read binding 做真实请求。完整保留分页工具元数据，用官方 SDK 的 JSON Schema 校验器验证声明的 structuredContent；仅支持 task 的工具明确报不支持，不会伪装成普通请求成功。每项能力最多一次；只有两项都配置才最多两次，失败后停止该家的后续请求。
-- 搜索固定 `query: "example.com"`、`maxResults: 5`（保持常见官方工具最小条数约束）；阅读固定 `https://example.com`，不传 focus、不调用 rerank/crawl/research。固定参数仍经过现有配置映射；配置自定义了常量/昂贵原生工具时，费用和行为由配置决定，请先检查。
+- 搜索固定 `query: "example.com"`、`maxResults: 5`（满足常见官方工具的最小条数约束）；阅读固定 `https://example.com`，不传 focus、不调用 rerank/crawl/research。固定参数仍经过现有配置映射；配置自定义了常量/昂贵原生工具时，费用和行为由配置决定，请先检查。
 - 每家总期限为 `min(timeoutMs, 该家的 timeoutMs 或 providerTimeoutMs)`，含连接/发现/请求。清理子进程或限时 DELETE 可能额外耗时。`all` 每家独立限时而不是把一个期限均分给全部供应商。
-- 网络测试可能消耗账户/匿名 API 额度，仅显式 `test` 时执行；普通启动、Pi 扩展加载和 `status` 均不会自动测试。
+- 网络测试可能消耗账户/匿名 API 额度，仅显式 `test` 或用户确认后的 `/siftpath → 测试连接` 才执行；普通启动、Pi 扩展加载和 `status` 均不会自动测试。
 
-`--json` 含结构化结果和 CLI 自己生成的 `summary`。测试输出写 stdout；有失败、跳过、没有供应商或取消时退出非零（取消 130），其它测试仍可有成功结果。没有 Key 不是“连接失败”，而是没有尝试网络。配置/命令错误使用现有脱敏 JSON 错误输出到 stderr。
+## `test all` 的总体判定
+
+结果分三类：实际通过（`passed`）、实际失败（`failed`）、跳过（`skipped`）。跳过包括用户主动禁用、缺凭据、未配置、没有对应 binding。
+
+- 有一家失败 → 总体失败（退出码 1）。
+- 禁用或未配置的服务只算跳过，**不会让总体失败**。
+- 有通过、没有失败 → 总体成功。
+- 完全没有任何有效测试（全部跳过）→ 总体**不报成功**，摘要写明 `Overall: nothing testable`，退出码 1。
+- 报告同时给出 `counts: { passed, failed, skipped }` 与摘要行 `x passed, y failed, z skipped`，避免只看一个布尔值。
+
+启用但缺凭据的供应商在 `status` 里显示 `MISSING_CREDENTIALS` 并进入 `待配置:` 提示，不会被当成健康。
 
 ## 状态含义
 
@@ -40,10 +50,14 @@ node dist/cli.js test all --json
 | `passed` / `failed` / `not_tested` | 各阶段成功 / 失败 / 没有执行 |
 | `outcome: skipped` | 缺 Key、禁用、未配置或没有 Search/Read binding，未测试 |
 | `lastTestStale: true` / `CONFIG_CHANGED` | 供应商连接、参数、凭据、生效期限、输出限制或包版本已变化，历史结论不代表当前配置 |
+| `configPath` | 本次生效的配置文件；`SIFTPATH_CONFIG` 可覆盖 |
+| `nextStep` | 基于“已就绪 / 已测试 / 待配置”给出的下一步 |
 
 成功也只是**该次测试成功**，并非常驻健康承诺。
 
-**诊断与正常调用的判定不同：**诊断还要求配置工具能被发现、支持同步调用、声明的输出 Schema 合法匹配；普通业务路径要求 MCP 响应成功、可读内容与来源可封装并满足预算，不额外发 tools/list，也不校验未发现的供应商输出 Schema。因而诊断可能拒绝普通请求可使用的文本响应；诊断通过不代表意图选路、后备或 focus 已被验证。对照回归明确保留这一区别，避免把探针等同于 Router 验收。失败只输出固定脱敏分类和建议，例如 AUTH_FAILED、RATE_LIMITED、CONNECTION_FAILED、TOOL_NOT_FOUND、DISCOVERY_FAILED、INVALID_UPSTREAM_ARGUMENTS、UPSTREAM_ERROR、PROVIDER_TIMEOUT。不会输出上游错误正文、网页内容、请求头或 Key。
+**诊断与正常调用的判定不同：**诊断还要求配置工具能被发现、支持同步调用、声明的输出 Schema 合法匹配；普通业务路径要求 MCP 响应成功、可读内容与来源可封装并满足预算，不额外发 tools/list，也不校验未发现的供应商输出 Schema。因而诊断可能拒绝普通请求可使用的文本响应；诊断通过不代表意图选路、后备或 focus 已被验证。对照回归明确保留这一区别，避免把探针等同于 Router 验收。
+
+失败只输出固定脱敏分类，并附带一条可操作提示（`hint`），例如 AUTH_FAILED、RATE_LIMITED、CONNECTION_FAILED、TOOL_NOT_FOUND、DISCOVERY_FAILED、INVALID_UPSTREAM_ARGUMENTS、UPSTREAM_ERROR、PROVIDER_TIMEOUT。不会输出上游错误正文、网页内容、请求头或 Key。
 
 ## 最近测试记录
 
@@ -53,57 +67,59 @@ node dist/cli.js test all --json
 - 记录损坏/过大/符号链接时报 `TEST_HISTORY_UNREADABLE`，显示未测试，不覆盖异常文件。
 - 并发多个 CLI 写入采用 last-writer-wins，不为低频手工诊断增加数据库或锁框架。
 
-## 安装 Pi 命令
-
-先构建当前仓库：
+## 安装 Pi 集成
 
 ```bash
-npm ci
-npm run build
+pi install npm:@onedotmint/siftpath
 ```
 
-一次试用，不修改 Pi 用户设置：
-
-```bash
-pi -e /absolute/path/to/Siftpath/extensions/siftpath.mjs
-```
-
-持久安装本地单包（命令由当前安装 Pi 1.3.0 API 提供）：
-
-```bash
-pi install /absolute/path/to/Siftpath
-```
-
-已经运行的 Pi 执行 `/reload` 或重启。包的 `pi.extensions` 只声明这一个轻量命令文件；CLI 和扩展必须保留在同一包中，**不要只把扩展文件复制到别处**。
-
-使用：
+已运行的 Pi 执行 `/reload` 或重启。扩展在加载时调用 `pi.registerMcpServer('siftpath', …)`，指向同包的 `dist/cli.js mcp`，`exposure: "direct"`，因此模型只看到两个工具：
 
 ```text
-/siftpath
-/siftpath test brave
-/siftpath test all
+mcp__siftpath__web_search
+mcp__siftpath__web_read
 ```
 
-Pi 子进程继承启动 Pi 时的 SIFTPATH_CONFIG 和凭据环境；也可使用现有私有配置。这里没有第二套凭据机制。无 UI 的自动化场景直接使用 CLI `--json`。
+- 不需要全局安装 CLI，不需要查找 `node_modules`，不需要 `pi mcp add`，不需要手写 JSON。
+- 注册用固定名字，重复加载（`/reload`、升级、重新 install）替换同一次注册，不会出现同名重复工具。
+- 上游供应商仍然懒连接：只有第一次真正搜索/阅读时才启动对应的官方 MCP。
+- 如果 `~/.pi/agent/mcp.json` 里已有同名 `siftpath`，文件配置优先，`/mcp` 会列出被覆盖的扩展注册。
+- 未配置凭据时，`session_start` 只发一条提示，建议运行 `/siftpath`；不会静默失败。
 
-无 Key 的显式匿名试用（额度和服务可能变化）：
+源码检出试用（不修改 Pi 设置）：
 
 ```bash
-SIFTPATH_CONFIG=/absolute/path/to/Siftpath/examples/anonymous.json \
-  pi -e /absolute/path/to/Siftpath/extensions/siftpath.mjs
+pi -e /absolute/path/to/Siftpath
 ```
 
-这份配置会使 Brave 缺 Key 时跳过，Exa/Jina 使用官方匿名远程 MCP。普通 `web_search`、`web_read` 及它们的 Schema 不变；诊断命令不替代 MCP 客户端接入。
+## `/siftpath` 菜单
 
-## 前轮实际 Pi 验收记录（Pi 1.3.0）
+```text
+/siftpath                 → 菜单（首次使用默认「快速配置（推荐）」，已配置默认「查看服务状态」）
+/siftpath status          → 状态面板
+/siftpath test brave      → 单家真实测试（不启用后备）
+/siftpath test all        → 逐家真实测试
+```
 
-在本机 Pi **1.3.0** 的真实交互终端中，用独立临时 agent 目录、`--no-session`、禁用其它扩展和 MCP 自动连接进行测试；没有更改个人 Pi 设置，也没有调用 LLM：
+菜单项：快速配置、高级配置、查看服务状态、测试连接。
 
-1. `/siftpath`：显示离线配置、两条就绪连接、Brave 缺 Key 和 NOT_TESTED。
-2. `/siftpath test brave`：SKIPPED / MISSING_CREDENTIALS，三个网络阶段均 not_tested，没有故障回退。
-3. `/siftpath test all`：Brave 跳过；**Exa 搜索真实通过，4491ms；Jina 阅读真实通过，3640ms**；两家连接/发现/实际请求三个阶段均 passed。使用官方匿名额度。
-4. 再次 `/siftpath`：原生通知显示刚刚的最近测试时间、结果和耗时；CLI `status --json` 读取到相同记录。
-5. Ctrl-D 正常退出，Pi 进程退出码 0。
-6. 在同一个独立临时 agent 目录执行 `pi install /absolute/path/to/Siftpath`，再次启动 Pi（不加 -e）能自动加载命令，`/siftpath` 正常显示状态。
+- **快速配置**：选择搜索服务与阅读服务 → 输入/保留 Key 或选择官方匿名访问 → 确认后按推荐路由保存。无需理解 tool name、JSON Schema、意图或后备顺序。
+- **高级配置**：Pi 原生菜单循环，可逐家配置凭据、停用服务、设置 default/semantic/research 搜索、阅读服务和**有序后备**；不启动第二套 Clack TUI。
+- **查看服务状态**：可滚动面板，显示生效配置路径、Pi 工具是否已接入、搜索/阅读/意图路由、每家 `READY`/`DISABLED`/`MISSING_CREDENTIALS` 与“最近测试 passed/failed”，以及下一步。READY 与“测试通过”分开显示。
+- **测试连接**：先选服务并确认“会消耗额度”，再执行真实测试。
 
-该轮尚未验证 Brave 有 Key 搜索和 Tavily/Firecrawl；后续 setup 恢复轮已通过官方 MCP 验证 Tavily 匿名 stdio 搜索、Firecrawl 匿名托管阅读（详见 TESTING.md），仍未验证账号 Key 业务；不将缺凭据跳过或自动化 Mock 结果算作实际可用。
+Key 输入使用自带的**遮罩输入组件**（`•` 回显、不回显明文、不写入会话记录、不进入 argv、不打印）。取消任何一步都不保存；只有确认后才原子写入私有配置。环境变量优先于本地 Key，界面会明确提示。
+
+## 配置热更新
+
+`dist/cli.js mcp` 在**每次工具调用前**检查配置文件的时间戳/大小：
+
+- 未变化：复用现有连接（不会每次调用都重新初始化）。
+- 已变化：读取新配置、创建新 Router，旧 Router 标记为 retire，等在途调用结束后自行关闭并断开连接。
+- 文件损坏：本次调用返回 `INVALID_CONFIG` 与提示，其它调用不受影响；修好文件后无需重启即恢复。
+
+因此在 Pi 里保存新 Key 或改路由后，下一次搜索/阅读立即生效；只有升级包本身才需要 `/reload`。
+
+## Pi 首次安装验收
+
+见 [TESTING.md](TESTING.md) 的“本轮 Pi 首次安装验收”一节：使用隔离的 Pi 用户目录与本仓库 `npm pack` 产物完成安装、`/siftpath` 快速配置、工具注册与首次真实搜索/阅读；真实联网调用仅在获得许可时执行，会单独标注。

@@ -136,3 +136,37 @@ AFT 本次部分作用域诊断使用外部 TypeScript 缓存，曾对新建 def
 依赖方案完全沿用历史精确版本：`@clack/prompts@1.8.1` 和 `esbuild@0.25.12` 仅 devDependencies；直接 runtime dependencies 仍为官方 MCP SDK、Zod 两个。Clack 独立包约 111 KiB（未压缩），setup 动态 import，正常 Search/Read/MCP 路径不加载。相较本轮开始，自有生产代码（src + Pi 入口，含空行/注释）791 → 887 行，净增 96 行，生产模块 15 → 16，仅新增 setup-ui；setup.ts 57 → 35 行，删除手写终端输入逻辑。第三方 MIT 通知随包保留。
 
 未验证：没有五家账号 Key，Brave 真实搜索、Tavily/Firecrawl 的账户 Key 业务调用及 Windows 真终端输入仍未实测；Exa 匿名业务沿用前轮验证；本轮仅为安装包 MCP 全链路再做一次 Jina 匿名阅读，不进行额外 LLM/研究调用。生产路径没有增加新模型工具、自动网络测试、融合算法或 Router 改造。Python 只用于 Linux 开发/CI验收，安装用户不需要 Python。
+
+## 首次使用体验修复轮（本轮）
+
+范围：Pi 安装即用、`/siftpath` 原生管理界面、快速/高级配置、Key 遮罩输入、配置热更新、`test all` 判定、Tavily 参数下限、冷启动期限、状态与错误提示、Windows CI 断言、包元数据与文档。
+
+自动化（`npm run check`）：**96 项离线测试全部通过**，类型检查通过；`npm run verify:source` 与 `npm run pack:dry` 通过（61 个文件，未压缩 381.5 kB）。新增/改写的针对性回归：
+
+- Pi 扩展只注册一个命令与一个 MCP 服务（`exposure: direct`，指向包内 `dist/cli.js mcp`），加载时不执行任何工作；首次使用菜单以「快速配置（推荐）」开头，已配置时以「查看服务状态」开头。
+- 状态面板显示生效配置路径、Pi 工具是否接入、READY 与“最近测试”分离、每种服务状态与下一步；不回显任何 Key。
+- 快速配置在真实遮罩组件中输入 Key：渲染只有 `•`、`writePrivateJson` 写入 0600 私有配置、通知/面板无明文；Esc 取消不落盘；环境变量优先并提示。
+- 非交互模式（JSON/RPC）不启动第二套终端 UI，只给出状态或明确提示。
+- `test all` 语义：禁用的服务只算 skipped，不让整体失败；全部跳过时**不报成功**（`Overall: nothing testable`，退出码 1）；摘要输出 passed/failed/skipped 计数；缺失凭据在 `status` 中进入 `待配置:` 提示。
+- Tavily `minResults: 5`：请求 1–4 条被提升到 5 并带 `MAX_RESULTS_RAISED`；请求 5 条不提升；其它供应商不受影响。
+- 配置热更新：真实 stdio MCP 会话中依次改写 binding、禁用供应商、写入损坏 JSON、修好后恢复；下一次调用使用新配置，旧 Router 在在途调用结束后才关闭（`retire` 回归）。
+- 快速向导的 Clack 交互（服务+Key+推荐路由）、仅预选可用的服务（全新安装不预选需要 Key 的 Brave）、两种模式选择、取消不保存。
+- Pi 命令测试的路径断言接受 `\` 与 `/`（修复 Windows Node 24 CI 失败）。
+- `verify-source` 现在强制 `pi-package` 关键词与 `pi.extensions` 声明。
+
+真实用户验收（隔离环境，未改个人配置，未发布 npm）：
+
+1. **全新 Pi 用户**：临时 `PI_CODING_AGENT_DIR` + 临时 `SIFTPATH_CONFIG`；先 `npm install <tarball>`（与 npm 发布布局一致）再 `pi install <包目录>`，`pi list` 显示已安装。启动 Pi 1.4.0 后自动加载扩展并提示尚未配置；`/siftpath` → 快速配置 → Exa 官方匿名 + Jina 官方匿名 → 确认保存（生成 0600 配置，推荐路由 `search=exa`、`read=jina`、`semantic=exa`）。再次 `/siftpath` 的状态面板显示 `Pi 工具: mcp__siftpath__web_search, mcp__siftpath__web_read（已接入模型）`，证明官方 `pi.registerMcpServer` 生效且只暴露两个工具。
+2. **首次真实搜索/阅读**：用扩展注册的同一条命令（`node <pkg>/dist/cli.js mcp`）与同一份配置完成真实 MCP 调用：`web_search` 经 Exa 官方匿名返回 13826 字符、26 个来源（4.9s），`web_read` 经 Jina 官方匿名返回 1164 字符、2 个来源（2.5s），stderr 为空。使用官方匿名额度，未消耗账户配额。
+3. **CLI 用户（Clack）**：真实终端运行 `siftpath setup` → 选择 Quick setup → 只选 Exa/Jina → Exa 输入 Key 时终端只显示 `▪▪▪▪`（24 个）→ Jina 选匿名 → 不跑测试 → 保存并打印状态与新 `Next:` 提示。
+4. **已配置用户改一家服务、其余保留**：真实 stdio MCP 会话先用假 Key 搜索（`NO_PROVIDER_SUCCEEDED`），把 Exa 改为官方匿名后**不重启**再搜索 → 通过（9 个来源），`web_read` 仍走 Jina（2 个来源），路由与其它设置未丢失。
+5. **故障用户**：真实 `siftpath test all` → Brave/Tavily/Firecrawl 因禁用跳过（不计失败）、Jina 阅读真实通过、Exa 因假 Key 在 request 阶段失败；摘要 `1 passed, 1 failed, 3 skipped`、`Overall: FAILED`、退出码 1。缺失依赖的本地目录安装：Pi 正常启动，只显示“安装不完整（缺少运行时依赖）”与 `/mcp` 提示，不崩溃。
+6. **生命周期**：`pi remove` 不删除配置；重复 `pi install` 不产生重复条目；状态面板重复打开不重复注册工具。
+
+剩余限制与未验证项：
+
+- 未在 Windows/WSL 实机运行；仅修正了路径断言，CI 仍以 Ubuntu/Windows × Node 22/24 覆盖。
+- 未使用真实付费 Key 验证 Brave/Tavily/Firecrawl 账户调用；Exa 假 Key 的失败被上游归类为 `UPSTREAM_ERROR`（工具级错误），不是 `AUTH_FAILED`。
+- Pi 内部模型工具调用**没有分阶段进度**（MCP 层不转发下载进度）：首次 npx 下载仍可能长时间等待，只是期限从 20s 提到 60s，并给出“首次可能仍在下载”的提示；阶段信息只在 `/siftpath → 测试连接` 与 `siftpath test` 中可见。
+- 本机用 `pi install <tarball 路径>` 会被 Pi 当作单个扩展文件而报错；文档已改为「npm 安装 / 目录安装」，未修改 Pi 代码。
+- 未发布 npm、未合并 main、未推送远端（本轮提交后由维护者推送）。
