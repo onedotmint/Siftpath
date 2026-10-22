@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseConfiguration, providerStatus } from '../dist/config.js';
 import { providerPresets, anonymousPresets } from '../dist/defaults.js';
-import { runSetupWizard } from '../dist/setup-ui.js';
+import { runSetupWizard, runQuickSetup, chooseSetupMode } from '../dist/setup-ui.js';
 import { isCancel } from '@clack/prompts';
 
 function prompts({ providers, action = 'keep', key = '', route, test = false, cancelAt } = {}) {
@@ -11,7 +11,7 @@ function prompts({ providers, action = 'keep', key = '', route, test = false, ca
   return { calls, notices, isCancel,
     intro: () => {}, outro: () => {}, cancel: text => notices.push(text),
     log: Object.fromEntries(['info', 'warn', 'error'].map(name => [name, text => notices.push(text)])),
-    multiselect: wrap('multiselect', options => options.message.startsWith('Providers') ? providers ?? [...options.initialValues] : [...options.initialValues]),
+    multiselect: wrap('multiselect', options => /^(Providers|What should)/.test(options.message) ? providers ?? [...options.initialValues] : [...options.initialValues]),
     select: wrap('select', options => options.message.endsWith('credentials') ? action === 'keep' && !options.options.some(o => o.value === 'keep') ? options.initialValue : action : route?.(options) ?? options.initialValue),
     password: wrap('password', options => { assert.equal(options.validate?.(key), undefined); return key; }),
     confirm: wrap('confirm', () => test),
@@ -134,4 +134,52 @@ test('credential-only edits preserve defaultIntent and existing supported intent
   assert.equal(result.configuration.routes.intents.semantic, 'brave');
   assert.equal(result.configuration.routes.intents.research, 'exa');
   assert.match(p.notices.join('\n'), /default intent=semantic/);
+});
+
+test('setup mode chooser defaults to quick for a first-time install and advanced when already configured', async () => {
+  assert.equal(await chooseSetupMode(true, prompts()), 'quick');
+  assert.equal(await chooseSetupMode(false, prompts()), 'advanced');
+});
+
+test('quick setup asks only for services and Keys, then chooses recommended routes', async () => {
+  const p = prompts({ providers: ['exa', 'jina'], action: 'key', key: 'quick-test-key' });
+  const result = await runQuickSetup(parseConfiguration({}), {}, p);
+  assert.equal(result.configuration.credentials.EXA_API_KEY, 'quick-test-key');
+  assert.equal(result.configuration.credentials.JINA_API_KEY, 'quick-test-key');
+  assert.equal(result.configuration.routes.search, 'exa');
+  assert.equal(result.configuration.routes.intents.semantic, 'exa');
+  assert.equal(result.configuration.routes.read, 'jina');
+  assert.deepEqual(result.configuration.routes.searchFallback, []);
+  assert.ok(!p.calls.some(call => /Default search provider|Semantic search provider|Research search provider|fallback/.test(call.message)));
+  assert.equal(result.test, false);
+  assert.ok(!JSON.stringify(p.notices).includes('quick-test-key'));
+});
+
+test('quick setup keeps a saved Key, supports anonymous access and disables unselected services', async () => {
+  const saved = parseConfiguration({ credentials: { EXA_API_KEY: 'saved-quick-key' }, providers: { exa: providerPresets.exa, jina: anonymousPresets.jina, brave: providerPresets.brave } });
+  const p = prompts({ providers: ['exa', 'jina'], action: 'anonymous' });
+  p.select = async options => options.message.endsWith('credentials') ? 'anonymous' : options.initialValue;
+  const result = await runQuickSetup(saved, {}, p);
+  assert.equal(result.configuration.credentials.EXA_API_KEY, 'saved-quick-key');
+  assert.equal(result.configuration.providers.exa.connection.transport, 'http');
+  assert.equal(result.configuration.providers.brave.enabled, false);
+  assert.ok(!p.calls.some(call => call.name === 'password'));
+});
+
+test('quick setup reports nothing usable and never saves a partial configuration', async () => {
+  const p = prompts({ providers: ['firecrawl'], action: 'key', key: '' });
+  p.select = async options => options.message.endsWith('credentials') ? 'key' : options.initialValue;
+  p.password = async () => '';
+  const result = await runQuickSetup(parseConfiguration({}), {}, p);
+  assert.equal(result, null);
+  assert.match(p.notices.join('\n'), /No ready Search or Read connection/);
+});
+
+test('quick setup preselects only services that can work, never a Key-required provider on a fresh install', async () => {
+  const fresh = prompts();
+  await runQuickSetup(parseConfiguration({}), {}, fresh);
+  assert.deepEqual(fresh.calls.find(call => call.name === 'multiselect').initialValues, ['exa', 'jina']);
+  const configured = prompts();
+  await runQuickSetup(parseConfiguration({ credentials: { BRAVE_API_KEY: 'saved-brave' } }), {}, configured);
+  assert.deepEqual(configured.calls.find(call => call.name === 'multiselect').initialValues, ['brave']);
 });

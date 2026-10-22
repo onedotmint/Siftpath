@@ -78,6 +78,10 @@ class Wizard:
         except OSError:
             pass
 
+def choose_mode(w, first_time):
+    w.until("Setup mode")
+    w.send(("\x1b[B" if first_time else "") + "\r")
+
 def routes(w, reader=True, test=False):
     for prompt in ("Default search provider", "Semantic search provider", "Research search provider"):
         w.until(prompt)
@@ -95,7 +99,7 @@ with tempfile.TemporaryDirectory(prefix="siftpath-clack-pty-") as directory:
         path = root / ("escape.json" if cancel == "\x1b" else "ctrl-c.json")
         w = Wizard(path)
         try:
-            w.until("Providers (Space: toggle, Enter: continue)")
+            w.until("Setup mode")
             w.send(cancel)
             w.finish()
             assert not path.exists(), "Cancellation created a config"
@@ -105,6 +109,7 @@ with tempfile.TemporaryDirectory(prefix="siftpath-clack-pty-") as directory:
     path = root / "config.json"
     w = Wizard(path)
     try:
+        choose_mode(w, first_time=True)
         w.until("Providers (Space: toggle, Enter: continue)")
         # Existing defaults: Brave, Exa, Jina. Toggle to Tavily + Jina with arrows and Space.
         w.send(" \x1b[B \x1b[B \r")
@@ -124,10 +129,34 @@ with tempfile.TemporaryDirectory(prefix="siftpath-clack-pty-") as directory:
     assert not saved["providers"]["brave"]["enabled"]
     assert not list(root.glob("*.siftpath-tests.json")), "Declined tests ran or created history"
 
+    # Quick path: two service choices, recommended routes, keyless anonymous access, no route questions.
+    quick = root / "quick.json"
+    w = Wizard(quick)
+    try:
+        w.until("Setup mode")
+        w.send("\r")
+        w.until("What should Siftpath search and read with?")
+        w.send("\r")
+        w.until("Exa credentials")
+        w.send("\r")  # anonymous is the default without a saved Key
+        w.until("Jina credentials")
+        w.send("\r")
+        w.until("After saving, run real provider tests?")
+        w.send("\r")
+        w.finish()
+    finally:
+        w.abort()
+    saved_quick = json.loads(quick.read_text())
+    assert saved_quick["routes"]["search"] == "exa" and saved_quick["routes"]["read"] == "jina"
+    assert saved_quick["credentials"] == {}, "Quick path stored a Key without one being entered"
+    assert saved_quick["providers"]["jina"]["connection"]["headers"] == {}
+    assert not saved_quick["providers"]["brave"]["enabled"]
+
     for mode in ("keep", "replace", "cancel-after-secret"):
         original = path.read_bytes()
         w = Wizard(path)
         try:
+            choose_mode(w, first_time=False)
             w.until("Providers (Space: toggle, Enter: continue)")
             w.send("\r")  # retains selected providers
             w.until("Tavily credentials")
@@ -158,6 +187,7 @@ with tempfile.TemporaryDirectory(prefix="siftpath-clack-pty-") as directory:
     mock.write_text(json.dumps({"providers": {"local": {"connection": {"transport": "stdio", "command": "node", "args": [str(fixture), "--stdio"], "env": {"MOCK_LOG": str(log)}}, "search": {"name": "search", "arguments": {"q": "$query"}}, "read": {"name": "read", "arguments": {"url": "$url"}}}}, "routes": {"search": "local", "read": "local", "intents": {}, "searchFallback": []}}))
     w = Wizard(mock)
     try:
+        choose_mode(w, first_time=False)
         w.until("Providers (Space: toggle, Enter: continue)")
         w.send("\r")
         routes(w, test=True)
