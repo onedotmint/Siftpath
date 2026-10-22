@@ -66,8 +66,8 @@ const quickAnswers = () => [['Siftpath', '快速配置'], ['用哪个服务搜�
 const advancedAnswers = action => [['Siftpath', '高级配置'], ['Siftpath 高级配置', action]];
 
 for (const [name, input, expected] of [
-  ['CSI-u text, release, backspace and Enter', ['\x1b[97u', '\x1b[98;1:3u', '\x1b[99u', '\x1b[127u', '\x1b[100u', '\x1b[13u'], 'ad'],
-  ['kitty Shift text and forward delete', ['\x1b[97:65;2u', 'x', '\x1b[3;1~', '\x1b[57414u'], 'A'],
+  ['CSI-u text, release, backspace and Enter', ['fixture-secret-', '\x1b[97u', '\x1b[98;1:3u', '\x1b[99u', '\x1b[127u', '\x1b[100u', '\x1b[13u'], 'fixture-secret-ad'],
+  ['kitty Shift text and forward delete', ['fixture-secret-', '\x1b[97:65;2u', 'x', '\x1b[3;1~', '\x1b[57414u'], 'fixture-secret-A'],
   ['bracketed paste split across chunks and a Unicode deletion', ['\x1b[200~', 'fixture-中文😀', '\x1b[20', '1~', '\x1b[127u', '\r'], 'fixture-中文'],
   ['complete bracketed paste with trailing submit', ['\x1b[200~fixture-paste\x1b[201~\x1b[13u'], 'fixture-paste'],
 ]) {

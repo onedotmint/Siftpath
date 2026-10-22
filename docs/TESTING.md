@@ -7,7 +7,7 @@
 - Pi 快速/高级编辑均使用空环境读取磁盘草稿；回归先在旧实现复现四项失败，再验证环境 Key 不落盘、不覆盖磁盘 Key。显式输入替换 Key 的保存与环境优先级继续通过。
 - Pi/CLI 快速配置只添加或更新所选服务，未选中的已有服务（含自定义 MCP）保持原样。推荐路由仍会重新生成；停用与手动路由使用高级配置。
 - 官方 Pi TUI helpers 修复 CSI-u/kitty 按键、粘贴、中文/ANSI 窄窗口。补测高级子菜单取消丢弃草稿、两种配置保存前的明文/权限提示、RPC 报告、搜索共享后备、默认取消的费用确认和运行中 Esc 取消。
-- 当前 Node 24.21.0 完整离线套件 **134/134 通过**，TypeScript 检查与 Linux Clack PTY 通过；`npm ci --ignore-scripts`、`verify:source`、默认全部跳过的 `test:live`、`pack:dry`、`git diff --check` 均通过，生产依赖审计 0 已知漏洞。跨平台 GitHub Actions 结果在发布门禁完成后记录。
+- 当前 Node 24.21.0 完整离线套件 **134/134 通过**，TypeScript 检查与 Linux Clack PTY 通过；`npm ci --ignore-scripts`、`verify:source`、默认全部跳过的 `test:live`、`pack:dry`、`git diff --check` 均通过，生产依赖审计 0 已知漏洞。跨平台 GitHub Actions 以 PR #2 最新提交的检查为准（[Actions](https://github.com/onedotmint/Siftpath/actions/workflows/test.yml)）；打包使用 [Package Siftpath](https://github.com/onedotmint/Siftpath/actions/workflows/package.yml)。首轮 Ubuntu Node 22/24 通过，Windows 的单字母测试密钥 `A` 与 AppData 路径碰撞导致误报，现改为长测试密钥后重跑，不跳过安全断言。
 - 2.0.1 tarball 生产依赖隔离安装通过：CLI version/help、SDK 两工具断言、安装包 Clack PTY 均通过；确认 CLI/MCP 安装无需 Clack、esbuild 或 Pi TUI。再用安装包扩展运行真实 Pi 模型验收 **通过（15.3 秒）**，证明 Pi 从宿主提供 TUI helpers，不依赖开发目录。临时安装目录已清理。
 
 ### 模型端到端验收，不是 MCP 直连
