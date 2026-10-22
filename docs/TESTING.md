@@ -22,8 +22,8 @@ npm audit --omit=dev
 | 检查 | 结果 |
 |---|---|
 | `npm run typecheck` / TypeScript 5.8.3 | 通过 |
-| Node 24.21.0 当前离线测试 | **81/81 通过** |
-| Node 22.23.3 当前离线测试 | **81/81 通过** |
+| Node 24.21.0 当前离线测试 | **97/97 通过**（本轮；历史条目见下文各轮） |
+| Node 22.23.3 当前离线测试 | **97/97 通过**（本轮；历史条目见下文各轮） |
 | 源码分发/lock 一致性检查 | 通过 |
 | 运行时依赖审计 | 0 已知漏洞（不代表安全保证） |
 | `git diff --check` | 通过 |
@@ -127,7 +127,7 @@ AFT 本次部分作用域诊断使用外部 TypeScript 缓存，曾对新建 def
 
 当前 setup 迁移为版本-2 私有配置：使用空环境读取磁盘，避免保存环境 Key；显式保留/替换凭据、认证/匿名预设，保留自定义 MCP。默认意图和仍有效的意图路由不会因重跑向导被重置。格式化后超过 64 KiB 的配置在替换原文件前拒绝保存，保留原文件。路由只用已启用且凭据引用就绪的能力，搜索顺序后备供所有意图共享、主供应商自动去重。
 
-自动化：当前 **81 项 Node 离线测试**，其中新增 Clack 注入测试覆盖匿名/Key/环境优先级/保留/替换/取消/默认意图/后备顺序，预设开关和打包延迟导入，超限配置不损坏原件。真实 `python3 tests/setup-pty-smoke.py` 适配历史 PTY 技术，验证方向键、Space 多选、Enter、Esc/Ctrl+C、隐藏 Key 新增/保留/替换、输入后取消不保存、默认搜索/阅读选择、匿名 Reader 无密码、拒绝测试不联网，以及明确确认时复用本地 MCP 的现有 testReport（不是官方测试成功）。Node 22/24 均从源码编译并打包后执行；Linux CI 增加相同 PTY 命令。
+自动化：本轮 Clack 增补时为 **81 项 Node 离线测试**，其中新增 Clack 注入测试覆盖匿名/Key/环境优先级/保留/替换/取消/默认意图/后备顺序，预设开关和打包延迟导入，超限配置不损坏原件。真实 `python3 tests/setup-pty-smoke.py` 适配历史 PTY 技术，验证方向键、Space 多选、Enter、Esc/Ctrl+C、隐藏 Key 新增/保留/替换、输入后取消不保存、默认搜索/阅读选择、匿名 Reader 无密码、拒绝测试不联网，以及明确确认时复用本地 MCP 的现有 testReport（不是官方测试成功）。Node 22/24 均从源码编译并打包后执行；Linux CI 增加相同 PTY 命令。
 
 安装包：临时项目用 `npm install --omit=dev --ignore-scripts <tarball>`，确认没有 `@clack/prompts` 或 esbuild 安装目录，直接对安装后的 CLI 执行全部 PTY 用例成功，不依赖仓库交互模块。测试中的本地模拟 MCP fixture 单独由验收脚本提供，未作为产品依赖。当前 Pi 1.3.0 原生交互终端通过安装包扩展验收 `/siftpath` 和明确未配置的供应商测试，未改个人 Pi 设置。原有 MCP 两工具协议、取消和生命周期回归继续通过。最终生产依赖安装包还实测 tools/list 仅 web_search/web_read，web_search 经 Tavily 官方匿名 stdio 返回 example.com 来源，web_read 经 Jina 返回 Example Domain；不是仅单独 providerTest 成功。
 
@@ -141,7 +141,7 @@ AFT 本次部分作用域诊断使用外部 TypeScript 缓存，曾对新建 def
 
 范围：Pi 安装即用、`/siftpath` 原生管理界面、快速/高级配置、Key 遮罩输入、配置热更新、`test all` 判定、Tavily 参数下限、冷启动期限、状态与错误提示、Windows CI 断言、包元数据与文档。
 
-自动化（`npm run check`）：**96 项离线测试全部通过**，类型检查通过；`npm run verify:source` 与 `npm run pack:dry` 通过（61 个文件，未压缩 381.5 kB）。新增/改写的针对性回归：
+自动化（`npm run check`）：**97 项离线测试全部通过**，类型检查通过；`npm run verify:source` 与 `npm run pack:dry` 通过（61 个文件，未压缩 381.5 kB）。新增/改写的针对性回归：
 
 - Pi 扩展只注册一个命令与一个 MCP 服务（`exposure: direct`，指向包内 `dist/cli.js mcp`），加载时不执行任何工作；首次使用菜单以「快速配置（推荐）」开头，已配置时以「查看服务状态」开头。
 - 状态面板显示生效配置路径、Pi 工具是否接入、READY 与“最近测试”分离、每种服务状态与下一步；不回显任何 Key。
@@ -170,3 +170,7 @@ AFT 本次部分作用域诊断使用外部 TypeScript 缓存，曾对新建 def
 - Pi 内部模型工具调用**没有分阶段进度**（MCP 层不转发下载进度）：首次 npx 下载仍可能长时间等待，只是期限从 20s 提到 60s，并给出“首次可能仍在下载”的提示；阶段信息只在 `/siftpath → 测试连接` 与 `siftpath test` 中可见。
 - 本机用 `pi install <tarball 路径>` 会被 Pi 当作单个扩展文件而报错；文档已改为「npm 安装 / 目录安装」，未修改 Pi 代码。
 - 未发布 npm、未合并 main、未推送远端（本轮提交后由维护者推送）。
+
+### 跨平台 CI 结果
+
+GitHub Actions `Verify Siftpath`（提交 `9c15629`、`b0871ec`）：**Ubuntu/Windows × Node 22/24 四个矩阵任务全部通过**，包含 `npm run check`、Linux 的 `npm run test:setup`（含新增的模式选择与快速路径）、`verify:source`、默认全部跳过的 `test:live` 与 `pack:dry`。修复前同一工作流在 **Windows Node 24** 因 `assert.match(..., /dist\/cli\.js$/)` 失败（Windows 返回 `D:\...\dist\cli.js`），本轮只修改测试断言为同时接受两种分隔符，未改动运行时路径处理。
