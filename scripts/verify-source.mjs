@@ -6,8 +6,12 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL('..', import.meta.url)));
 const required = ['README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'package.json', 'package-lock.json', 'tsconfig.json',
   'extensions/siftpath.mjs', 'src/diagnostics.ts', 'src/index.ts', 'src/router.ts', 'src/client.ts', 'src/config.ts', 'src/defaults.ts', 'src/cli.ts', 'src/mcp/stdio.ts',
-  'docs/ARCHITECTURE.md', 'docs/PROVIDERS.md', 'docs/CONFIGURATION.md', 'docs/TESTING.md', 'docs/MIGRATION.md'];
+  'src/setup.ts', 'src/setup-ui.ts', 'src/setup-plan.ts', 'src/errors.ts', 'src/inputs.ts', 'src/output.ts', 'src/tools.ts',
+  'docs/ARCHITECTURE.md', 'docs/PROVIDERS.md', 'docs/CONFIGURATION.md', 'docs/TESTING.md', 'docs/MIGRATION.md', 'docs/DIAGNOSTICS.md'];
 for (const path of required) if (!(await lstat(join(root, path))).isFile()) throw new Error(`Missing source file: ${path}`);
+const pkg0 = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+if (!(pkg0.keywords ?? []).includes('pi-package')) throw new Error('The pi-package keyword is required for Pi package discovery.');
+if (!pkg0.pi?.extensions?.length) throw new Error('The pi manifest must declare the extension.');
 for (const path of ['src/core/engine.ts', 'src/providers', 'src/mcp/http.ts', 'src/integrations', 'integrations/pi']) {
   const present = await lstat(join(root, path)).then(() => true, error => { if (error.code !== 'ENOENT') throw error; return false; });
   if (present) throw new Error(`Obsolete runtime still present: ${path}`);

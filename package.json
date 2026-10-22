@@ -2,6 +2,15 @@
   "name": "@onedotmint/siftpath",
   "version": "2.0.0",
   "description": "Lightweight official MCP web search and reader router for AI agents.",
+  "keywords": [
+    "pi-package",
+    "mcp",
+    "model-context-protocol",
+    "web-search",
+    "web-reader",
+    "agent-tools",
+    "router"
+  ],
   "type": "module",
   "license": "MIT",
   "engines": {
@@ -27,7 +36,7 @@
   ],
   "scripts": {
     "build": "node scripts/clean.mjs && tsc -p tsconfig.json && npm run bundle:setup",
-    "bundle:setup": "esbuild src/setup-ui.ts --bundle --platform=node --format=esm --target=node22 --external:./config.js --external:./defaults.js --outfile=dist/setup-ui.js --legal-comments=inline",
+    "bundle:setup": "esbuild src/setup-ui.ts --bundle --platform=node --format=esm --target=node22 --external:./config.js --external:./defaults.js --external:./setup-plan.js --outfile=dist/setup-ui.js --legal-comments=inline",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test tests/*.test.mjs",
     "test:setup": "python3 tests/setup-pty-smoke.py",
