@@ -9,3 +9,7 @@ coverage/
 *.tgz
 *.zip
 *.bundle
+
+# Private, latest-only provider diagnostics saved alongside a selected config.
+.siftpath-tests.json
+.*.siftpath-tests.json

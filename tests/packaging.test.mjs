@@ -1,60 +1,57 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFile, readdir } from 'node:fs/promises';
-import { gradeInvocations } from '../scripts/eval-invocations.mjs';
-import { toolDefinitions } from '../dist/tools.js';
-const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
-const json = async path => JSON.parse(await read(path));
+import { parseConfiguration, toolDefinitions } from '../dist/index.js';
 
-test('all generated integration skills match the single canonical skill', async () => {
-  const source = await read('skills/web-research/SKILL.md');
-  for (const client of ['codex', 'cursor', 'claude-code', 'deepseek-harness'])
-    assert.equal(await read(`integrations/${client}/skills/web-research/SKILL.md`), source);
-  for (const tool of toolDefinitions) assert.ok(source.includes(tool.name));
-  assert.match(source, /coverage=good/); assert.match(source, /untrusted/); assert.match(source, /1\+1/);
+test('npm tarball includes only current runtime/docs/examples and resolves both exposed tools', async () => {
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const output = execFileSync(npm, ['pack', '--dry-run', '--ignore-scripts', '--json'], { encoding: 'utf8', shell: process.platform === 'win32' });
+  const pack = JSON.parse(output)[0], paths = pack.files.map(file => file.path);
+  assert.ok(paths.includes('dist/cli.js')); assert.ok(paths.includes('dist/router.js'));
+  assert.ok(paths.includes('extensions/siftpath.mjs')); assert.ok(paths.includes('dist/index.d.ts')); assert.ok(paths.includes('examples/anonymous.json'));
+  assert.ok(!paths.some(path => /^(src|tests|node_modules|integrations|skills|benchmarks)\//.test(path)));
+  assert.ok(!paths.some(path => /engine|gather|core\/|providers\/|mcp\/http|session/.test(path)));
+  assert.deepEqual(toolDefinitions.map(tool => tool.name), ['web_search', 'web_read']);
 });
-test('plugin manifests and transports use real packaged paths and no embedded credentials', async () => {
-  const pkg = await json('package.json');
-  const entries = [['codex','plugin.json','mcp.json'],['cursor','.cursor-plugin/plugin.json','mcp.json'],['claude-code','.claude-plugin/plugin.json','.mcp.json']];
-  for (const [client, manifest, transport] of entries) {
-    const metadata = await json(`integrations/${client}/${manifest}`);
-    assert.equal(metadata.name, 'siftpath'); assert.equal(metadata.version, pkg.version);
-    const mcp = await json(`integrations/${client}/${transport}`);
-    const server = mcp.mcpServers.siftpath;
-    assert.equal(server.command, 'siftpath'); assert.deepEqual(server.args, ['mcp']);
-    assert.equal(server.env, undefined);
-    if (client === 'codex') {
-      assert.equal(metadata.$schema, 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json');
-      assert.equal(mcp.$schema, 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json'); assert.equal(server.type, 'stdio');
-    }
-  }
-  assert.ok((await readdir(new URL('../integrations/pi/', import.meta.url))).includes('index.ts'));
+test('package version and dependency lock agree and no old compiled engine survives build', async () => {
+  const pkg = JSON.parse(await readFile('package.json', 'utf8')), lock = JSON.parse(await readFile('package-lock.json', 'utf8'));
+  const { packageVersion } = await import('../dist/version.js');
+  assert.equal(packageVersion, pkg.version); assert.equal(lock.version, pkg.version);
+  assert.deepEqual(lock.packages[''].bin, pkg.bin);
+  assert.deepEqual(Object.keys(pkg.dependencies).sort(), ['@modelcontextprotocol/sdk', 'zod']);
+  assert.deepEqual(Object.keys(pkg.bin), ['siftpath']); assert.deepEqual(pkg.pi.extensions, ['./extensions/siftpath.mjs']);
+  assert.ok(JSON.parse(await readFile('package.json', 'utf8')).files.includes('extensions'));
+  assert.ok(!(await readdir('dist')).includes('core'));
 });
-test('invocation evaluator reports both mistakes and incomplete host coverage', async () => {
-  const result = await gradeInvocations([{ id: 'fresh', actualTool: 'web_search' }, { id: 'math', actualTool: 'web_gather' }]);
-  assert.equal(result.accuracy, 0.5); assert.equal(result.scenarioCoverage, 2 / 7);
-  assert.equal((await gradeInvocations([])).accuracy, null);
-  assert.equal((await gradeInvocations([{ id: 'url', actualTool: 'mcp__siftpath__web_fetch' }])).accuracy, 1);
-  assert.equal((await gradeInvocations([{ id: 'url', actualTool: 'mcp__smartsearch__web_fetch' }])).accuracy, 1);
-  await assert.rejects(gradeInvocations([{ id: 'invented', actualTool: null }]));
-  await assert.rejects(gradeInvocations([{ id: 'math', actualTool: null }, { id: 'math', actualTool: null }]));
+test('the shipped anonymous example is a valid config and does not embed credentials', async () => {
+  const raw = JSON.parse(await readFile('examples/anonymous.json', 'utf8'));
+  const config = parseConfiguration(raw);
+  assert.equal(config.providers.exa.connection.transport, 'http');
+  assert.equal(config.providers.jina.connection.headers.Authorization, undefined);
+  assert.equal(config.routes.search, 'brave'); assert.equal(config.routes.read, 'jina');
 });
-test('core remains vendor-independent and integrations contain no provider requests', async () => {
-  for (const path of await readdir(new URL('../src/core/', import.meta.url))) {
-    const content = await read(`src/core/${path}`);
-    assert.doesNotMatch(content, /api\.(exa|parallel|tavily|firecrawl|jina)\.|providers\/(exa|brave|tavily|cloudflare)/i, path);
-  }
-  for (const path of ['src/integrations/pi.ts', 'src/mcp/session.ts', 'src/cli.ts'])
-    assert.doesNotMatch(await read(path), /https:\/\/api\./, path);
+
+test('live probes use the shipped anonymous config rather than duplicating hosted provider mappings', async () => {
+  const live = await readFile('tests/live/official.test.mjs', 'utf8');
+  assert.ok(live.includes('../../examples/anonymous.json'));
+  assert.ok(!live.includes('https://mcp.exa.ai') && !live.includes('web_search_exa'));
 });
-test('portable lockfile does not capture container symlinks', async () => {
-  const lock = await json('package-lock.json'), metadata = await json('package.json');
-  assert.equal(lock.name, metadata.name); assert.equal(lock.version, metadata.version);
-  assert.equal(lock.packages[''].name, metadata.name); assert.equal(lock.packages[''].version, metadata.version);
-  assert.deepEqual(lock.packages[''].bin, metadata.bin);
-  for (const [path, pkg] of Object.entries(lock.packages)) if (path) {
-    assert.equal(pkg.link, undefined); assert.ok(pkg.resolved.startsWith('https://registry.npmjs.org/'));
-    assert.match(pkg.integrity, /^sha512-/);
-    assert.ok(/^\d+\.\d+\.\d+$/.test(pkg.version));
-  }
+
+test('Clack is a build-only dependency and only the lazy setup module bundles its terminal code', async () => {
+  const pkg = JSON.parse(await readFile('package.json', 'utf8'));
+  assert.equal(pkg.devDependencies['@clack/prompts'], '1.8.1'); assert.equal(pkg.devDependencies.esbuild, '0.25.12');
+  assert.equal(pkg.dependencies['@clack/prompts'], undefined); assert.equal(pkg.dependencies.esbuild, undefined);
+  const setup = await readFile('dist/setup.js', 'utf8'), ui = await readFile('dist/setup-ui.js', 'utf8');
+  assert.match(setup, /import\(['"]\.\/setup-ui\.js['"]\)/);
+  assert.ok(ui.length < 200000); assert.ok(!/from ['"]@clack\//.test(ui));
+  assert.ok((await readFile('dist/router.js', 'utf8')).includes('class Siftpath'));
+  assert.ok(!(await readFile('dist/router.js', 'utf8')).includes('@clack'));
+});
+
+test('Pi terminal helpers come from the host, not standalone runtime dependencies', async () => {
+  const pkg = JSON.parse(await readFile('package.json', 'utf8'));
+  assert.equal(pkg.devDependencies['@earendil-works/pi-tui'], '1.4.0');
+  assert.equal(pkg.peerDependenciesMeta['@earendil-works/pi-tui'].optional, true);
+  assert.equal(pkg.dependencies['@earendil-works/pi-tui'], undefined);
 });

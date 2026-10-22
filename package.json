@@ -1,46 +1,49 @@
 {
   "name": "@onedotmint/siftpath",
-  "version": "2.0.0-next.1",
-  "description": "Siftpath: web evidence retrieval for AI agents — search, fetch, gather.",
+  "version": "2.0.1",
+  "description": "Lightweight official MCP web search and reader router for AI agents.",
+  "keywords": [
+    "pi-package",
+    "mcp",
+    "model-context-protocol",
+    "web-search",
+    "web-reader",
+    "agent-tools",
+    "router"
+  ],
   "type": "module",
   "license": "MIT",
   "engines": {
     "node": ">=22"
   },
   "bin": {
-    "siftpath": "dist/cli.js",
-    "smartsearch": "dist/cli.js",
-    "smart-search": "dist/cli.js"
+    "siftpath": "dist/cli.js"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    },
-    "./pi": "./dist/integrations/pi.js"
+    }
   },
   "files": [
     "dist",
-    "skills",
-    "integrations",
     "README.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "docs",
-    ".agents",
-    ".cursor-plugin",
-    ".claude-plugin"
+    "examples",
+    "extensions"
   ],
   "scripts": {
-    "build": "npm run sync:integrations && tsc -p tsconfig.json",
+    "build": "node scripts/clean.mjs && tsc -p tsconfig.json && npm run bundle:setup",
+    "bundle:setup": "esbuild src/setup-ui.ts --bundle --platform=node --format=esm --target=node22 --external:./config.js --external:./defaults.js --external:./setup-plan.js --outfile=dist/setup-ui.js --legal-comments=inline",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test tests/*.test.mjs",
+    "test:setup": "python3 tests/setup-pty-smoke.py",
     "test:live": "npm run build && node --test tests/live/*.test.mjs",
-    "bench": "npm run build && node benchmarks/run.mjs",
-    "check": "npm run typecheck && npm test && npm run bench",
+    "check": "npm run typecheck && npm test",
     "pack:dry": "npm run build && npm pack --dry-run --ignore-scripts",
     "prepack": "npm run build",
-    "sync:integrations": "node scripts/sync-integrations.mjs",
     "verify:source": "node scripts/verify-source.mjs"
   },
   "repository": {
@@ -49,17 +52,29 @@
   },
   "pi": {
     "extensions": [
-      "./integrations/pi/index.ts"
-    ],
-    "skills": [
-      "./skills"
+      "./extensions/siftpath.mjs"
     ]
   },
   "publishConfig": {
     "access": "public"
   },
+  "peerDependencies": {
+    "@earendil-works/pi-tui": "*"
+  },
+  "peerDependenciesMeta": {
+    "@earendil-works/pi-tui": {
+      "optional": true
+    }
+  },
   "devDependencies": {
+    "@earendil-works/pi-tui": "1.4.0",
+    "@clack/prompts": "1.8.1",
     "@types/node": "22.19.7",
+    "esbuild": "0.25.12",
     "typescript": "5.8.3"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "zod": "^4.6.7"
   }
 }

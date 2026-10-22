@@ -3,144 +3,105 @@ import { homedir } from 'node:os';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { EvidenceEngine } from './core/engine.js';
-import { EngineError } from './core/errors.js';
-import { JsonHttp, type FetchTransport } from './core/http.js';
-import type { ProviderBase, Providers, Usage } from './core/types.js';
-import { selectProviders } from './core/processing.js';
-import { exa } from './providers/exa.js';
-import { parallel } from './providers/parallel.js';
-import { tavily } from './providers/tavily.js';
-import { brave } from './providers/brave.js';
-import { firecrawl } from './providers/firecrawl.js';
-import { jina } from './providers/jina.js';
-import { cloudflare } from './providers/cloudflare.js';
+import { z } from 'zod';
+import { SiftpathError, type Diagnostic } from './errors.js';
+import { intentSchema } from './inputs.js';
+import { defaultProviders, defaultRoutes } from './defaults.js';
 
-export const credentialNames = ['EXA_API_KEY', 'PARALLEL_API_KEY', 'TAVILY_API_KEY', 'BRAVE_API_KEY',
-  'FIRECRAWL_API_KEY', 'JINA_API_KEY', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'] as const;
-export type CredentialName = typeof credentialNames[number];
-export interface Configuration {
-  version?: 1; credentials?: Partial<Record<CredentialName, string>>;
-  disabled?: string[]; priorities?: Record<string, number>;
-  timeoutMs?: number; providerTimeoutMs?: number; jinaModel?: string; clefModel?: 'clef' | 'clef-flash';
-}
-export interface ProviderStatus { id: string; roles: string[]; state: 'ready' | 'missing' | 'disabled' | 'invalid'; needs: string[] }
-const providerIds = ['exa', 'parallel', 'tavily', 'brave', 'firecrawl', 'jina', 'cloudflare'];
-const bad = (): never => { throw new EngineError('INVALID_CONFIG', 'Invalid Siftpath configuration. See docs/CONFIGURATION.md; credential values are never echoed.'); };
+export const configurationMaxBytes = 65536;
+const clean = z.string().min(1).max(4096).regex(/^[^\r\n\0]+$/);
+const bindingSchema = z.strictObject({ name: clean, arguments: z.record(z.string(), z.unknown()).default({}),
+  // Some official tools reject fewer results than their native minimum; the Router raises the request and warns.
+  minResults: z.number().int().min(1).max(20).optional() });
+const connectionSchema = z.discriminatedUnion('transport', [
+  z.strictObject({ transport: z.literal('stdio'), command: clean.refine(value => !value.includes('${')), args: z.array(clean.refine(value => !value.includes('${'))).default([]), env: z.record(z.string(), clean).default({}) }),
+  z.strictObject({ transport: z.literal('http'), url: clean.refine(value => {
+    try {
+      const url = new URL(value);
+      return !url.username && !url.password && !url.hash && !value.includes('${') &&
+        ![...url.searchParams.keys()].some(key => /api.?key|^key$|^token$|access.?token|auth|secret|credential/i.test(key)) &&
+        (url.protocol === 'https:' || url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname));
+    } catch { return false; }
+  }), headers: z.record(z.string(), clean).default({}) }),
+]);
+const timeout = z.number().int().min(100).max(120000);
+const providerSchema = z.strictObject({ enabled: z.boolean().default(true), connection: connectionSchema,
+  timeoutMs: timeout.optional(), search: bindingSchema.optional(), read: bindingSchema.optional() });
+const routesSchema = z.strictObject({ defaultIntent: intentSchema.default(defaultRoutes.defaultIntent), search: clean.default(defaultRoutes.search), read: clean.default(defaultRoutes.read),
+  intents: z.strictObject({ general: clean.optional(), semantic: clean.optional(), research: clean.optional() }).default(defaultRoutes.intents),
+  searchFallback: z.array(clean).max(10).default(defaultRoutes.searchFallback), readFallback: z.array(clean).max(10).default(defaultRoutes.readFallback) });
+const schema = z.strictObject({ version: z.literal(2).default(2), credentials: z.record(z.string().regex(/^[A-Z][A-Z0-9_]*$/), clean).default({}),
+  providers: z.record(z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/), providerSchema).default(defaultProviders),
+  routes: routesSchema.default(defaultRoutes), timeoutMs: timeout.default(60000), providerTimeoutMs: timeout.default(20000),
+  maxOutputChars: z.number().int().min(2000).max(50000).default(16000) });
+export type Configuration = z.infer<typeof schema>;
+export type Provider = z.infer<typeof providerSchema>;
+export type Binding = z.infer<typeof bindingSchema>;
 export function parseConfiguration(value: unknown): Configuration {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return bad();
-  const raw = value as Record<string, unknown>;
-  const allowed = ['version', 'credentials', 'disabled', 'priorities', 'timeoutMs', 'providerTimeoutMs', 'jinaModel', 'clefModel'];
-  if (Object.keys(raw).some(key => !allowed.includes(key)) || raw.version !== undefined && raw.version !== 1) return bad();
-  for (const field of ['timeoutMs', 'providerTimeoutMs']) if (raw[field] !== undefined &&
-    (typeof raw[field] !== 'number' || !Number.isInteger(raw[field]) || raw[field] < 1 || raw[field] > 120000)) return bad();
-  if (raw.jinaModel !== undefined && (typeof raw.jinaModel !== 'string' || !/^[a-zA-Z0-9_.:/-]{1,100}$/.test(raw.jinaModel))) return bad();
-  if (raw.clefModel !== undefined && raw.clefModel !== 'clef' && raw.clefModel !== 'clef-flash') return bad();
-  if (raw.disabled !== undefined && (!Array.isArray(raw.disabled) || !raw.disabled.every(key => providerIds.includes(key)))) return bad();
-  for (const field of ['credentials', 'priorities']) {
-    const item = raw[field]; if (item === undefined) continue;
-    if (!item || typeof item !== 'object' || Array.isArray(item)) return bad();
-    for (const [key, val] of Object.entries(item)) {
-      if (field === 'credentials') {
-        if (!(credentialNames as readonly string[]).includes(key) || typeof val !== 'string' || val.length > 4096 || /[\r\n\0]/.test(val)) return bad();
-      } else if (!providerIds.includes(key) || typeof val !== 'number' || !Number.isFinite(val) || val < 0 || val > 1000) return bad();
-    }
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) throw new SiftpathError('INVALID_CONFIG', 'Invalid configuration (version 2 required). See docs/CONFIGURATION.md; values are never echoed.');
+  const config = structuredClone(parsed.data);
+  for (const id of [config.routes.search, config.routes.read, ...Object.values(config.routes.intents), ...config.routes.searchFallback, ...config.routes.readFallback]) {
+    // Built-in routes may refer to absent optional providers; unknown custom IDs are still diagnosed by doctor.
+    if (id && !/^[a-z][a-z0-9_-]{0,63}$/.test(id)) throw new SiftpathError('INVALID_CONFIG', 'Invalid route provider ID.');
   }
-  return structuredClone(value) as Configuration;
-}
-/** New names take precedence; legacy environment names remain read-only aliases. */
-export function siftpathEnv(name: string, env: NodeJS.ProcessEnv = process.env): string | undefined {
-  return env[`SIFTPATH_${name}`] ?? env[`SMARTSEARCH_${name}`];
+  return config;
 }
 export function configPath(env: NodeJS.ProcessEnv = process.env): string {
-  const override = siftpathEnv('CONFIG', env);
+  const override = env.SIFTPATH_CONFIG ?? env.SMARTSEARCH_CONFIG;
   if (override) return override;
   const root = env.XDG_CONFIG_HOME || join(homedir(), '.config');
-  const current = join(root, 'siftpath', 'config.json');
-  const legacy = join(root, 'smartsearch', 'config.json');
-  // Reuse existing credentials without silently moving or overwriting the old file.
+  const current = join(root, 'siftpath', 'config.json'), legacy = join(root, 'smartsearch', 'config.json');
   return existsSync(current) || !existsSync(legacy) ? current : legacy;
 }
 export async function readConfiguration(path = configPath(), env: NodeJS.ProcessEnv = process.env): Promise<Configuration> {
-  let saved: Configuration = {};
+  let raw: unknown = {};
   try {
     const stats = await lstat(path);
-    if (!stats.isFile() || stats.isSymbolicLink() || stats.size > 65536) return bad();
-    saved = parseConfiguration(JSON.parse(await readFile(path, 'utf8')) as unknown);
+    if (!stats.isFile() || stats.isSymbolicLink() || stats.size > configurationMaxBytes) throw new SiftpathError('INVALID_CONFIG', 'Configuration must be a regular JSON file of at most 64 KiB.');
+    raw = JSON.parse(await readFile(path, 'utf8'));
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-      if (error instanceof EngineError) throw error;
-      throw new EngineError('CONFIG_READ_FAILED', 'Cannot read configuration JSON. Check its format and file permissions.');
+      if (error instanceof SiftpathError) throw error;
+      throw new SiftpathError('CONFIG_READ_FAILED', 'Cannot read configuration JSON. Check format and permissions.');
     }
   }
-  const credentials = { ...saved.credentials };
-  for (const key of credentialNames) if (env[key]?.trim()) credentials[key] = env[key]!.trim();
-  if (!credentials.CLOUDFLARE_API_TOKEN && env.CLOUDFLARE_AUTH_TOKEN?.trim()) credentials.CLOUDFLARE_API_TOKEN = env.CLOUDFLARE_AUTH_TOKEN.trim();
-  return parseConfiguration({ ...saved, credentials });
+  // Old credentials can be reused, but old engine options must never silently change the new routes.
+  if (raw && typeof raw === 'object' && 'version' in raw && raw.version === 1) {
+    const old = raw as { credentials?: Record<string, string>; disabled?: string[] };
+    raw = { version: 2, credentials: old.credentials ?? {}, providers: Object.fromEntries(
+      Object.entries(defaultProviders).map(([id, provider]) => [id, { ...provider, enabled: provider.enabled && !old.disabled?.includes(id) }])) };
+  }
+  const config = parseConfiguration(raw);
+  const names = new Set([...Object.keys(config.credentials), ...[...JSON.stringify(config.providers).matchAll(/\$\{([A-Z][A-Z0-9_]*)\}/g)].map(match => match[1]!)]);
+  for (const name of names) if (env[name]?.trim()) config.credentials[name] = env[name]!.trim();
+  return parseConfiguration(config);
 }
 /** Private user storage, never a workspace .env file; atomic replace with mode 0600. */
-export async function writePrivateJson(path: string, value: unknown): Promise<void> {
+export async function writePrivateJson(path: string, value: unknown, maxBytes = Infinity): Promise<void> {
+  const serialized = JSON.stringify(value, null, 2) + '\n';
+  if (Buffer.byteLength(serialized) > maxBytes) throw new SiftpathError('CONFIG_TOO_LARGE', 'Formatted configuration exceeds the size limit; existing file was not changed.');
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
-  try { if ((await lstat(path)).isSymbolicLink()) throw new EngineError('UNSAFE_CONFIG_PATH', 'Refusing to replace a symbolic link.'); }
+  try { if ((await lstat(path)).isSymbolicLink()) throw new SiftpathError('UNSAFE_CONFIG_PATH', 'Refusing to replace a symbolic link.'); }
   catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   const temporary = `${path}.${randomUUID()}.tmp`;
-  await writeFile(temporary, JSON.stringify(value, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
-  try {
-    await rename(temporary, path);
-    if (process.platform !== 'win32') await chmod(path, 0o600);
-  } finally { await rm(temporary, { force: true }); }
+  await writeFile(temporary, serialized, { flag: 'wx', mode: 0o600 });
+  try { await rename(temporary, path); if (process.platform !== 'win32') await chmod(path, 0o600); }
+  finally { await rm(temporary, { force: true }); }
 }
-export function configureProviders(config: Configuration, transport?: FetchTransport): { providers: Providers; statuses: ProviderStatus[] } {
-  const validated = parseConfiguration(config), keys = validated.credentials ?? {}, http = new JsonHttp(transport);
-  const providers: Providers = { search: [], fetch: [] }, statuses: ProviderStatus[] = [];
-  const definitions: { id: string; roles: string[]; needs: CredentialName[]; create: () => ProviderBase }[] = [
-    { id: 'exa', roles: ['search', 'fetch'], needs: ['EXA_API_KEY'], create: () => exa(keys.EXA_API_KEY!, http) },
-    { id: 'parallel', roles: ['search', 'fetch'], needs: ['PARALLEL_API_KEY'], create: () => parallel(keys.PARALLEL_API_KEY!, http) },
-    { id: 'tavily', roles: ['search', 'fetch'], needs: ['TAVILY_API_KEY'], create: () => tavily(keys.TAVILY_API_KEY!, http) },
-    { id: 'brave', roles: ['search'], needs: ['BRAVE_API_KEY'], create: () => brave(keys.BRAVE_API_KEY!, http) },
-    { id: 'firecrawl', roles: ['fetch'], needs: ['FIRECRAWL_API_KEY'], create: () => firecrawl(keys.FIRECRAWL_API_KEY!, http) },
-    { id: 'jina', roles: ['rerank'], needs: ['JINA_API_KEY'], create: () => jina(keys.JINA_API_KEY!, http, validated.jinaModel) },
-    { id: 'cloudflare', roles: ['decision'], needs: ['CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_API_TOKEN'],
-      create: () => cloudflare(keys.CLOUDFLARE_ACCOUNT_ID!, keys.CLOUDFLARE_API_TOKEN!, http, validated.clefModel) },
-  ];
-  for (const entry of definitions) {
-    const needs = entry.needs.filter(key => !keys[key]?.trim());
-    const status: ProviderStatus = { id: entry.id, roles: entry.roles, needs,
-      state: validated.disabled?.includes(entry.id) ? 'disabled' : needs.length ? 'missing' : 'ready' };
-    if (status.state === 'ready') {
-      try {
-        const provider = entry.create();
-        if (validated.priorities?.[entry.id] !== undefined) provider.priority = validated.priorities[entry.id];
-        if ('search' in provider) providers.search.push(provider as Providers['search'][number]);
-        if ('fetch' in provider) providers.fetch.push(provider as Providers['fetch'][number]);
-        if ('rerank' in provider) providers.rerank = provider as NonNullable<Providers['rerank']>;
-        if ('decide' in provider) providers.decision = provider as NonNullable<Providers['decision']>;
-      } catch { status.state = 'invalid'; }
-    }
-    statuses.push(status);
-  }
-  return { providers, statuses };
+export function resolveSecret(value: string, config: Configuration, env: NodeJS.ProcessEnv): string {
+  return value.replace(/\$\{([A-Z][A-Z0-9_]*)\}/g, (_, name: string) => env[name]?.trim() || config.credentials[name] || '');
 }
-export function createEngine(config: Configuration, transport?: FetchTransport): EvidenceEngine {
-  return new EvidenceEngine({ providers: configureProviders(config, transport).providers,
-    timeoutMs: config.timeoutMs, providerTimeoutMs: config.providerTimeoutMs });
+export function providerStatus(id: string, config: Configuration, env: NodeJS.ProcessEnv): Diagnostic {
+  const provider = Object.hasOwn(config.providers, id) ? config.providers[id] : undefined;
+  if (!provider) return { provider: id, code: 'NOT_CONFIGURED' };
+  if (!provider.enabled) return { provider: id, code: 'DISABLED' };
+  const needs = [...new Set([...JSON.stringify(provider.connection).matchAll(/\$\{([A-Z][A-Z0-9_]*)\}/g)].map(m => m[1]!))]
+    .filter(name => !env[name]?.trim() && !config.credentials[name]);
+  return { provider: id, code: needs.length ? 'MISSING_CREDENTIALS' : 'READY', ...(needs.length ? { needs } : {}) };
 }
-export function diagnostics(config: Configuration) {
-  const { providers, statuses } = configureProviders(config);
-  return {
-    runtime: process.version, supportedRuntime: Number(process.versions.node.split('.')[0]) >= 22,
-    providers: statuses,
-    routes: {
-      fast: selectProviders(providers.search, { query: 'diagnostic', mode: 'fast', maxResults: 8 }, 1).map(p => p.id),
-      quality: selectProviders(providers.search, { query: 'diagnostic', mode: 'quality', maxResults: 8 }, 2).map(p => p.id),
-      fetch: [...providers.fetch].sort((a, b) => (a.priority ?? 50) - (b.priority ?? 50)).map(p => p.id),
-    },
-    readyForSearch: providers.search.length > 0, readyForFetch: providers.fetch.length > 0,
-    networkChecked: false, integrations: 'Run siftpath integration <pi|codex|cursor|claude-code|deepseek-harness> for setup.',
-  };
-}
-export function usagePath(path = configPath()): string { return join(dirname(path), 'last-usage.json'); }
-export async function saveUsage(usage: Usage, path = usagePath()): Promise<void> {
-  await writePrivateJson(path, { recordedAt: new Date().toISOString(), scope: 'last CLI operation', usage,
-    costNote: 'Vendor-reported estimates only, when supplied. Not a complete bill.' });
+export function diagnostics(config: Configuration, env: NodeJS.ProcessEnv = process.env) {
+  const ids = new Set([...Object.keys(config.providers), config.routes.search, config.routes.read, ...Object.values(config.routes.intents),
+    ...config.routes.searchFallback, ...config.routes.readFallback].filter((id): id is string => !!id));
+  return { runtime: process.version, networkChecked: false, providers: [...ids].map(id => ({ ...providerStatus(id, config, env), operations: ['search', 'read'].filter(kind => !!config.providers[id]?.[kind as 'search' | 'read']) })), routes: config.routes };
 }

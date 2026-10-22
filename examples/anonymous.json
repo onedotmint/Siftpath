@@ -1,0 +1,36 @@
+{
+  "version": 2,
+  "providers": {
+    "brave": {
+      "enabled": true,
+      "connection": {
+        "transport": "stdio",
+        "command": "npx",
+        "args": ["-y", "@brave/brave-search-mcp-server@2.1.4", "--transport", "stdio"],
+        "env": { "BRAVE_API_KEY": "${BRAVE_API_KEY}", "BRAVE_MCP_ENABLED_TOOLS": "brave_web_search" }
+      },
+      "search": { "name": "brave_web_search", "arguments": { "query": "$query", "count": "$maxResults" } }
+    },
+    "exa": {
+      "enabled": true,
+      "connection": { "transport": "http", "url": "https://mcp.exa.ai/mcp", "headers": {} },
+      "search": { "name": "web_search_exa", "arguments": { "query": "$query", "objective": "$query", "numResults": "$maxResults" } }
+    },
+    "jina": {
+      "enabled": true,
+      "connection": { "transport": "http", "url": "https://mcp.jina.ai/v1", "headers": {} },
+      "read": { "name": "read_url", "arguments": { "url": "$url", "question": "$focus" } }
+    }
+  },
+  "routes": {
+    "defaultIntent": "general",
+    "search": "brave",
+    "read": "jina",
+    "intents": { "semantic": "exa", "research": "tavily" },
+    "searchFallback": ["brave", "exa"],
+    "readFallback": []
+  },
+  "timeoutMs": 60000,
+  "providerTimeoutMs": 20000,
+  "maxOutputChars": 16000
+}
