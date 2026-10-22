@@ -143,14 +143,14 @@ export default function (pi) {
     const choice = await ctx.ui.select(`${info.label} 凭据`, options);
     if (choice === undefined) return null;
     if (choice === '暂不配置此服务') return draft;
-    if (choice === '保留当前连接') return plan.applySelection(draft, { id, mode: 'keep' }).configuration;
-    if (choice === '继续使用已保存的 API Key') return plan.applySelection(draft, { id, mode: 'existing' }).configuration;
-    if (choice === '使用官方匿名访问') return plan.applySelection(draft, { id, mode: 'anonymous' }).configuration;
+    if (choice === '保留当前连接') return plan.applySelection(draft, { id, mode: 'keep' });
+    if (choice === '继续使用已保存的 API Key') return plan.applySelection(draft, { id, mode: 'existing' });
+    if (choice === '使用官方匿名访问') return plan.applySelection(draft, { id, mode: 'anonymous' });
     if (process.env[info.key]?.trim()) ctx.ui.notify(`${info.key} 已由环境变量提供，环境变量优先于本地保存的 Key。`, 'warning');
     const value = await secretPrompt(ctx.ui, `${info.label} API Key`);
     if (value === undefined) return null;
     if (!value) { if (!saved) ctx.ui.notify('未输入 Key，该服务保持未配置。', 'warning'); return draft; }
-    return plan.applySelection(draft, { id, mode: 'key', key: value }).configuration;
+    return plan.applySelection(draft, { id, mode: 'key', key: value });
   };
   const save = async (ctx, draft) => {
     const { config } = await core();

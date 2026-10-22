@@ -27,33 +27,22 @@ export function readyFor(config: Configuration, env: NodeJS.ProcessEnv, kind: 's
 export function needsSetup(config: Configuration, env: NodeJS.ProcessEnv): boolean {
   return !readyFor(config, env, 'search').length && !readyFor(config, env, 'read').length;
 }
-export function credentialActions(config: Configuration, env: NodeJS.ProcessEnv, id: string): CredentialMode[] {
-  const status = providerStatus(id, config, env);
-  return [...(status.code === 'READY' ? ['keep' as const] : ['existing' as const]),
-    'key' as const, ...(anonymousPresets[id] ? ['anonymous' as const] : [])];
-}
 export interface ProviderSelection { id: string; mode: CredentialMode; key?: string }
 /** Apply one provider decision. `keep` never rewrites a custom connection; explicit modes install the official preset. */
-export function applySelection(config: Configuration, selection: ProviderSelection): { configuration: Configuration; warning?: string } {
+export function applySelection(config: Configuration, selection: ProviderSelection): Configuration {
   const { id, mode, key } = selection, info = providerInfo(id);
   const next = structuredClone(config);
-  if (mode === 'keep') { if (next.providers[id]) next.providers[id]!.enabled = true; return { configuration: next }; }
+  if (mode === 'keep') { if (next.providers[id]) next.providers[id]!.enabled = true; return next; }
   const preset = mode === 'anonymous' ? anonymousPresets[id] : providerPresets[id];
   if (!preset) throw new Error(`Provider ${id} has no official preset.`);
   next.providers[id] = structuredClone({ ...preset, enabled: true });
   if (mode === 'key' && key?.trim()) next.credentials[info!.key] = key.trim();
-  return { configuration: next };
+  return next;
 }
 /** Disable a provider without deleting its credentials or custom connection. */
 export function disableProvider(config: Configuration, id: string): Configuration {
   const next = structuredClone(config);
   if (next.providers[id]) next.providers[id]!.enabled = false;
-  return next;
-}
-/** Keep configured-but-unselected providers available as routes: the user chose them earlier. */
-export function setEnabled(config: Configuration, ids: string[]): Configuration {
-  const next = structuredClone(config);
-  for (const [id, provider] of Object.entries(next.providers)) provider.enabled = ids.includes(id);
   return next;
 }
 /** Recommended routes for the quick path: no fallback questions, remaining ready providers stay as ordered fallbacks. */
@@ -69,8 +58,4 @@ export function applyRecommendedRoutes(config: Configuration, env: NodeJS.Proces
   if (read.length) { routes.read = read[0]!; routes.readFallback = read.slice(1); }
   else { routes.read = 'unconfigured'; routes.readFallback = []; }
   return next;
-}
-/** Ready providers for a role, for route menus; never offers a provider that would fail immediately. */
-export function routeChoices(config: Configuration, env: NodeJS.ProcessEnv, kind: 'search' | 'read'): ProviderInfo[] {
-  return readyFor(config, env, kind).flatMap(id => providerInfo(id) ?? []);
 }

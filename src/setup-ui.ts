@@ -36,7 +36,7 @@ async function askCredential(id: string, config: Configuration, env: NodeJS.Proc
         if ((value?.length ?? 0) > 4096 || /[\r\n\0]/.test(value ?? '')) return 'Invalid Key format.';
       } }));
   }
-  return applySelection(config, { id, mode: action, key }).configuration;
+  return applySelection(config, { id, mode: action, key });
 }
 /** Advanced path: every provider, every route and ordered fallback stay selectable. */
 export async function runSetupWizard(saved: Configuration, env: NodeJS.ProcessEnv = process.env, prompts: Prompts = clack): Promise<{ configuration: Configuration; test: boolean } | null> {
