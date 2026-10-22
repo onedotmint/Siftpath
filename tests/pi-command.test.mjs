@@ -195,3 +195,10 @@ test('non-interactive modes refuse configuration instead of starting a second te
   assert.match(app.notices.at(-1).text, /status \(offline\)/);
   assert.ok(!app.notices.some(notice => /快速配置/.test(notice.text)));
 });
+
+test('reloading the extension re-registers the same server name and never declares model tools', () => {
+  const calls = [];
+  const api = () => ({ registerCommand: () => {}, on: () => {}, registerMcpServer: (name, config) => calls.push([name, config.exposure]), unregisterMcpServer: () => {}, getAllTools: () => [] });
+  extension(api()); extension(api());
+  assert.deepEqual(calls, [['siftpath', 'direct'], ['siftpath', 'direct']]);
+});

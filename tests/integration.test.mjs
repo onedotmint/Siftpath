@@ -138,7 +138,11 @@ test('a saved configuration takes effect on the next call without restarting the
   assert.match(JSON.parse(rebound.content[0].text).content, /Native reader text/);
 
   await settle();
-  await write({ providers: { brave: { ...logged, enabled: false }, jina: provider }, routes });
+  await write({ providers: { brave: provider, jina: provider }, routes: { ...routes, search: 'jina' } });
+  assert.equal(JSON.parse((await client.callTool({ name: 'web_search', arguments: { query: 'route switch' } })).content[0].text).provider, 'jina');
+
+  await settle();
+  await write({ providers: { brave: { ...logged, enabled: false }, jina: provider }, routes: { ...routes, search: 'brave' } });
   const disabled = await client.callTool({ name: 'web_search', arguments: { query: 'three' } });
   assert.equal(disabled.isError, true);
   assert.equal(JSON.parse(disabled.content[0].text).code, 'NO_PROVIDER_SUCCEEDED');
