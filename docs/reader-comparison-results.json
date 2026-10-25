@@ -1,0 +1,625 @@
+{
+  "version": 1,
+  "bodyArtifacts": "/tmp/siftpath-reader-compare-H012au",
+  "generatedAt": "2026-10-23T15:37:05.032Z",
+  "maxOutputChars": 16000,
+  "providerTimeoutMs": 20000,
+  "operationTimeoutMs": 60000,
+  "firecrawlAccess": "official-anonymous",
+  "notes": "Single samples; fixed English evidence patterns, not semantic proof. Body length is not billing. Providers may internally fetch more than once.",
+  "results": [
+    {
+      "provider": "jina",
+      "page": "sqlite",
+      "category": "technical",
+      "url": "https://sqlite.org/foreignkeys.html",
+      "mode": "full",
+      "rawChecks": {
+        "per-connection": true,
+        "transaction": true,
+        "no-error-no-effect": true
+      },
+      "outputChecks": {
+        "per-connection": false,
+        "transaction": false,
+        "no-error-no-effect": false
+      },
+      "rawChars": 52352,
+      "outputChars": 16000,
+      "rawBodyChars": 50364,
+      "outputBodyChars": 14914,
+      "rawHtmlNoise": {
+        "tagChars": 7494,
+        "tagFraction": 0.1488
+      },
+      "outputHtmlNoise": {
+        "tagChars": 3202,
+        "tagFraction": 0.2147
+      },
+      "truncated": true,
+      "usage": {},
+      "requests": 1,
+      "elapsedMs": 1256
+    },
+    {
+      "provider": "jina",
+      "page": "cache-control",
+      "category": "technical",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control",
+      "mode": "full",
+      "rawChecks": {
+        "no-cache-storage": true,
+        "no-store": true,
+        "private-cache": true
+      },
+      "outputChecks": {
+        "no-cache-storage": true,
+        "no-store": true,
+        "private-cache": true
+      },
+      "rawChars": 23350,
+      "outputChars": 16000,
+      "rawBodyChars": 22157,
+      "outputBodyChars": 14797,
+      "rawHtmlNoise": {
+        "tagChars": 297,
+        "tagFraction": 0.0134
+      },
+      "outputHtmlNoise": {
+        "tagChars": 80,
+        "tagFraction": 0.0054
+      },
+      "truncated": true,
+      "usage": {},
+      "requests": 1,
+      "elapsedMs": 810
+    },
+    {
+      "provider": "jina",
+      "page": "rfc9111",
+      "category": "long-spec",
+      "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+      "mode": "full",
+      "rawChecks": {
+        "no-cache-validation": false,
+        "no-store": false,
+        "privacy-limit": false
+      },
+      "outputChecks": {
+        "no-cache-validation": false,
+        "no-store": false,
+        "privacy-limit": false
+      },
+      "rawChars": 62146,
+      "outputChars": 16000,
+      "rawBodyChars": 60083,
+      "outputBodyChars": 14344,
+      "rawHtmlNoise": {
+        "tagChars": 923,
+        "tagFraction": 0.0154
+      },
+      "outputHtmlNoise": {
+        "tagChars": 183,
+        "tagFraction": 0.0128
+      },
+      "truncated": true,
+      "usage": {},
+      "requests": 1,
+      "elapsedMs": 16582
+    },
+    {
+      "provider": "jina",
+      "page": "npm-ci",
+      "category": "commands",
+      "url": "https://docs.npmjs.com/cli/v11/commands/npm-ci",
+      "mode": "full",
+      "rawChecks": {
+        "lockfile": true,
+        "removes-node-modules": true,
+        "does-not-write": true
+      },
+      "outputChecks": {
+        "lockfile": true,
+        "removes-node-modules": true,
+        "does-not-write": true
+      },
+      "rawChars": 16187,
+      "outputChars": 16000,
+      "rawBodyChars": 15388,
+      "outputBodyChars": 14962,
+      "rawHtmlNoise": {
+        "tagChars": 6,
+        "tagFraction": 0.0004
+      },
+      "outputHtmlNoise": {
+        "tagChars": 6,
+        "tagFraction": 0.0004
+      },
+      "truncated": true,
+      "usage": {},
+      "requests": 1,
+      "elapsedMs": 1087
+    },
+    {
+      "provider": "jina",
+      "page": "python-venv",
+      "category": "commands",
+      "url": "https://docs.python.org/3/library/venv.html",
+      "mode": "full",
+      "rawChecks": {
+        "create-command": true,
+        "posix-activate": true,
+        "windows-activate": true
+      },
+      "outputChecks": {
+        "create-command": true,
+        "posix-activate": true,
+        "windows-activate": true
+      },
+      "rawChars": 29040,
+      "outputChars": 16000,
+      "rawBodyChars": 27984,
+      "outputBodyChars": 15003,
+      "rawHtmlNoise": {
+        "tagChars": 64,
+        "tagFraction": 0.0023
+      },
+      "outputHtmlNoise": {
+        "tagChars": 64,
+        "tagFraction": 0.0043
+      },
+      "truncated": true,
+      "usage": {},
+      "requests": 1,
+      "elapsedMs": 556
+    },
+    {
+      "provider": "jina",
+      "page": "http-methods",
+      "category": "table",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+      "mode": "full",
+      "rawChecks": {
+        "GET-read": true,
+        "POST-submit": true,
+        "DELETE-remove": true
+      },
+      "outputChecks": {
+        "GET-read": true,
+        "POST-submit": true,
+        "DELETE-remove": true
+      },
+      "rawChars": 19835,
+      "outputChars": 16000,
+      "rawBodyChars": 18745,
+      "outputBodyChars": 14777,
+      "rawHtmlNoise": {
+        "tagChars": 0,
+        "tagFraction": 0
+      },
+      "outputHtmlNoise": {
+        "tagChars": 0,
+        "tagFraction": 0
+      },
+      "truncated": true,
+      "usage": {},
+      "requests": 1,
+      "elapsedMs": 2096
+    },
+    {
+      "provider": "jina",
+      "page": "mime-types",
+      "category": "table",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types",
+      "mode": "full",
+      "rawChecks": {
+        "html-type": true,
+        "json-type": true,
+        "png-type": true
+      },
+      "outputChecks": {
+        "html-type": true,
+        "json-type": true,
+        "png-type": true
+      },
+      "rawChars": 23587,
+      "outputChars": 16000,
+      "rawBodyChars": 22418,
+      "outputBodyChars": 14795,
+      "rawHtmlNoise": {
+        "tagChars": 8,
+        "tagFraction": 0.0004
+      },
+      "outputHtmlNoise": {
+        "tagChars": 8,
+        "tagFraction": 0.0005
+      },
+      "truncated": true,
+      "usage": {},
+      "requests": 1,
+      "elapsedMs": 2486
+    },
+    {
+      "provider": "jina",
+      "page": "quotes-js",
+      "category": "dynamic",
+      "url": "https://quotes.toscrape.com/js/",
+      "mode": "full",
+      "rawChecks": {
+        "rendered-quote": true,
+        "quote-author": true,
+        "second-quote": true
+      },
+      "outputChecks": {
+        "rendered-quote": true,
+        "quote-author": true,
+        "second-quote": true
+      },
+      "rawChars": 1264,
+      "outputChars": 1499,
+      "rawBodyChars": 1112,
+      "outputBodyChars": 1112,
+      "rawHtmlNoise": {
+        "tagChars": 0,
+        "tagFraction": 0
+      },
+      "outputHtmlNoise": {
+        "tagChars": 0,
+        "tagFraction": 0
+      },
+      "truncated": false,
+      "usage": {},
+      "requests": 1,
+      "elapsedMs": 4221
+    },
+    {
+      "provider": "jina",
+      "page": "sqlite",
+      "category": "technical",
+      "url": "https://sqlite.org/foreignkeys.html",
+      "mode": "focus",
+      "rawChecks": {
+        "per-connection": true,
+        "transaction": true,
+        "no-error-no-effect": true
+      },
+      "outputChecks": {
+        "per-connection": true,
+        "transaction": true,
+        "no-error-no-effect": true
+      },
+      "rawChars": 5829,
+      "outputChars": 6124,
+      "rawBodyChars": 5395,
+      "outputBodyChars": 5395,
+      "rawHtmlNoise": {
+        "tagChars": 0,
+        "tagFraction": 0
+      },
+      "outputHtmlNoise": {
+        "tagChars": 0,
+        "tagFraction": 0
+      },
+      "truncated": false,
+      "usage": {},
+      "requests": 1,
+      "elapsedMs": 1845
+    },
+    {
+      "provider": "jina",
+      "page": "cache-control",
+      "category": "technical",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control",
+      "mode": "focus",
+      "rawChecks": {
+        "no-cache-storage": true,
+        "no-store": false,
+        "private-cache": true
+      },
+      "outputChecks": {
+        "no-cache-storage": true,
+        "no-store": false,
+        "private-cache": true
+      },
+      "rawChars": 1235,
+      "outputChars": 1622,
+      "rawBodyChars": 831,
+      "outputBodyChars": 831,
+      "rawHtmlNoise": {
+        "tagChars": 0,
+        "tagFraction": 0
+      },
+      "outputHtmlNoise": {
+        "tagChars": 0,
+        "tagFraction": 0
+      },
+      "truncated": false,
+      "usage": {},
+      "requests": 1,
+      "elapsedMs": 878
+    },
+    {
+      "provider": "firecrawl",
+      "page": "sqlite",
+      "category": "technical",
+      "url": "https://sqlite.org/foreignkeys.html",
+      "mode": "full",
+      "rawChecks": {
+        "per-connection": true,
+        "transaction": true,
+        "no-error-no-effect": true
+      },
+      "outputChecks": {
+        "per-connection": true,
+        "transaction": true,
+        "no-error-no-effect": true
+      },
+      "rawChars": 83175,
+      "outputChars": 16000,
+      "rawBodyChars": 39317,
+      "outputBodyChars": 14738,
+      "rawHtmlNoise": {
+        "tagChars": 52,
+        "tagFraction": 0.0013
+      },
+      "outputHtmlNoise": {
+        "tagChars": 0,
+        "tagFraction": 0
+      },
+      "truncated": true,
+      "usage": {
+        "structuredContent.metadata.creditsUsed": 1
+      },
+      "requests": 1,
+      "elapsedMs": 1192
+    },
+    {
+      "provider": "firecrawl",
+      "page": "cache-control",
+      "category": "technical",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control",
+      "mode": "full",
+      "rawChecks": {
+        "no-cache-storage": true,
+        "no-store": true,
+        "private-cache": true
+      },
+      "outputChecks": {
+        "no-cache-storage": true,
+        "no-store": true,
+        "private-cache": true
+      },
+      "rawChars": 75553,
+      "outputChars": 16000,
+      "rawBodyChars": 35064,
+      "outputBodyChars": 15062,
+      "rawHtmlNoise": {
+        "tagChars": 479,
+        "tagFraction": 0.0137
+      },
+      "outputHtmlNoise": {
+        "tagChars": 4,
+        "tagFraction": 0.0003
+      },
+      "truncated": true,
+      "usage": {
+        "structuredContent.metadata.creditsUsed": 1
+      },
+      "requests": 1,
+      "elapsedMs": 1313
+    },
+    {
+      "provider": "firecrawl",
+      "page": "rfc9111",
+      "category": "long-spec",
+      "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+      "mode": "full",
+      "rawChecks": {
+        "no-cache-validation": true,
+        "no-store": true,
+        "privacy-limit": true
+      },
+      "outputChecks": {
+        "no-cache-validation": false,
+        "no-store": false,
+        "privacy-limit": false
+      },
+      "rawChars": 276830,
+      "outputChars": 16000,
+      "rawBodyChars": 133247,
+      "outputBodyChars": 14924,
+      "rawHtmlNoise": {
+        "tagChars": 366,
+        "tagFraction": 0.0027
+      },
+      "outputHtmlNoise": {
+        "tagChars": 183,
+        "tagFraction": 0.0123
+      },
+      "truncated": true,
+      "usage": {
+        "structuredContent.metadata.creditsUsed": 1
+      },
+      "requests": 1,
+      "elapsedMs": 1002
+    },
+    {
+      "provider": "firecrawl",
+      "page": "npm-ci",
+      "category": "commands",
+      "url": "https://docs.npmjs.com/cli/v11/commands/npm-ci",
+      "mode": "full",
+      "rawChecks": {
+        "lockfile": true,
+        "removes-node-modules": true,
+        "does-not-write": true
+      },
+      "outputChecks": {
+        "lockfile": true,
+        "removes-node-modules": true,
+        "does-not-write": true
+      },
+      "rawChars": 37517,
+      "outputChars": 16000,
+      "rawBodyChars": 16896,
+      "outputBodyChars": 14848,
+      "rawHtmlNoise": {
+        "tagChars": 6,
+        "tagFraction": 0.0004
+      },
+      "outputHtmlNoise": {
+        "tagChars": 6,
+        "tagFraction": 0.0004
+      },
+      "truncated": true,
+      "usage": {
+        "structuredContent.metadata.creditsUsed": 1
+      },
+      "requests": 1,
+      "elapsedMs": 482
+    },
+    {
+      "provider": "firecrawl",
+      "page": "python-venv",
+      "category": "commands",
+      "url": "https://docs.python.org/3/library/venv.html",
+      "mode": "full",
+      "rawChecks": {
+        "create-command": true,
+        "posix-activate": true,
+        "windows-activate": true
+      },
+      "outputChecks": {
+        "create-command": true,
+        "posix-activate": true,
+        "windows-activate": true
+      },
+      "rawChars": 84115,
+      "outputChars": 16000,
+      "rawBodyChars": 37909,
+      "outputBodyChars": 14767,
+      "rawHtmlNoise": {
+        "tagChars": 64,
+        "tagFraction": 0.0017
+      },
+      "outputHtmlNoise": {
+        "tagChars": 64,
+        "tagFraction": 0.0043
+      },
+      "truncated": true,
+      "usage": {
+        "structuredContent.metadata.creditsUsed": 1
+      },
+      "requests": 1,
+      "elapsedMs": 470
+    },
+    {
+      "provider": "firecrawl",
+      "page": "http-methods",
+      "category": "table",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+      "mode": "full",
+      "rawChecks": {
+        "GET-read": true,
+        "POST-submit": true,
+        "DELETE-remove": true
+      },
+      "outputChecks": {
+        "GET-read": true,
+        "POST-submit": true,
+        "DELETE-remove": true
+      },
+      "rawChars": 30621,
+      "outputChars": 15929,
+      "rawBodyChars": 12974,
+      "outputBodyChars": 12974,
+      "rawHtmlNoise": {
+        "tagChars": 364,
+        "tagFraction": 0.0281
+      },
+      "outputHtmlNoise": {
+        "tagChars": 364,
+        "tagFraction": 0.0281
+      },
+      "truncated": false,
+      "usage": {
+        "structuredContent.metadata.creditsUsed": 1
+      },
+      "requests": 1,
+      "elapsedMs": 528
+    },
+    {
+      "provider": "firecrawl",
+      "page": "mime-types",
+      "category": "table",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types",
+      "mode": "full",
+      "rawChecks": {
+        "html-type": true,
+        "json-type": true,
+        "png-type": true
+      },
+      "outputChecks": {
+        "html-type": true,
+        "json-type": true,
+        "png-type": true
+      },
+      "rawChars": 22352,
+      "outputChars": 11800,
+      "rawBodyChars": 9429,
+      "outputBodyChars": 9429,
+      "rawHtmlNoise": {
+        "tagChars": 8,
+        "tagFraction": 0.0008
+      },
+      "outputHtmlNoise": {
+        "tagChars": 8,
+        "tagFraction": 0.0008
+      },
+      "truncated": false,
+      "usage": {
+        "structuredContent.metadata.creditsUsed": 1
+      },
+      "requests": 1,
+      "elapsedMs": 388
+    },
+    {
+      "provider": "firecrawl",
+      "page": "quotes-js",
+      "category": "dynamic",
+      "url": "https://quotes.toscrape.com/js/",
+      "mode": "full",
+      "rawChecks": {
+        "rendered-quote": true,
+        "quote-author": true,
+        "second-quote": true
+      },
+      "outputChecks": {
+        "rendered-quote": true,
+        "quote-author": true,
+        "second-quote": true
+      },
+      "rawChars": 4114,
+      "outputChars": 2409,
+      "rawBodyChars": 1505,
+      "outputBodyChars": 1505,
+      "rawHtmlNoise": {
+        "tagChars": 0,
+        "tagFraction": 0
+      },
+      "outputHtmlNoise": {
+        "tagChars": 0,
+        "tagFraction": 0
+      },
+      "truncated": false,
+      "usage": {
+        "structuredContent.metadata.creditsUsed": 1
+      },
+      "requests": 1,
+      "elapsedMs": 323
+    }
+  ],
+  "providerCalls": 18,
+  "checkRevision": 2,
+  "reanalysisNote": "Offline-only rescore of saved public bodies: remove Markdown link formatting, decode existing Markdown text in locally clipped JSON, and deduplicate identical protocol text/structured copies. No new network calls."
+}

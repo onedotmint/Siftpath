@@ -7,7 +7,7 @@
 ```bash
 node dist/cli.js status
 node dist/cli.js status --json
-node dist/cli.js test brave
+node dist/cli.js test tavily
 node dist/cli.js test all --json
 ```
 
@@ -55,7 +55,7 @@ node dist/cli.js test all --json
 
 成功也只是**该次测试成功**，并非常驻健康承诺。
 
-**诊断与正常调用的判定不同：**诊断还要求配置工具能被发现、支持同步调用、声明的输出 Schema 合法匹配；普通业务路径要求 MCP 响应成功、可读内容与来源可封装并满足预算，不额外发 tools/list，也不校验未发现的供应商输出 Schema。因而诊断可能拒绝普通请求可使用的文本响应；诊断通过不代表意图选路、后备或 focus 已被验证。对照回归明确保留这一区别，避免把探针等同于 Router 验收。
+**诊断与正常调用的判定不同：**诊断还要求配置工具能被发现、支持同步调用、声明的输出 Schema 合法匹配；普通业务路径要求 MCP 响应成功、可读内容与来源可封装并满足预算，不额外发 tools/list，也不校验未发现的供应商输出 Schema。因而诊断可能拒绝普通请求可使用的文本响应；诊断通过不代表意图选路、显式 reader、后备或 focus 已被验证；正常读取会在业务前检查 binding 是否映射 `$focus`，不支持则不调用。对照回归明确保留这一区别，避免把探针等同于 Router 验收。
 
 失败只输出固定脱敏分类，并附带一条可操作提示（`hint`），例如 AUTH_FAILED、RATE_LIMITED、CONNECTION_FAILED、TOOL_NOT_FOUND、DISCOVERY_FAILED、INVALID_UPSTREAM_ARGUMENTS、UPSTREAM_ERROR、PROVIDER_TIMEOUT。不会输出上游错误正文、网页内容、请求头或 Key。
 
@@ -103,7 +103,7 @@ pi -e /absolute/path/to/Siftpath
 
 菜单项：快速配置、高级配置、查看服务状态、测试连接。
 
-- **快速配置**：选择搜索服务与阅读服务 → 输入/保留 Key 或选择官方匿名访问 → 确认后按推荐路由保存。只添加/更新所选服务，不停用其它已有服务；「保持现有搜索/阅读」不删除配置。路由会重新推荐，若要手动保持或调整路由，请用高级配置。无需理解 tool name、JSON Schema、意图或后备顺序。
+- **快速配置**：选择搜索服务与阅读服务 → 输入/保留 Key 或选择官方匿名访问 → 确认后按推荐路由保存。只添加/更新所选服务，不停用其它已有服务；「保持现有搜索/阅读」不删除配置。保留仍可用的现有路线且不自动增加后备，仅修复不可用路线；若要明确调整路线，请用高级配置。无需理解 tool name、JSON Schema、意图或后备顺序。
 - **高级配置**：Pi 原生菜单循环，可逐家配置凭据、停用服务、设置 default/semantic/research 搜索、阅读服务和**有序后备**；不启动第二套 Clack TUI。
 - **查看服务状态**：可滚动面板，显示生效配置路径、Pi 工具是否已接入、搜索/阅读/意图路由、每家 `READY`/`DISABLED`/`MISSING_CREDENTIALS` 与“最近测试 passed/failed”，以及下一步。READY 与“测试通过”分开显示。
 - **测试连接**：先选服务并确认“会消耗额度”（默认取消），再执行真实测试。TUI 运行中可按 Esc 取消；取消不能撤回已经发出的请求或费用。RPC 通过通知返回 status/test 报告，不使用终端面板。

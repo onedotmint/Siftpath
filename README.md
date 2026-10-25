@@ -1,198 +1,79 @@
 # Siftpath
 
-Siftpath gives a coding agent two web tools — `web_search` and `web_read` — backed by the official MCP
-servers of five providers (Brave, Exa, Tavily, Jina, Firecrawl). It is a router, not a search engine:
-it lazily connects to the provider you configured, maps two stable inputs to that provider's native
-tool, returns the official result with its source URLs, and falls back to the next configured provider
-when one fails. No LLM, no scraping framework, no re-ranking, no database, no daemon.
+A lightweight router from two agent tools to official provider MCP servers. Node.js 22+; no internal LLM, local scraper, ranking, cache or research planner.
 
-- `web_search({ query, intent?, maxResults? })`
-- `web_read({ url, focus? })`
+```text
+web_search({ query, intent?, maxResults? })
+web_read({ url, reader?, focus? })
+```
 
-## Install in Pi
+- Search: Tavily for `general` / `research`, Exa for `semantic`.
+- Read: Jina by default; Firecrawl is an explicit optional reader.
+- New configurations have empty search/read fallback lists; Brave is disabled and available in advanced setup.
+- Saved routes, Keys and custom bindings are preserved. No automatic switch to anonymous access after a Key error.
+
+## Install and configure
 
 ```bash
 pi install npm:@onedotmint/siftpath
 ```
 
-Restart Pi (or run `/reload`). The extension registers Siftpath as a Pi MCP server, so after that:
+Restart Pi or `/reload`, then `/siftpath` → **Quick setup**. Choose search/read services, provide Keys or explicitly select supported anonymous access, and confirm. The extension registers the packaged MCP server; no separate CLI or `pi mcp add` is needed.
 
-1. Run `/siftpath`.
-2. Choose **快速配置（推荐） / Quick setup**.
-3. Pick a search service and a read service, paste a Key when asked (input is masked), confirm.
-4. Just ask the model to search; it now has `web_search` and `web_read`.
+Quick setup adds or updates selected services without disabling others, preserves still-usable routes and does not add fallbacks. Advanced setup controls providers, intent routes and ordered fallbacks. Cancelling saves nothing; network tests require explicit consent.
 
-That is the whole first-run path. No global CLI install, no `node_modules` hunting, no `pi mcp add`,
-no JSON editing, no tool-name knowledge.
-
-> **Version note.** npm `2.0.0` has the older Pi extension without automatic MCP registration.
-> This tree targets **2.0.1**: native Pi setup, registration, hot reload, environment-Key persistence
-> and additive quick-setup fixes. Until 2.0.1 is published by the maintainer, install this tree instead:
->
-> ```bash
-> pi install /absolute/path/to/Siftpath          # directory, dependencies already installed by npm ci
-> ```
->
-> A bare `npm pack` tarball is not a valid `pi install` argument (Pi treats a file path as a single
-> extension file). Unpack or npm-install it first:
->
-> ```bash
-> mkdir -p /tmp/siftpath-pkg && tar xzf onedotmint-siftpath-2.0.1.tgz -C /tmp/siftpath-pkg
-> cd /tmp/siftpath-pkg/package && npm install --omit=dev --ignore-scripts
-> pi install /tmp/siftpath-pkg/package
-> ```
-
-## Configure
-
-Both front ends share one private configuration file and one set of rules.
-
-| Path | Command |
-|---|---|
-| Pi | `/siftpath` → quick setup / advanced setup |
-| Terminal | `siftpath setup` (asks quick or advanced), or `siftpath setup --quick` / `--advanced` |
-
-- **Quick setup** asks two things — what should search, what should read — then the Keys, then saves
-  recommended routes (Tavily/Exa for search, Jina for reading, remaining services as fallbacks). It
-  never asks about intents, tool names or fallback order. It adds/updates the selected services without
-  disabling others; routes are recommended again. Use advanced setup to disable services or edit routes.
-- **Advanced setup** keeps everything: per-provider credentials, default/semantic/research search,
-  reader, and ordered fallback. In Pi it is a small native menu; in a terminal it is the Clack wizard.
-
-Credential rules, identical in both:
-
-- Existing Keys are never displayed and never need re-entry; Enter keeps the saved Key.
-- Official anonymous access is offered where the provider supports it (Exa, Jina, Tavily stdio,
-  Firecrawl); no Key is stored for it.
-- A Key from the environment (`BRAVE_API_KEY`, `EXA_API_KEY`, `TAVILY_API_KEY`, `JINA_API_KEY`,
-  `FIRECRAWL_API_KEY`) wins over the saved Key, and the UIs say so. Saving configuration never copies
-  environment Keys into JSON or overwrites stored Keys with them; only explicitly entered replacements are saved.
-- Cancelling at any point saves nothing. Nothing is written until you confirm.
-- Storage: `~/.config/siftpath/config.json` (`$XDG_CONFIG_HOME`, `SIFTPATH_CONFIG`, or the legacy
-  `~/.config/smartsearch/config.json`) — private JSON, atomic replace, POSIX mode `0600` (protect user ACLs on Windows). Keys are never
-  put in argv, notifications, logs or the model context by this input flow. The JSON is plaintext,
-  not a vault: another process or model tool with the same user permissions can read it.
-
-Changing a Key or a route takes effect on the next tool call: the running MCP server notices the
-changed file, builds a new router, and retires the old one after its in-flight calls finish. You do
-not need to find a process or restart the terminal. In Pi, `/reload` is only needed if you upgrade
-the package itself.
-
-## Use it
-
-In Pi or any MCP client, ask normally ("search for the Node.js 22 release notes", "read this page")
-— the model calls `web_search` / `web_read`. From a terminal:
-
-```bash
-siftpath search "Node.js 22 release notes" --intent general --max-results 5
-siftpath search "similarity search API" --intent semantic
-siftpath read https://example.com --focus "What is this page about?"
-```
-
-`intent` picks the configured route: `general` (default), `semantic`, `research`. `focus` is forwarded
-only when the configured reader supports a native question parameter (Jina does); otherwise the result
-says `FOCUS_UNSUPPORTED` instead of pretending to extract locally. Output is the provider's own text
-plus traceable source URLs, bounded by `maxOutputChars`, marked `UNTRUSTED_WEB_CONTENT`. Some providers
-have a native minimum number of results (Tavily: 5), so a smaller `maxResults` is raised and the result
-carries a `MAX_RESULTS_RAISED` warning.
-
-## Other clients and the terminal CLI
+For terminal use or another stdio MCP client:
 
 ```bash
 npm install -g @onedotmint/siftpath
-siftpath setup          # quick or advanced wizard
-siftpath status
+siftpath setup
+siftpath status                 # offline, not an availability test
+siftpath mcp                    # stdio server: only web_search and web_read
 ```
 
-Any MCP client that speaks stdio:
+A client may instead launch `node /absolute/path/to/package/dist/cli.js mcp`. For this checkout, install dependencies with `npm ci` before `pi install /absolute/path/to/Siftpath`. Pi directory installs need the directory's runtime dependencies; a bare tarball path is not a Pi package source—npm-install or unpack it first. Package version is `2.0.1`; source version does not establish registry publication.
 
-```json
-{
-  "mcpServers": {
-    "siftpath": {
-      "command": "node",
-      "args": ["/absolute/path/to/node_modules/@onedotmint/siftpath/dist/cli.js", "mcp"]
-    }
-  }
-}
-```
-
-The server exposes exactly two tools and starts even when the configuration is missing or invalid:
-the tools are always announced, and a call explains what to fix. TypeScript SDK:
-
-```ts
-import { Siftpath, readConfiguration } from '@onedotmint/siftpath';
-const siftpath = new Siftpath(await readConfiguration());
-try { console.log((await siftpath.search({ query: 'Node.js documentation' })).content); }
-finally { await siftpath.close(); }
-```
-
-## Keys, anonymous access and cost
-
-| Provider | Role | Without a Key | With a Key |
-|---|---|---|---|
-| Tavily | search (recommended) | official keyless stdio mode | higher quota |
-| Exa | search (semantic), recommended | official anonymous hosted MCP | higher quota |
-| Brave | search | not available | required |
-| Jina | read (recommended) | official anonymous hosted MCP | higher quota, native focus |
-| Firecrawl | read (optional) | official anonymous hosted MCP | higher quota |
-
-Anonymous access is free but limited and can change upstream. Any authenticated call uses your
-provider account and may consume quota. CLI `siftpath test` is itself an explicit request and does
-not ask again; Pi test commands/menu ask for confirmation, with Cancel first. No tests run automatically. `status` makes no network calls at all.
-
-## Status, tests and troubleshooting
+## Use
 
 ```bash
-siftpath status                 # offline: config path, READY vs tested, routes, next step
-siftpath test exa --json        # real request to one provider, no fallback
-siftpath test all               # sequential checks, may use API quota
+siftpath search "Node.js release notes" --intent general --max-results 5
+siftpath search "similarity search API" --intent semantic
+siftpath read https://www.sqlite.org/foreignkeys.html --focus "Can foreign keys be changed inside a transaction?"
+siftpath read https://www.rfc-editor.org/rfc/rfc9111.html --reader firecrawl
 ```
 
-`READY` means "configuration and credentials are complete", never "verified available". A provider you
-disabled is reported as disabled and does not fail a `test all` run; a provider that is enabled but has
-no credentials is reported as *pending setup*, not healthy. A run with nothing testable is reported as
-such instead of succeeding.
+`reader` accepts any valid configured provider ID with a read binding, including custom IDs. Omit it to use `routes.read` and any explicitly saved `readFallback`. An explicit reader attempts **only that provider**, with no fallback or automatic enablement. The historical mode-based prototype was withdrawn and replaced by `reader`; there is no `--mode` interface.
 
-| Symptom | Meaning and fix |
-|---|---|
-| No `web_search` tool in Pi | Extension not loaded or older package version: `pi list`, then restart or `/reload`. `/siftpath → 查看服务状态` shows whether the tools are registered. |
-| `Warning: Siftpath 安装不完整（缺少运行时依赖）` | The package directory has no `node_modules`: install it from npm, or run `npm install --omit=dev` in the unpacked package before `pi install <dir>`. |
-| `MISSING_CREDENTIALS` | Run `/siftpath` / `siftpath setup` and add the Key, or export it. |
-| First call takes very long, then `PROVIDER_TIMEOUT` | The official server is being downloaded by `npx` on first use. Retry once; raise `providerTimeoutMs` if your network is slow. There is no infinite retry and no background daemon. |
-| `AUTH_FAILED` | The Key was rejected: replace it. |
-| `RATE_LIMITED` | Quota reached: wait, or configure a second provider as fallback. |
-| `TOOL_NOT_FOUND` | The provider renamed a tool upstream: update Siftpath or the binding. |
-| Wrong config file in use | `siftpath status` prints the effective path. `SIFTPATH_CONFIG` overrides it. |
-| Windows and WSL | Each environment has its own home directory, so each needs its own `siftpath setup`; a config written in WSL is not visible to a Windows terminal and vice versa. |
+Before a focused business call, Siftpath checks that the selected binding actually maps `$focus`. Otherwise it returns `FOCUS_UNSUPPORTED` without calling that provider or silently reading the full page. Mapping is not proof of successful extraction: Jina anonymous `question` cannot guarantee focus, and providers may themselves downgrade. Native notes and warnings are preserved.
 
-Uninstalling (`pi remove`, `npm uninstall -g`) never deletes your configuration or Keys; remove
-`~/.config/siftpath/` yourself if you want them gone. Upgrading keeps credentials, providers and
-routes; legacy v1 configs are read and converted in memory without rewriting the file.
+For specific facts, use a precise focus when supported. Check the evidence for key conclusions; reread only for a real gap, or state uncertainty. Neither focused excerpts nor a non-focused read prove completeness. No automatic follow-up is performed.
 
-## What Siftpath deliberately is not
+## Results, credentials and cost
 
-No internal LLM, no multi-provider fusion, no re-ranking, no HTML extraction, no cache, no server
-process. The old EvidenceEngine/Gather path, provider plugins, benchmarks and generated host plugins
-were removed. Official MCP services own search and reading; Siftpath owns routing, credentials,
-diagnostics and the two-tool contract.
+- Output preserves native content, source URLs and notes, marked `UNTRUSTED_WEB_CONTENT`. `sources` can include unfetched page links; cite the original evidence, not every indexed link.
+- `truncated` means **local output clipping only**. The default `maxOutputChars: 16000` is a serialized character budget, not a token budget or a solution to long-document coverage. `retrievedAt` is local processing time.
+- A structured result already exactly contained in a JSON text block is not appended twice; distinct evidence remains. No fuzzy deduplication or local summarization.
+- Known Firecrawl scrape responses may include optional `metadata` (`creditsUsed`, `cacheState`, `cachedAt`), retained before body clipping within the same budget. These are reported fields, not a currency bill or an extra charge to add to their native-content copy; missing values stay absent and cache hits are not assumed free.
+- Keys come from environment variables or private configuration; environment values win and setup does not copy them into JSON. Saved JSON is plaintext, not a secret vault.
+- Anonymous access is opt-in, limited and controlled upstream. It is not a fallback for failed credentials. Authenticated calls may use account quota; provider-internal calls and billing are outside Siftpath's control.
 
-## Repository, versions and releases
+Configuration lives at `~/.config/siftpath/config.json` (or `$XDG_CONFIG_HOME` / `SIFTPATH_CONFIG`); legacy path/environment/version-1 compatibility remains. Changes take effect on the next MCP call; `/reload` is needed after a package upgrade. Uninstalling does not delete saved Keys. See [configuration](docs/CONFIGURATION.md) and [migration](docs/MIGRATION.md).
 
-- Package version: **2.0.1**. Registry publication is separate from merging; check
-  `npm view @onedotmint/siftpath version` before assuming the npm release is available.
-- Real Pi model acceptance and release-check results: [TESTING.md](docs/TESTING.md).
-- Publishing and merging are deliberate maintainer actions; CI only verifies and packages.
-
-## Development
+## Diagnostics and development
 
 ```bash
+siftpath status --json          # READY means configured, not tested
+siftpath test jina --json       # explicit real request; one provider, no fallback
 npm ci
-npm run check                    # typecheck + offline tests (real MCP SDK fixtures)
-npm run test:setup               # PTY smoke for the Clack wizard (Linux)
-npm run test:live                # opt-in real calls: SIFTPATH_LIVE=1, SIFTPATH_CONTRACT=1
+npm run check                  # typecheck + build + offline tests
+npm run test:setup             # Linux PTY setup smoke
+npm run verify:source
 npm run pack:dry
+npm run verify:package         # actual tarball, prod-only install, CLI/SDK/Pi loading; no inference
 ```
 
-See [配置](docs/CONFIGURATION.md), [诊断与 Pi 命令](docs/DIAGNOSTICS.md), [官方 MCP 接入](docs/PROVIDERS.md),
-[架构](docs/ARCHITECTURE.md), [安全边界](docs/SECURITY.md), [验证记录](docs/TESTING.md),
-[迁移](docs/MIGRATION.md).
+`AUTH_FAILED` / `MISSING_CREDENTIALS`: fix the Key or explicitly change access mode. `FOCUS_UNSUPPORTED`: choose a capable binding/reader or explicitly omit focus if a broader read is appropriate. `TOOL_NOT_FOUND`: review the binding against the provider's schema. Cold `npx` downloads can consume the provider deadline. Windows and WSL use separate homes/configurations.
+
+Historical JSON reports and raw fixtures stay in the Git repository, not the npm runtime tarball. Documentation links to those reports open GitHub. `verify:package` uses cached locked dependencies offline; install dependencies first. Its Pi loading check explicitly skips when Pi is absent; CI installs pinned Pi 1.4.0 to exercise it.
+
+[Configuration](docs/CONFIGURATION.md) · [Providers and pinned sources](docs/PROVIDERS.md) · [Architecture](docs/ARCHITECTURE.md) · [Diagnostics](docs/DIAGNOSTICS.md) · [Security](docs/SECURITY.md) · [Testing and historical evidence](docs/TESTING.md) · [Selective reading](docs/SELECTIVE-READING.md) · [Model-experience limits](docs/MODEL-EXPERIENCE.md)

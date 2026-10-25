@@ -16,24 +16,25 @@ const help = `Siftpath — lightweight official MCP router (Node.js 22+)
   siftpath status [--json]              # offline: what is configured, what was tested, next step
   siftpath test <provider|all> [--json]  # real requests, no fallback; may use API quota
   siftpath search "question" [--intent general|semantic|research] [--max-results 5]
-  siftpath read URL [--focus "question about the page"]
+  siftpath read URL [--reader ID] [--focus "question about the page"]
   siftpath mcp                          # stdio MCP server (web_search, web_read); reloads config on change
   siftpath doctor                       # JSON diagnostics, no network calls
   siftpath --version
 Configuration: SIFTPATH_CONFIG or ~/.config/siftpath/config.json (JSON).
 Keys: BRAVE_API_KEY, EXA_API_KEY, TAVILY_API_KEY, JINA_API_KEY, FIRECRAWL_API_KEY (env overrides saved).
-Only the selected provider is called; failures try configured fallbacks sequentially.
+Recommended: Tavily general/research, Exa semantic, Jina evidence, Firecrawl document reading.
+Fallbacks are opt-in; an explicit --reader never falls back.
 In Pi: pi install npm:@onedotmint/siftpath, then /siftpath.
 `;
-export async function main(argv = process.argv.slice(2)): Promise<void> {
+async function main(argv = process.argv.slice(2)): Promise<void> {
   let parsed;
   try { parsed = parseArgs({ args: argv, allowPositionals: true, strict: true, options: {
     help: { type: 'boolean', short: 'h' }, version: { type: 'boolean', short: 'v' }, intent: { type: 'string' },
-    json: { type: 'boolean' }, 'max-results': { type: 'string' }, focus: { type: 'string' }, 'non-interactive': { type: 'boolean' },
+    json: { type: 'boolean' }, 'max-results': { type: 'string' }, focus: { type: 'string' }, reader: { type: 'string' }, 'non-interactive': { type: 'boolean' },
     quick: { type: 'boolean' }, advanced: { type: 'boolean' },
   } }); } catch { throw new SiftpathError('INVALID_INPUT', 'Invalid command-line arguments. Run siftpath --help.'); }
   const { values, positionals: [command, ...args] } = parsed;
-  if (command === 'search' && values.focus !== undefined || command === 'read' && (values.intent !== undefined || values['max-results'] !== undefined))
+  if (command === 'search' && (values.focus !== undefined || values.reader !== undefined) || command === 'read' && (values.intent !== undefined || values['max-results'] !== undefined))
     throw new SiftpathError('INVALID_INPUT', 'Options do not match the selected command. Run siftpath --help.');
   if (values.help || !command && !values.version) { process.stdout.write(help); return; }
   if (values.version) { process.stdout.write(packageVersion + '\n'); return; }
@@ -74,7 +75,7 @@ export async function main(argv = process.argv.slice(2)): Promise<void> {
     const input = command === 'search'
       ? { query: args.join(' '), ...(values.intent !== undefined ? { intent: values.intent } : {}),
           ...(values['max-results'] !== undefined ? { maxResults: Number(values['max-results']) } : {}) }
-      : { url: args[0], ...(values.focus !== undefined ? { focus: values.focus } : {}) };
+      : { url: args[0], ...(values.focus !== undefined ? { focus: values.focus } : {}), ...(values.reader !== undefined ? { reader: values.reader } : {}) };
     const result = await invokeTool(router, `web_${command}`, input, { signal: controller.signal });
     process.stdout.write(JSON.stringify(result) + '\n');
   } finally { process.off('SIGINT', stop); process.off('SIGTERM', stop); await router.close(); }

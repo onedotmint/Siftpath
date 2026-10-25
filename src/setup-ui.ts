@@ -25,7 +25,7 @@ async function askCredential(id: string, config: Configuration, env: NodeJS.Proc
       ...(existing ? [{ value: 'existing', label: 'Use existing API Key', hint: 'Official authenticated preset' }] : []),
       { value: 'key', label: existing ? 'Replace API Key' : 'Add API Key', hint: env[entry.key]?.trim() ? 'Environment overrides saved Key until unset' : 'Hidden input; private local storage' },
       ...(anonymous ? [{ value: 'anonymous', label: 'Use official anonymous access', hint: 'Limited quota; availability may change' }] : []),
-    ], initialValue: current.code === 'READY' ? 'keep' : existing ? 'existing' : anonymous ? 'anonymous' : 'key' })) as CredentialMode;
+    ], initialValue: current.code === 'READY' ? 'keep' : existing ? 'existing' : 'key' })) as CredentialMode;
   if (action === 'anonymous' && id === 'tavily') prompts.log.warn('The official Tavily stdio server may load a local .env. Use a clean working directory for strictly anonymous access.');
   let key = '';
   if (action === 'key') {
@@ -62,7 +62,7 @@ export async function runSetupWizard(saved: Configuration, env: NodeJS.ProcessEn
       options: ids.map(value => ({ value, label: value })), initialValue: ids.includes(preferred ?? '') ? preferred : ids[0] })) as Promise<string>;
     const routes = config.routes;
     if (search.length) {
-      const ordered = [...new Set(['tavily', 'brave', 'exa', ...search])].filter(id => search.includes(id));
+      const ordered = [...new Set(['tavily', 'exa', 'brave', ...search])].filter(id => search.includes(id));
       routes.search = await choose('Default search provider', ordered, routes.search);
       routes.intents = {
         general: routes.search,
@@ -117,18 +117,19 @@ export async function runQuickSetup(saved: Configuration, env: NodeJS.ProcessEnv
   let config = structuredClone(saved);
   try {
     prompts.intro('Siftpath setup (quick)');
-    prompts.log.info('Space: toggle, Enter: confirm, Esc: cancel. Keys are never displayed. Unselected services are kept; routes are recommended again. Use advanced setup to disable services.');
-    // Preselect what is actually usable: the configured services, or the keyless recommended pair on a fresh install.
-    const usable = catalog.filter(entry => config.providers[entry.id]?.enabled && providerStatus(entry.id, config, env).code === 'READY').map(entry => entry.id);
-    const initialValues = usable.length ? usable : ['exa', 'jina'].filter(id => config.providers[id]);
+    prompts.log.info('Space: toggle, Enter: confirm, Esc: cancel. Keys are never displayed. Unselected services and usable routes are kept. Use advanced setup to disable services.');
+    const recommended = catalog.filter(entry => entry.id !== 'brave');
+    const usable = recommended.filter(entry => providerStatus(entry.id, config, env).code === 'READY').map(entry => entry.id);
+    const initialValues = usable.length ? usable : ['tavily', 'jina'];
     const chosen = await ask(prompts.multiselect({ message: 'What should Siftpath search and read with?', required: true,
-      options: catalog.map(p => ({ value: p.id as string, label: p.label, hint: p.hint })), initialValues }));
+      options: recommended.map(p => ({ value: p.id as string, label: p.label, hint: p.hint })), initialValues }));
     for (const id of chosen) config = await askCredential(id, config, env, prompts, ask);
     config = applyRecommendedRoutes(config, env);
     const routes = config.routes;
     if (routes.search === 'unconfigured' && routes.read === 'unconfigured') { prompts.log.error('No ready Search or Read connection. Nothing saved.'); return null; }
     prompts.log.info('Search: ' + (routes.search === 'unconfigured' ? 'not configured' : routes.search + ' (fallback: ' + (routes.searchFallback.join(' -> ') || 'none') + ')') +
       '\nRead: ' + (routes.read === 'unconfigured' ? 'not configured' : routes.read + ' (fallback: ' + (routes.readFallback.join(' -> ') || 'none') + ')'));
+    prompts.log.info('Use web_read({ url, reader: "firecrawl" }) to select Firecrawl explicitly, or set reader to any configured provider ID; explicit readers never use fallback.');
     const test = await ask(prompts.confirm({ message: 'After saving, run real provider tests? (may use API quota)', initialValue: false }));
     prompts.outro('Ready to save private configuration. Run "siftpath setup" again for advanced routing.');
     return { configuration: config, test };

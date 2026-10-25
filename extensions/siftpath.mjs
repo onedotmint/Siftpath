@@ -137,6 +137,7 @@ export default function (pi) {
       `搜索: ${chain(data.routes.search, data.routes.searchFallback)}`,
       `阅读: ${chain(data.routes.read, data.routes.readFallback)}`,
       `意图: 默认=${data.routes.defaultIntent} · 语义=${data.routes.intents.semantic ?? '无'} · 研究=${data.routes.intents.research ?? '无'}`,
+      '阅读用法: web_read({ url, reader: "firecrawl" })；reader 可用任意已配置服务 ID，显式指定不使用后备。',
       '服务:',
       ...data.providers.map(provider => `  ${provider.provider}: ${provider.code}${provider.needs?.length ? ` · 缺少 ${provider.needs.join(', ')}` : ''}`
         + ` · ${provider.operations.join('/') || '无工具'} · ${provider.lastTest ? `${provider.lastTestStale ? '配置已变更 · ' : ''}最近测试 ${provider.lastTest.outcome}` : '未测试'}`),
@@ -182,14 +183,21 @@ export default function (pi) {
     const { config, plan } = await core();
     // Editing starts from disk only; environment credentials are resolved at runtime, never saved implicitly.
     let draft = await config.readConfiguration(config.configPath(), {});
-    const searches = catalog.filter(entry => entry.search).map(entry => entry.id);
+    const searches = catalog.filter(entry => entry.search && entry.id !== 'brave').map(entry => entry.id);
     const readers = catalog.filter(entry => entry.read).map(entry => entry.id);
-    ctx.ui.notify('快速配置只添加或更新所选服务，保留其它服务并重新推荐路由；如需停用服务，请使用高级配置。', 'info');
-    const search = resolve(searches, await pick(ctx.ui, '用哪个服务搜索网页？', searches, '保持现有搜索'), '保持现有搜索');
+    ctx.ui.notify('快速配置只添加或更新所选服务，保留其它服务及可用路由，不自动添加后备；如需停用服务，请使用高级配置。', 'info');
+    const chooseGroup = async (title, ids, keep) => {
+      const combination = ids.map(option).join(' + ') + '（推荐组合）';
+      const choice = await ctx.ui.select(title, [combination, ...ids.map(option), keep]);
+      if (choice === undefined) return undefined;
+      if (choice === keep) return [];
+      return choice === combination ? ids : ids.filter(id => option(id) === choice);
+    };
+    const search = await chooseGroup('用哪个服务搜索网页？', searches, '保持现有搜索');
     if (search === undefined) return;
-    const read = resolve(readers, await pick(ctx.ui, '用哪个服务阅读网页？', readers, '保持现有阅读'), '保持现有阅读');
+    const read = await chooseGroup('用哪个服务阅读网页？', readers, '保持现有阅读');
     if (read === undefined) return;
-    const chosen = [search, read].filter(Boolean);
+    const chosen = [...search, ...read];
     if (!chosen.length) { ctx.ui.notify('没有选择任何服务，未保存。', 'warning'); return; }
     for (const id of chosen) { const next = await configure(ctx, draft, id); if (!next) return; draft = next; }
     draft = plan.applyRecommendedRoutes(draft, process.env);
@@ -199,6 +207,7 @@ export default function (pi) {
     const route = (primary, fallback) => primary === 'unconfigured' ? '未配置' : `${primary}（后备: ${fallback.join(' → ') || '无'}）`;
     const summary = `搜索: ${route(draft.routes.search, draft.routes.searchFallback)}`
       + `\n阅读: ${route(draft.routes.read, draft.routes.readFallback)}`
+      + '\n阅读用法: web_read({ url, reader: "firecrawl" })；reader 可用任意已配置服务 ID，显式指定不使用后备。'
       + `\n${storageNotice(config.configPath())}`;
     if (!await ctx.ui.confirm('保存 Siftpath 配置？', summary)) { ctx.ui.notify('未保存任何更改。', 'info'); return; }
     await save(ctx, draft);

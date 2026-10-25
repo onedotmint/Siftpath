@@ -32,7 +32,7 @@ export async function setup({ mode = 'ask', nonInteractive = false }: SetupOptio
   } else {
     process.stdout.write('Non-interactive setup: environment credentials are used; no secrets written.\n');
     try { await readFile(path); } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') await writePrivateJson(path, { version: 2 }); else throw error;
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') await writePrivateJson(path, saved, configurationMaxBytes); else throw error;
     }
     process.stdout.write(formatStatus(await statusReport(await readConfiguration(path), path)) + '\n');
   }

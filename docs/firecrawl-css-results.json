@@ -1,0 +1,362 @@
+{
+  "capturedAt": "2026-10-24T11:42:07.867Z",
+  "access": "official-anonymous",
+  "endpoint": "https://mcp.firecrawl.dev/v2/mcp",
+  "maxOutputChars": 16000,
+  "modelCalls": 0,
+  "measuredToolOutputTokens": null,
+  "artifactDirectory": "/tmp/siftpath-firecrawl-css-vYbd04",
+  "domCapturedAt": "2026-10-24T11:36:21.145033+00:00",
+  "domSha256": {
+    "rfc": "ce91ee9848d2b9ac46386b0f0cbd4bfd9c0cd1948ebc363834cadc7e0997f3d7",
+    "venv": "3130fd99740814eb62abe1a5b70a390014f0463f6b115c37c65f92be566cdb80"
+  },
+  "note": "One sample per page; CSS acceptance, evidence preservation, shorter output and model quality are separate. Provider-internal fetches/retries/billing are not counted by the client.",
+  "businessRequests": [
+    {
+      "name": "firecrawl_scrape",
+      "arguments": {
+        "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+        "formats": [
+          "markdown"
+        ],
+        "includeTags": [
+          "h1, h2, h3, h4, h5, h6"
+        ],
+        "onlyMainContent": false,
+        "objective": "Return the actual heading elements of this page as Markdown navigation, preserving their document order, levels and existing links. Do not summarize or infer headings."
+      }
+    },
+    {
+      "name": "firecrawl_scrape",
+      "arguments": {
+        "url": "https://docs.python.org/3/library/venv.html",
+        "formats": [
+          "markdown"
+        ],
+        "includeTags": [
+          "section#how-venvs-work"
+        ],
+        "onlyMainContent": false,
+        "objective": "Read only the selected existing section container as Markdown, preserving its paragraphs, table and inline code. Do not summarize or generate an answer."
+      }
+    }
+  ],
+  "blockedRequests": 0,
+  "results": [
+    {
+      "case": "rfc-headings",
+      "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+      "selector": "h1, h2, h3, h4, h5, h6",
+      "arguments": {
+        "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+        "formats": [
+          "markdown"
+        ],
+        "includeTags": [
+          "h1, h2, h3, h4, h5, h6"
+        ],
+        "onlyMainContent": false,
+        "objective": "Return the actual heading elements of this page as Markdown navigation, preserving their document order, levels and existing links. Do not summarize or infer headings."
+      },
+      "schemaAcceptedShape": true,
+      "elapsedMs": 4807,
+      "success": true,
+      "businessRequests": 1,
+      "rawChars": 26911,
+      "rawIsError": false,
+      "bodyPaths": [
+        "structuredContent.markdown",
+        "content[0].markdown"
+      ],
+      "rawRepresentationsAgree": true,
+      "rawBodyChars": 11700,
+      "rawChecks": {
+        "expectedCount": 76,
+        "actualCount": 76,
+        "missing": [],
+        "unexpected": [],
+        "orderPreserved": true,
+        "levelsPreserved": true,
+        "requestDirectives": true,
+        "responseDirectives": true,
+        "responseNoStore": true,
+        "noBodyEvidence": true,
+        "headingOnlyBody": true,
+        "duplicateCount": 0
+      },
+      "providerNumericUsage": {
+        "content.0.text.metadata.creditsUsed": 1,
+        "structuredContent.metadata.creditsUsed": 1
+      },
+      "providerWarnings": [],
+      "outputChars": 14234,
+      "truncated": false,
+      "sourcesTruncated": false,
+      "sources": [
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html"
+        },
+        {
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html#name-calculating-cache-keys-with-",
+          "title": "RFC 9111: HTTP Caching"
+        }
+      ],
+      "warnings": [
+        {
+          "code": "UNTRUSTED_WEB_CONTENT"
+        }
+      ],
+      "outputBodyChars": 11700,
+      "bodyPreservedExactly": true,
+      "outputChecks": {
+        "expectedCount": 76,
+        "actualCount": 76,
+        "missing": [],
+        "unexpected": [],
+        "orderPreserved": true,
+        "levelsPreserved": true,
+        "requestDirectives": true,
+        "responseDirectives": true,
+        "responseNoStore": true,
+        "noBodyEvidence": true,
+        "headingOnlyBody": true,
+        "duplicateCount": 0
+      },
+      "historicalComparison": {
+        "generatedAt": "2026-10-23T15:37:05.032Z",
+        "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+        "access": "official-anonymous",
+        "maxOutputChars": 16000,
+        "onlyMainContent": true,
+        "formats": [
+          "markdown"
+        ],
+        "includeTags": null,
+        "rawBodyChars": 133247,
+        "outputBodyChars": 14924,
+        "rawEnvelopeChars": 276830,
+        "outputEnvelopeChars": 16000,
+        "truncated": true,
+        "elapsedMs": 1002,
+        "usage": {
+          "structuredContent.metadata.creditsUsed": 1
+        },
+        "bodyReductionFraction": 0.912193,
+        "limitations": "Different time, selector, onlyMainContent and local normalization versions; historical raw envelope was not saved. Not randomized or a model/token comparison."
+      },
+      "retainedBodyFixture": "tests/fixtures/firecrawl-css-rfc-headings.md",
+      "bodySha256": "2251b38a0990ccbb9fe2e8da23fb52f7ffb0fd204235c0320f28c925dcfe6220",
+      "rawArtifactSha256": "fc44eca05d0fd09084cba40984d9eb45de683e7f180ef74c3553f0b9f1149fb1",
+      "outputArtifactSha256": "1e20eff1ba9a1dfcef4aaf6eccce28a984f74159953ce4a6af32f61e9acf1c78",
+      "providerCreditsUsed": 1,
+      "providerFreshness": {
+        "sourceURL": "https://www.rfc-editor.org/rfc/rfc9111.html",
+        "url": "https://www.rfc-editor.org/rfc/rfc9111.html#name-calculating-cache-keys-with-",
+        "statusCode": 200,
+        "cacheState": "hit",
+        "cachedAt": "2026-10-24T09:00:51.884Z"
+      },
+      "anchorChecks": {
+        "bodyLinkCount": 141,
+        "uniqueBodyLinkCount": 141,
+        "invalidBodyFragments": [],
+        "method": "Compare returned body link fragments against IDs in the separately captured origin DOM; no second network fetch.",
+        "metadataSourceFragmentsNotInDom": [
+          "https://www.rfc-editor.org/rfc/rfc9111.html#name-calculating-cache-keys-with-"
+        ]
+      },
+      "nonHeadingNonemptyLines": 0,
+      "compactNavigationChars": 2552,
+      "navigationNote": "All original heading links are retained. At 11700 chars this native output is not as compact as the prior test-only 2552-char label outline. No production link stripping was applied."
+    },
+    {
+      "case": "venv-container",
+      "url": "https://docs.python.org/3/library/venv.html",
+      "selector": "section#how-venvs-work",
+      "arguments": {
+        "url": "https://docs.python.org/3/library/venv.html",
+        "formats": [
+          "markdown"
+        ],
+        "includeTags": [
+          "section#how-venvs-work"
+        ],
+        "onlyMainContent": false,
+        "objective": "Read only the selected existing section container as Markdown, preserving its paragraphs, table and inline code. Do not summarize or generate an answer."
+      },
+      "schemaAcceptedShape": true,
+      "elapsedMs": 3678,
+      "success": true,
+      "businessRequests": 1,
+      "rawChars": 13365,
+      "rawIsError": false,
+      "bodyPaths": [
+        "structuredContent.markdown",
+        "content[0].markdown"
+      ],
+      "rawRepresentationsAgree": true,
+      "rawBodyChars": 4150,
+      "rawChecks": {
+        "tableRows": [
+          [
+            "Platform",
+            "Shell",
+            "Command to activate virtual environment"
+          ],
+          [
+            "POSIX",
+            "bash/zsh",
+            "$ source <venv>/bin/activate"
+          ],
+          [
+            "fish",
+            "$ source <venv>/bin/activate.fish"
+          ],
+          [
+            "csh/tcsh",
+            "$ source <venv>/bin/activate.csh"
+          ],
+          [
+            "pwsh",
+            "$ <venv>/bin/Activate.ps1"
+          ],
+          [
+            "Windows",
+            "cmd.exe",
+            "C:\\> <venv>\\Scripts\\activate.bat"
+          ],
+          [
+            "PowerShell",
+            "PS C:\\> <venv>\\Scripts\\Activate.ps1"
+          ]
+        ],
+        "expectedCommandRows": 6,
+        "completeOrderedCommands": true,
+        "eachCommandExactlyOnce": true,
+        "tableHeader": true,
+        "prefixCheck": true,
+        "activationOptional": true,
+        "fullInterpreterPath": true,
+        "environmentVariableNotProof": true,
+        "nonPortable": true,
+        "recreateIfMoved": true,
+        "selectedHeading": true,
+        "outsideSectionAbsent": true,
+        "fencedCodeIndentation": null
+      },
+      "providerNumericUsage": {
+        "content.0.text.metadata.creditsUsed": 1,
+        "structuredContent.metadata.creditsUsed": 1
+      },
+      "providerWarnings": [],
+      "outputChars": 7218,
+      "truncated": false,
+      "sourcesTruncated": false,
+      "sources": [
+        {
+          "url": "https://docs.python.org/3/library/venv.html"
+        }
+      ],
+      "warnings": [
+        {
+          "code": "UNTRUSTED_WEB_CONTENT"
+        }
+      ],
+      "outputBodyChars": 4150,
+      "bodyPreservedExactly": true,
+      "outputChecks": {
+        "tableRows": [
+          [
+            "Platform",
+            "Shell",
+            "Command to activate virtual environment"
+          ],
+          [
+            "POSIX",
+            "bash/zsh",
+            "$ source <venv>/bin/activate"
+          ],
+          [
+            "fish",
+            "$ source <venv>/bin/activate.fish"
+          ],
+          [
+            "csh/tcsh",
+            "$ source <venv>/bin/activate.csh"
+          ],
+          [
+            "pwsh",
+            "$ <venv>/bin/Activate.ps1"
+          ],
+          [
+            "Windows",
+            "cmd.exe",
+            "C:\\> <venv>\\Scripts\\activate.bat"
+          ],
+          [
+            "PowerShell",
+            "PS C:\\> <venv>\\Scripts\\Activate.ps1"
+          ]
+        ],
+        "expectedCommandRows": 6,
+        "completeOrderedCommands": true,
+        "eachCommandExactlyOnce": true,
+        "tableHeader": true,
+        "prefixCheck": true,
+        "activationOptional": true,
+        "fullInterpreterPath": true,
+        "environmentVariableNotProof": true,
+        "nonPortable": true,
+        "recreateIfMoved": true,
+        "selectedHeading": true,
+        "outsideSectionAbsent": true,
+        "fencedCodeIndentation": null
+      },
+      "historicalComparison": {
+        "generatedAt": "2026-10-23T15:37:05.032Z",
+        "url": "https://docs.python.org/3/library/venv.html",
+        "access": "official-anonymous",
+        "maxOutputChars": 16000,
+        "onlyMainContent": true,
+        "formats": [
+          "markdown"
+        ],
+        "includeTags": null,
+        "rawBodyChars": 37909,
+        "outputBodyChars": 14767,
+        "rawEnvelopeChars": 84115,
+        "outputEnvelopeChars": 16000,
+        "truncated": true,
+        "elapsedMs": 470,
+        "usage": {
+          "structuredContent.metadata.creditsUsed": 1
+        },
+        "bodyReductionFraction": 0.890527,
+        "limitations": "Different time, selector, onlyMainContent and local normalization versions; historical raw envelope was not saved. Not randomized or a model/token comparison."
+      },
+      "retainedBodyFixture": "tests/fixtures/firecrawl-css-venv-container.md",
+      "bodySha256": "5381c82c16d6630cd51996b51669f3e02b213f1ed268069850340acc6b4d99e2",
+      "rawArtifactSha256": "52d51bc52fbe6a80df1fc14f0f81aeeb0bab1dbfc66315cd735ca05097382fcb",
+      "outputArtifactSha256": "d446e4a666c7b53f07b76b1cf560990309c058868e64caf27b2dc3105da67f9e",
+      "providerCreditsUsed": 1,
+      "providerFreshness": {
+        "sourceURL": "https://docs.python.org/3/library/venv.html",
+        "url": "https://docs.python.org/3/library/venv.html",
+        "statusCode": 200,
+        "cacheState": "hit",
+        "cachedAt": "2026-10-23T12:42:45.686Z"
+      },
+      "historicalSection": {
+        "chars": 4152,
+        "equalsIgnoringBoundaryWhitespace": true,
+        "legacySha256": "53b91cf0764b11e0e4d5df051ee4a1c7e94ecaf972c437f79b04ae9c676548cf",
+        "cssSha256": "5381c82c16d6630cd51996b51669f3e02b213f1ed268069850340acc6b4d99e2",
+        "exactSame": false
+      }
+    }
+  ],
+  "reportedCreditsUsedTotal": 2,
+  "billingNote": "Count credits once per response, not twice for mirrored content/structuredContent. Anonymous usage is not a currency charge measurement or zero-cost guarantee.",
+  "publicOriginRequests": 2
+}

@@ -11,6 +11,8 @@ test('npm tarball includes only current runtime/docs/examples and resolves both 
   assert.ok(paths.includes('dist/cli.js')); assert.ok(paths.includes('dist/router.js'));
   assert.ok(paths.includes('extensions/siftpath.mjs')); assert.ok(paths.includes('dist/index.d.ts')); assert.ok(paths.includes('examples/anonymous.json'));
   assert.ok(!paths.some(path => /^(src|tests|node_modules|integrations|skills|benchmarks)\//.test(path)));
+  assert.ok(!paths.some(path => path.startsWith('docs/') && path.endsWith('.json')), 'Historical raw reports stay in Git, not the runtime tarball.');
+  assert.ok(paths.includes('docs/CONFIGURATION.md')); assert.ok(paths.includes('docs/SECURITY.md'));
   assert.ok(!paths.some(path => /engine|gather|core\/|providers\/|mcp\/http|session/.test(path)));
   assert.deepEqual(toolDefinitions.map(tool => tool.name), ['web_search', 'web_read']);
 });
@@ -29,7 +31,9 @@ test('the shipped anonymous example is a valid config and does not embed credent
   const config = parseConfiguration(raw);
   assert.equal(config.providers.exa.connection.transport, 'http');
   assert.equal(config.providers.jina.connection.headers.Authorization, undefined);
-  assert.equal(config.routes.search, 'brave'); assert.equal(config.routes.read, 'jina');
+  assert.equal(config.routes.search, 'tavily');
+  assert.deepEqual(Object.keys(config.providers), ['tavily', 'exa', 'jina', 'firecrawl']);
+  assert.deepEqual(config.routes.searchFallback, []); assert.deepEqual(config.routes.readFallback, []); assert.equal(config.routes.read, 'jina');
 });
 
 test('live probes use the shipped anonymous config rather than duplicating hosted provider mappings', async () => {

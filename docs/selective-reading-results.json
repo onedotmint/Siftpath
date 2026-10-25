@@ -1,0 +1,79 @@
+{
+  "source": "Prior saved provider body artifacts, not fresh reads or complete-page guarantees",
+  "businessCalls": 0,
+  "modelCalls": 0,
+  "characterUnit": "JavaScript UTF-16 code units, not measured tokens",
+  "cases": [
+    {
+      "page": "rfc9111",
+      "artifact": "firecrawl-rfc9111-full-raw.txt",
+      "sha256": "cd97767dbf579430110ca1a64e8ac7cfb6f18e514b691d4502e699335d3b69f0",
+      "bodyChars": 133247,
+      "headingCount": 76,
+      "navigationChars": 2552,
+      "targetHeading": "[5.2.2.5.](https://www.rfc-editor.org/rfc/rfc9111.html\\#section-5.2.2.5) [no-store](https://www.rfc-editor.org/rfc/rfc9111.html\\#name-no-store-2)",
+      "targetOffset": 85607,
+      "equalBudgetPrefixHasTargetHeading": false,
+      "navigationContainsEvidence": [
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "sectionChars": 1358,
+      "sectionPreservedExactly": true,
+      "statelessOutlineThenReadMinimumCalls": 2
+    },
+    {
+      "page": "sqlite",
+      "artifact": "firecrawl-sqlite-full-raw.txt",
+      "sha256": "82ab9c7f0c304347aa2b76e59c685f42877e30961b1f38212984f04a2ab878c9",
+      "bodyChars": 39317,
+      "headingCount": 10,
+      "navigationChars": 425,
+      "targetHeading": "2\\.   Enabling Foreign Key Support",
+      "targetOffset": 10147,
+      "equalBudgetPrefixHasTargetHeading": false,
+      "navigationContainsEvidence": [
+        false,
+        false,
+        false
+      ],
+      "sectionChars": 2854,
+      "sectionPreservedExactly": true,
+      "statelessOutlineThenReadMinimumCalls": 2,
+      "priorFocusedEvidenceChecks": {
+        "per-connection": true,
+        "transaction": true,
+        "no-error-no-effect": true
+      }
+    },
+    {
+      "page": "python-venv",
+      "artifact": "firecrawl-python-venv-full-raw.txt",
+      "sha256": "c0e13b57f80e804b8b75ef092863ac70cb1b1446d94e067d1f3b169b73d60917",
+      "bodyChars": 37909,
+      "headingCount": 11,
+      "navigationChars": 288,
+      "targetHeading": "How venvs work [¶](https://docs.python.org/3/library/venv.html\\#how-venvs-work \"Link to this heading\")",
+      "targetOffset": 9676,
+      "equalBudgetPrefixHasTargetHeading": false,
+      "navigationContainsEvidence": [
+        false,
+        false,
+        false
+      ],
+      "sectionChars": 4152,
+      "sectionPreservedExactly": true,
+      "statelessOutlineThenReadMinimumCalls": 2,
+      "codeSectionChars": 11765,
+      "codeIndentationRetained": true
+    }
+  ],
+  "upstreamMissingChapter": {
+    "page": "rfc9111",
+    "targetFoundInATX": false,
+    "note": "An outline cannot restore a chapter absent from the supplied body; lack of a heading is not proof the live page lacks that chapter."
+  }
+}

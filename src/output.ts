@@ -1,4 +1,6 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { isDeepStrictEqual } from 'node:util';
+import { z } from 'zod';
 import { SiftpathError } from './errors.js';
 import { publicUrl } from './inputs.js';
 export interface Source { url: string; title?: string }
@@ -6,6 +8,20 @@ export interface WebResult {
   provider: string; tool: string; retrievedAt: string; url?: string;
   content: string; sources: Source[]; truncated: boolean; sourcesTruncated: boolean;
   warnings: { provider?: string; code: string }[];
+  metadata?: { creditsUsed?: number; cacheState?: string; cachedAt?: string };
+}
+const timestamp = z.iso.datetime({ offset: true });
+/** Only the observed Firecrawl scrape envelope, never fields found inside webpage text. */
+function firecrawlMetadata(value: unknown): WebResult['metadata'] {
+  if (!value || typeof value !== 'object') return;
+  const row = value as Record<string, unknown>;
+  if (typeof row.markdown !== 'string' || !row.metadata || typeof row.metadata !== 'object' || Array.isArray(row.metadata)) return;
+  const { creditsUsed, cacheState, cachedAt } = row.metadata as Record<string, unknown>;
+  const metadata: NonNullable<WebResult['metadata']> = {};
+  if (typeof creditsUsed === 'number' && Number.isFinite(creditsUsed) && creditsUsed >= 0) metadata.creditsUsed = creditsUsed;
+  if (typeof cacheState === 'string' && /^[a-z][a-z_-]{0,31}$/.test(cacheState)) metadata.cacheState = cacheState;
+  if (typeof cachedAt === 'string' && cachedAt.length <= 40 && timestamp.safeParse(cachedAt).success) metadata.cachedAt = cachedAt;
+  return Object.keys(metadata).length ? metadata : undefined;
 }
 /** Preserve the official tool's text/order. Only collect citation URLs, never score or extract passages. */
 export function normalize(result: CallToolResult, provider: string, tool: string, limit: number, url?: string, warnings: WebResult['warnings'] = []): WebResult {
@@ -13,7 +29,14 @@ export function normalize(result: CallToolResult, provider: string, tool: string
   const parts = result.content.flatMap(block => block.type === 'text' ? [block.text] :
     block.type === 'resource_link' ? [block.uri] : block.type === 'resource' && 'text' in block.resource ? [block.resource.text] : []);
   const structured = result.structuredContent ? JSON.stringify(result.structuredContent) : '';
-  const duplicatesStructured = structured && parts.some(part => { try { return JSON.stringify(JSON.parse(part)) === structured; } catch { return false; } });
+  // Omit only a proven structural mirror, including JSON text envelopes with extra fields.
+  const duplicatesStructured = structured && parts.some(part => {
+    try {
+      const parsed = JSON.parse(part);
+      return parsed && typeof parsed === 'object' && Object.entries(result.structuredContent!).every(
+        ([key, value]) => Object.hasOwn(parsed, key) && isDeepStrictEqual(parsed[key], value));
+    } catch { return false; }
+  });
   const content = [...parts, ...(structured && !duplicatesStructured ? [structured] : [])].join('\n\n');
   if (!content.trim()) throw new SiftpathError('EMPTY_RESPONSE', 'Official MCP returned no text.');
   const sources = new Map<string, Source>(); let sourcesTruncated = false;
@@ -37,9 +60,14 @@ export function normalize(result: CallToolResult, provider: string, tool: string
       visit(child, depth + 1);
     }
   };
+  let metadata = tool === 'firecrawl_scrape' ? firecrawlMetadata(result.structuredContent) : undefined;
   visit(result.structuredContent);
   for (const part of parts) {
-    try { visit(JSON.parse(part)); continue; } catch { /* Official tools may return plain text or Markdown. */ }
+    try {
+      const parsed: unknown = JSON.parse(part); visit(parsed);
+      if (tool === 'firecrawl_scrape' && !metadata) metadata = firecrawlMetadata(parsed);
+      continue;
+    } catch { /* Official tools may return plain text or Markdown. */ }
     for (const match of part.matchAll(/https?:\/\/[^\s<>"\\`]+/g)) {
       let tail = match[0].length;
       while (tail > 0 && '.,;'.includes(match[0][tail - 1]!)) tail--;
@@ -57,11 +85,11 @@ export function normalize(result: CallToolResult, provider: string, tool: string
   if (!sources.size) throw new SiftpathError('NO_SOURCES', 'Official MCP returned no traceable public source URL.');
   const output: WebResult = { provider, tool, retrievedAt: new Date().toISOString(), ...(url ? { url } : {}),
     content, sources: [...sources.values()], truncated: false, sourcesTruncated,
-    warnings: [{ code: 'UNTRUSTED_WEB_CONTENT' }, ...warnings] };
+    warnings: [{ code: 'UNTRUSTED_WEB_CONTENT' }, ...warnings], ...(metadata ? { metadata } : {}) };
   return fitOutput(output, limit);
 }
-/** Bound the entire JSON envelope, including provenance and fallback diagnostics. */
-export function fitOutput(output: WebResult, limit: number): WebResult {
+/** Reserve provenance/validated metadata first; the remaining serialized budget is for the native text prefix. */
+function fitOutput(output: WebResult, limit: number): WebResult {
   while (JSON.stringify({ ...output, content: '' }).length > limit && output.sources.length > 1) {
     output.sources.pop(); output.sourcesTruncated = true;
   }

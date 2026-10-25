@@ -6,6 +6,9 @@ export class SiftpathError extends Error {
 }
 /** One actionable sentence per stable code, so a first-time user never sees only an internal code. */
 const hints: Record<string, string> = {
+  NOT_CONFIGURED: 'Configure this Provider in /siftpath (advanced) or in the private configuration file.',
+  UNSUPPORTED_OPERATION: 'This Provider has no binding for the requested operation; choose a configured Reader.',
+  FOCUS_UNSUPPORTED: 'This Reader has no native focus binding. Omit focus for document reading or choose a focus-capable Reader.',
   MISSING_CREDENTIALS: 'Run /siftpath (Pi) or `siftpath setup` and add this Key, or export it as an environment variable.',
   DISABLED: 'Enable it with /siftpath or `siftpath setup` if it should be used.',
   AUTH_FAILED: 'The provider rejected the credential: replace the Key with /siftpath or `siftpath setup`.',
@@ -20,7 +23,6 @@ const hints: Record<string, string> = {
   INVALID_INPUT: 'Check the command or tool arguments (run `siftpath --help` for CLI usage).',
   CLOSED: 'The Siftpath process was closed; start a new connection.',
 };
-export function hintFor(code: string): string | undefined { return hints[code]; }
 export function safeError(error: unknown) {
   if (!(error instanceof SiftpathError)) return { code: 'INTERNAL_ERROR', message: 'Operation failed. Run siftpath doctor; external errors are not exposed.', diagnostics: [] };
   return { code: error.code, message: error.message, ...(hints[error.code] ? { hint: hints[error.code] } : {}), diagnostics: error.diagnostics };

@@ -30,7 +30,7 @@
     "README.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
-    "docs",
+    "docs/*.md",
     "examples",
     "extensions"
   ],
@@ -44,7 +44,8 @@
     "check": "npm run typecheck && npm test",
     "pack:dry": "npm run build && npm pack --dry-run --ignore-scripts",
     "prepack": "npm run build",
-    "verify:source": "node scripts/verify-source.mjs"
+    "verify:source": "node scripts/verify-source.mjs",
+    "verify:package": "node scripts/verify-package.mjs"
   },
   "repository": {
     "type": "git",
