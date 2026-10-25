@@ -2,7 +2,7 @@
 
 ## 当前验收状态
 
-当前输出元数据修复已通过 **218/218 离线测试**。本轮独立预算的唯一真实 Pi 会话已获确认并执行，但首次模型请求返回 `Request timed out.`，供应商业务 **0/3**、无工具调用/最终答案，未重试；**最终 Agent 验收仍为证据不足**。上轮四家认证业务共 6 次的成功记录保留，不混作本轮闭环证明。完整历史、修复与本轮超时边界见下。
+当前RC工程检查为本地 **223/223** 离线通过；PR #3 的 Linux/Windows × Node22/24 四格CI已在修复原文fixture CRLF问题后通过（见末节实际run链接），包含真实Pi无推理加载和tarball隔离验证。**自主Agent闭环仍为证据不足**：上轮独立预算唯一会话首次模型请求超时，供应商0/3、无工具调用/答案，未重试；更早四家认证共6次成功不混作闭环证明。本RC不运行新付费验收。
 
 ## 当前命令
 
@@ -244,3 +244,14 @@ RC 本地最终记录（Linux / Node v24.22.1）：`npm ci --ignore-scripts`、`
 打包复验曾因npm本地缓存缺锁定tarball而ENOTCACHED；用正常 `npm ci --ignore-scripts` 补齐公开依赖缓存后，严格 `--offline` 隔离安装通过，未放宽断言。历史正文回归现在仅输出诊断，不再重写已有JSON报告；临时子代理定义已清理，不进入提交。跨平台CI尚待实际PR运行，以下不预先记绿。
 
 PR [#3](https://github.com/onedotmint/Siftpath/pull/3)，初始RC提交 `9b5d137`。首次远端 [run 40197322012](https://github.com/onedotmint/Siftpath/actions/runs/40197322012) Linux Node22/24通过，Windows两版在真实CSS原文字节SHA-256断言失败：checkout CRLF转换改变了fixture字节。新增窄范围 `.gitattributes` 对两份原生Markdown设为 `-text`，不转换、不修改原文、不降低哈希断言；四格CI需重跑确认。
+
+修复后的 PR CI 已实际通过：[pull_request run 40197596202](https://github.com/onedotmint/Siftpath/actions/runs/40197596202)，代码提交 `cfcb8c4ae623d553bacb2f573c8a484a3da92cee`；同提交 push run 40197593436 也通过。
+
+| 远端平台 | Node 22 | Node 24 |
+|---|---|---|
+| ubuntu-latest | 通过 | 通过 |
+| windows-latest | 通过 | 通过 |
+
+四格均：完整普通离线套件222通过/1仅限历史临时正文目录的明确skip、0失败；真实Pi1.4.0工作区加载通过；63文件tarball仅生产依赖离线隔离安装、CLI/SDK和实际Pi加载通过（Pi检查本身0 skip）；16 live全部关闭并skip。Linux PTY两版通过，Windows不运行Linux PTY脚本，但Pi原生菜单/遮罩与非PTY配置测试仍在全套中。CI没有生产Key，没有供应商业务或模型prompt。
+
+GitHub仍有checkout/setup-node v4自身Node20动作运行时弃用提示（runner强制Node24执行动作），非项目Node22/24测试失败；上游SDK Server弃用提示同样未改造。建议合并作为工程RC供评审，但正式npm发布仍应先完成另行授权的Agent闭环验收并明确发布版本；本轮未合并、创建Tag/Release或发布npm。
