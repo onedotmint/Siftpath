@@ -1,0 +1,3 @@
+# Captured upstream bodies are byte-for-byte evidence; never convert their line endings.
+tests/fixtures/firecrawl-css-rfc-headings.md -text
+tests/fixtures/firecrawl-css-venv-container.md -text

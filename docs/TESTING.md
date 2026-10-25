@@ -242,3 +242,5 @@ Pi 错误路径返回 input/output/cache/total=0 和 cost=0；这是缺少成功
 RC 本地最终记录（Linux / Node v24.22.1）：`npm ci --ignore-scripts`、`npm run check` **223/223 通过**（指定既有离线正文目录，无网络）、Linux PTY 通过、`verify:source` **83 文件**通过、`verify:package` 真实tarball隔离安装与宿主Pi 1.4.0加载通过；63个分发文件。默认普通check若无历史临时正文目录为222通过/1明确skip，CI不依赖此目录。16个live测试全部显式关闭并skip。秘密检查覆盖源码/构建/测试/报告/示例等127文件，与本地已配置秘密值精确比较及常见token/私钥模式匹配均无发现（不是完备秘密审计）；私有配置哈希未变。
 
 打包复验曾因npm本地缓存缺锁定tarball而ENOTCACHED；用正常 `npm ci --ignore-scripts` 补齐公开依赖缓存后，严格 `--offline` 隔离安装通过，未放宽断言。历史正文回归现在仅输出诊断，不再重写已有JSON报告；临时子代理定义已清理，不进入提交。跨平台CI尚待实际PR运行，以下不预先记绿。
+
+PR [#3](https://github.com/onedotmint/Siftpath/pull/3)，初始RC提交 `9b5d137`。首次远端 [run 40197322012](https://github.com/onedotmint/Siftpath/actions/runs/40197322012) Linux Node22/24通过，Windows两版在真实CSS原文字节SHA-256断言失败：checkout CRLF转换改变了fixture字节。新增窄范围 `.gitattributes` 对两份原生Markdown设为 `-text`，不转换、不修改原文、不降低哈希断言；四格CI需重跑确认。
