@@ -5,9 +5,21 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+env:
+  SIFTPATH_LIVE: '0'
+  SIFTPATH_LIVE_STDIO: '0'
+  SIFTPATH_OPTIONAL_LIVE: '0'
+  SIFTPATH_CONTRACT: '0'
+  SIFTPATH_PI_LIVE: '0'
+  SIFTPATH_FIRECRAWL_CSS: '0'
+  SIFTPATH_SELECTIVE_SCHEMA: '0'
+  SIFTPATH_READER_COMPARE: '0'
+  SIFTPATH_READ_QUALITY: '0'
 jobs:
   test:
+    timeout-minutes: 15
     strategy:
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
         node: [22, 24]
@@ -20,9 +32,16 @@ jobs:
           cache: npm
           cache-dependency-path: package-lock.json
       - run: npm ci --ignore-scripts
+      - name: Install pinned Pi for no-inference registration checks
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/siftpath-pi" --ignore-scripts --no-audit --no-fund @earendil-works/pi-coding-agent@1.4.0
+          node --input-type=module -e 'import {readFileSync,appendFileSync} from "node:fs"; import {join} from "node:path"; const root=join(process.env.RUNNER_TEMP,"siftpath-pi","node_modules","@earendil-works","pi-coding-agent"); const pkg=JSON.parse(readFileSync(join(root,"package.json"),"utf8")); appendFileSync(process.env.GITHUB_ENV,`SIFTPATH_PI_BIN=${join(root,pkg.bin.pi)}\n`);'
       - run: npm run check
       - if: runner.os == 'Linux'
         run: npm run test:setup
       - run: npm run verify:source
       - run: npm run test:live
       - run: npm run pack:dry
+      - run: npm run verify:package
+      - run: git diff --check

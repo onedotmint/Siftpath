@@ -14,19 +14,18 @@ export const providerPresets: Record<string, Provider> = {
     search: { name: 'tavily_search', arguments: { query: '$query', max_results: '$maxResults', search_depth: 'basic' }, minResults: 5 } },
   jina: { enabled: true,
     connection: { transport: 'http', url: 'https://mcp.jina.ai/v1', headers: { Authorization: 'Bearer ${JINA_API_KEY}' } },
-    read: { name: 'read_url', arguments: { url: '$url', question: '$focus' } } },
+    read: { name: 'read_url', arguments: { url: '$url', question: '$focus', topk: 3, chunk_size: 250 } } },
   firecrawl: { enabled: true, timeoutMs: 60000,
-    connection: { transport: 'stdio', command: 'npx', args: ['-y', 'firecrawl-mcp@3.33.4'], env: { FIRECRAWL_API_KEY: '${FIRECRAWL_API_KEY}' } },
-    read: { name: 'firecrawl_scrape', arguments: { url: '$url', formats: ['markdown'] } } },
+    connection: { transport: 'http', url: 'https://mcp.firecrawl.dev/v2/mcp', headers: { Authorization: 'Bearer ${FIRECRAWL_API_KEY}' } },
+    read: { name: 'firecrawl_scrape', arguments: { url: '$url', formats: ['markdown'], onlyMainContent: true, objective: 'Read the supplied public webpage as Markdown.' } } },
 };
 export const anonymousPresets: Record<string, Provider> = {
   exa: { ...providerPresets.exa!, connection: { transport: 'http', url: 'https://mcp.exa.ai/mcp', headers: {} },
     search: { name: 'web_search_exa', arguments: { query: '$query', objective: '$query', numResults: '$maxResults' } } },
   jina: { ...providerPresets.jina!, connection: { transport: 'http', url: 'https://mcp.jina.ai/v1', headers: {} } },
   tavily: { ...providerPresets.tavily!, connection: { transport: 'stdio', command: 'npx', args: ['-y', 'tavily-mcp@0.2.22'], env: {} } },
-  firecrawl: { ...providerPresets.firecrawl!, connection: { transport: 'http', url: 'https://mcp.firecrawl.dev/v2/mcp', headers: {} },
-    read: { name: 'firecrawl_scrape', arguments: { url: '$url', formats: ['markdown'], onlyMainContent: true, objective: 'Read the supplied public webpage as Markdown.' } } },
+  firecrawl: { ...providerPresets.firecrawl!, connection: { transport: 'http', url: 'https://mcp.firecrawl.dev/v2/mcp', headers: {} } },
 };
-export const defaultProviders = Object.fromEntries(Object.entries(providerPresets).map(([id, provider]) => [id, { ...provider, enabled: !['tavily', 'firecrawl'].includes(id) }]));
-export const defaultRoutes = { defaultIntent: 'general' as const, search: 'brave', read: 'jina',
-  intents: { semantic: 'exa', research: 'tavily' }, searchFallback: ['brave', 'exa'], readFallback: [] };
+export const defaultProviders = Object.fromEntries(Object.entries(providerPresets).map(([id, provider]) => [id, { ...provider, enabled: id !== 'brave' }]));
+export const defaultRoutes = { defaultIntent: 'general' as const, search: 'tavily', read: 'jina',
+  intents: { research: 'tavily', semantic: 'exa' }, searchFallback: [], readFallback: [] };

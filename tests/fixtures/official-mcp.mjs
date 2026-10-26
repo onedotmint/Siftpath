@@ -29,7 +29,7 @@ export function mockServer() {
     if (name === 'secret') throw new Error('PRIVATE_KEY_ERROR_BODY');
     if (name === 'empty') return { content: [] };
     if (name === 'malformed') return { content: [{ type: 'text', text: 'No traceable results' }] };
-    if (name === 'read') return { content: [{ type: 'text', text: `URL Source: ${args.url}\nTitle: Example\nMarkdown Content:\nNative reader text; focus=${args.question ?? 'none'}` }] };
+    if (name === 'read') return { content: [{ type: 'text', text: process.env.MOCK_READ_CONTENT ? JSON.parse(process.env.MOCK_READ_CONTENT) : `URL Source: ${args.url}\nTitle: Example\nMarkdown Content:\nNative reader text; focus=${args.question ?? 'none'}` }] };
     const results = [{ title: 'Example', url: 'https://example.com/a?utm_source=original', description: 'Official result text', publishedDate: '2026-01-01' },
       { title: 'Second', url: 'https://example.org/b', description: 'Second result' }].slice(0, Number(args.count ?? 2));
     if (process.env.MOCK_LONG_SOURCES) for (const [index, row] of results.entries()) { row.url = 'https://source' + index + '.example/' + 'x'.repeat(800); row.description = 'Readable content '.repeat(1000); }

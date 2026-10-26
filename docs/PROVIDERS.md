@@ -1,43 +1,39 @@
-# 官方 MCP 接入与来源核验
+# 官方 MCP 接入
 
-本轮读取官方 README、实际工具定义及输入输出代码，且通过发布包/远程 `initialize + tools/list` 核验五家内置供应商。以下是核验当时的接口，不保证未来托管端不变；工具注册名以实时 Schema 为准。
+只经官方 MCP 转发；以下固定源码、发布包发现及历史实测不是对未来托管部署、账户权限或计费的保证。本次文档整理没有联网、模型或业务调用。
 
-## 默认集成
+## 推荐与连接
 
-| 服务 | 连接方式 | 官方工具与映射 | 输出 |
-|---|---|---|---|
-| Brave | 官方 npm `@brave/brave-search-mcp-server@2.1.4`，`--transport stdio`；`BRAVE_API_KEY` | `brave_web_search({query:$query,count:$maxResults})` | 每个 `content[].text` 为单条结果 JSON，包含 URL、title、description、extra_snippets 等 |
-| Exa | 官方 npm `exa-mcp-server@3.4.2`，stdio；`EXA_API_KEY` | `web_search_exa({query:$query,numResults:$maxResults})` | Title、URL、Published、Author、Highlights 等可读文本 |
-| Jina | 官方 Streamable HTTP `https://mcp.jina.ai/v1`；默认 Bearer `${JINA_API_KEY}` | `read_url({url:$url,question:$focus})` | YAML 文本：url/title/content；question 模式可能为 question/snippets/snippet_source，失败或无 key 可由官方降级全文 |
+| Provider | 用途与官方预设 | 原生映射要点 |
+|---|---|---|
+| Tavily | 推荐 general/research；`tavily-mcp@0.2.22` stdio + `TAVILY_API_KEY` | `tavily_search`：query/max_results/search_depth=basic，`minResults:5` |
+| Exa | 推荐 semantic；`exa-mcp-server@3.4.2` stdio + `EXA_API_KEY` | `web_search_exa`：query/numResults |
+| Jina | 默认 read；`https://mcp.jina.ai/v1` + Bearer `${JINA_API_KEY}` | `read_url`：url/question、topk=3、chunk_size=250 |
+| Firecrawl | 显式可选 reader；新认证为 `https://mcp.firecrawl.dev/v2/mcp` + `Authorization: Bearer ${FIRECRAWL_API_KEY}` | `firecrawl_scrape`：url、formats=[markdown]、onlyMainContent=true、固定 objective |
+| Brave | disabled，高级可选；`@brave/brave-search-mcp-server@2.1.4 --transport stdio` + `BRAVE_API_KEY` | `brave_web_search`：query/count |
 
-Brave query 原生限制 400 字符/50 词；公共 Siftpath query 上限 2000，超出 Brave 限制时交给原生校验并按配置回退，**不截断/改写用户 query**。Brave README 中有 command 启动却使用 HTTP transport 的例子，不照抄：本地进程明确 stdio。官方仓库提供的 HTTP 是自运行模式，没有假设存在 Brave 官方公共托管地址。
+新 fallback 均为空；已有显式路线/Key/custom binding 保留。`web_read({url,reader?,focus?})` 中显式 reader 只调用一家，可为任意合法已配置 ID；不因品牌增加适配器或隐藏后备。
 
-Exa 另有 `https://mcp.exa.ai/mcp`，可匿名；支持 `x-api-key`、Bearer/OAuth，使用 header 而不是 URL Key。本次托管普通搜索比源码/固定 npm 包多了必填 `objective`：匿名示例显式将其映射到原始 query，未新增意图分类器。固定发布包 `tools/list` 只要求 query。高级搜索、fetch、agent_run 等不纳入默认工具面。
+### 重要差异
 
-Jina 官方仓库不是可直接 `npx jina-mcp` 安装的本地 CLI；直接调用其远程 MCP。`/sse` 是兼容路径，不据此启用旧 SSE transport。`focus` 原样映射原生 question，不自行切块/评分；无 Key 阅读可用，但**匿名 question 聚焦没有本轮实测保证**。Jina 原生聚焦对表格/代码/位置性问题有已知限制，须由 Agent 按需核对原文。
+- **Jina**：focus 仅在 binding 确有 `$focus` 映射时才发业务请求，否则 `FOCUS_UNSUPPORTED`，不转全文。映射不保证成功选段；匿名 question 不保证聚焦，认证调用也可能由供应商降级，原生 notes 保留。选段可能缺表格、代码或多条件证据；3×250 不是完整性承诺。不是可直接 `npx jina-mcp` 的本地 CLI，不启用旧 SSE。
+- **Firecrawl**：新认证 read 参数固定为 `url:$url, formats:["markdown"], onlyMainContent:true, objective:"Read the supplied public webpage as Markdown."`。objective 是托管契约说明，不是 focus；该 binding 不支持 focus。旧保存 stdio/自定义连接不自动重写。原生 query 必须同时设置 formats=query 和 queryOptions.prompt，有模型/费用/保真差异，不是默认 read。配置示例见 [CONFIGURATION.md](CONFIGURATION.md#firecrawl-新认证预设)。
+- **Exa**：显式匿名 HTTP 为 `https://mcp.exa.ai/mcp`；历史托管发现比固定 stdio 多必填 objective，匿名 binding 将它映射到 query。认证 header 支持方式依实际端点，不在 URL 放 Key。不默认开放 agent/research/fetch 编排。
+- **Tavily**：官方 stdio 有显式 Keyless 选项；托管 `https://mcp.tavily.com/mcp` 需认证，历史匿名发现返回 401，不用作匿名预设。原生 max_results 下限 5，小请求提升并附 `MAX_RESULTS_RAISED`。自定义原生 extract 可映射 urls/query，但不据此宣称所有 Tavily read binding 都支持 focus。
+- **Brave**：原生 query 有 400 字符/50 词限制；不截断改写用户 query。没有假设官方公共托管地址。
 
-## Tavily / Firecrawl 内置可选预设
+匿名只由用户显式选择（Exa/Jina/Firecrawl 托管、Tavily stdio），不是 Key 错误后的 fallback。匿名服务与额度可变；官方 stdio 包可能自动读 `.env`，严格匿名历史验证用了干净目录。历史匿名业务成功不证明付费 Key 成功。
 
-- Tavily：`https://mcp.tavily.com/mcp` + Bearer，或 `npx -y tavily-mcp@0.2.22` + `TAVILY_API_KEY`。工具为 `tavily_search` / `tavily_extract`（下划线，不是旧 README 的连字符）；query/max_results、urls/query 可分别映射搜索/原生聚焦读取。发布包 `build/index.js` 的 `max_results` 声明为 `minimum: 5, maximum: 20, default: 5`，因此内置预设的 search binding 带 `minResults: 5`，1–4 的结果请求由 Router 提升到 5 并给出 `MAX_RESULTS_RAISED`；不再因参数校验失败而白白走后备。远程匿名发现返回 401；官方 stdio 包原生支持 Keyless，已在干净工作目录中通过真实 MCP 握手、发现、搜索。认证 stdio 与匿名 stdio 两种预设均可由 setup 直接选择。不开启 `tavily_research` 多步编排。
-- Firecrawl：`npx -y firecrawl-mcp@3.33.4` + `FIRECRAWL_API_KEY`，或 `https://mcp.firecrawl.dev/v2/mcp` + Bearer/匿名额度。工具 `firecrawl_scrape` / `firecrawl_search` / `firecrawl_parse`；读取最小 URL + markdown。原生问题模式为 formats/queryOptions；不默认增加搜索后逐结果 scrape 费用。托管端本次工具发现也出现额外 objective，与源码存在差异，匿名预设显式提供固定阅读 objective；已通过真实 MCP 阅读。
+## 原始来源索引
 
-本轮通过 Siftpath 现有 providerTest 实际执行 Tavily 匿名 stdio `tavily_search`（basic，max_results=5），以及 Firecrawl 匿名托管 `firecrawl_scrape`（markdown，不用 LLM 格式）。两者连接/发现/实际请求均通过。独立工具发现还验证了固定的官方 npm 发布包；没有把调查过程中的 REST 测试当成 MCP 成功。
+保留既有调查的固定版本，不在此次整理中重新研究。npm 固定版本与 Git 快照不一定逐字相同；历史还核对过发布包的 initialize/tools/list。
 
-补充核对的发布提交：Tavily 0.2.22 对应 `d9284253d9c9137d13e0fffc12c5e57c277f5d9b`，Firecrawl 3.33.4 对应 `8a32a37f07593db001538ece7420d6365469ec5e`；工具映射同时对照 npm 实际发布 JS 与 https://registry.npmjs.org/tavily-mcp/latest、https://registry.npmjs.org/firecrawl-mcp/latest。官方 stdio 包可能自动加载 .env，严格匿名验证使用干净临时工作目录。
+- Brave `e4866a9`：[README](https://github.com/brave/brave-search-mcp-server/blob/e4866a959a635038f8f889804aba6061ed214bf4/README.md)、[启动](https://github.com/brave/brave-search-mcp-server/blob/e4866a959a635038f8f889804aba6061ed214bf4/src/config.ts)、[参数](https://github.com/brave/brave-search-mcp-server/blob/e4866a959a635038f8f889804aba6061ed214bf4/src/tools/web/params.ts)、[输出](https://github.com/brave/brave-search-mcp-server/blob/e4866a959a635038f8f889804aba6061ed214bf4/src/tools/web/index.ts)。
+- Exa `0b499f0`：[README](https://github.com/exa-labs/exa-mcp-server/blob/0b499f095c4ca145eee07b09137641c037d58449/README.md)、[stdio](https://github.com/exa-labs/exa-mcp-server/blob/0b499f095c4ca145eee07b09137641c037d58449/src/stdio.ts)、[搜索](https://github.com/exa-labs/exa-mcp-server/blob/0b499f095c4ca145eee07b09137641c037d58449/src/tools/webSearch.ts)、[托管认证](https://github.com/exa-labs/exa-mcp-server/blob/0b499f095c4ca145eee07b09137641c037d58449/api/mcp.ts)。
+- Jina `b938c00`：[README](https://github.com/jina-ai/MCP/blob/b938c00f0870a75b39a78d5dff1f5bf645151a6e/README.md)、[Schema](https://github.com/jina-ai/MCP/blob/b938c00f0870a75b39a78d5dff1f5bf645151a6e/src/tools/jina-tools.ts)、[question/降级](https://github.com/jina-ai/MCP/blob/b938c00f0870a75b39a78d5dff1f5bf645151a6e/src/utils/read.ts)、[端点/认证](https://github.com/jina-ai/MCP/blob/b938c00f0870a75b39a78d5dff1f5bf645151a6e/src/index.ts)。
+- Tavily：早期快照 `688b0f7` 的 [README](https://github.com/tavily-ai/tavily-mcp/blob/688b0f78d518d507cb31b94d9cc0e44c6eadd7c0/README.md)、[工具](https://github.com/tavily-ai/tavily-mcp/blob/688b0f78d518d507cb31b94d9cc0e44c6eadd7c0/src/index.ts)、[输出](https://github.com/tavily-ai/tavily-mcp/blob/688b0f78d518d507cb31b94d9cc0e44c6eadd7c0/src/format-results.ts)；0.2.22 发布提交 `d9284253d9c9137d13e0fffc12c5e57c277f5d9b`，曾对照实际发布 JS。
+- Firecrawl：早期 [README](https://github.com/firecrawl/firecrawl-mcp-server/blob/4c20af3ef1d894400e3ec804a17e6050afe47570/README.md)、[注册实现](https://github.com/firecrawl/firecrawl-mcp-server/blob/4c20af3ef1d894400e3ec804a17e6050afe47570/src/server.ts)；3.33.4 对应 `8a32a37f07593db001538ece7420d6365469ec5e`。源码行级选择器、query、计费依据见 [SELECTIVE-READING.md](SELECTIVE-READING.md)。
 
-## 精确代码来源
+参考项目仅借鉴边界：[web-search-plus-mcp](https://github.com/robbyczgw-cla/web-search-plus-mcp/tree/7a8bd5709c93a882a502201d203895bbd4683e10) 的职责分离/显式后备；[agntn/web](https://github.com/agntn/web/tree/255a2e4d5b087e4266a2e12ca60577f16808f200) 的统一封套/失败记录。不迁移它们的缓存、HTTP adapters、融合或研究编排。
 
-检查快照与关键链接：
-
-- Brave `e4866a959a635038f8f889804aba6061ed214bf4`：[README](https://github.com/brave/brave-search-mcp-server/blob/e4866a959a635038f8f889804aba6061ed214bf4/README.md)、[启动 config](https://github.com/brave/brave-search-mcp-server/blob/e4866a959a635038f8f889804aba6061ed214bf4/src/config.ts)、[web 参数](https://github.com/brave/brave-search-mcp-server/blob/e4866a959a635038f8f889804aba6061ed214bf4/src/tools/web/params.ts)、[web 输出](https://github.com/brave/brave-search-mcp-server/blob/e4866a959a635038f8f889804aba6061ed214bf4/src/tools/web/index.ts)。
-- Exa `0b499f095c4ca145eee07b09137641c037d58449`：[README](https://github.com/exa-labs/exa-mcp-server/blob/0b499f095c4ca145eee07b09137641c037d58449/README.md)、[stdio](https://github.com/exa-labs/exa-mcp-server/blob/0b499f095c4ca145eee07b09137641c037d58449/src/stdio.ts)、[webSearch](https://github.com/exa-labs/exa-mcp-server/blob/0b499f095c4ca145eee07b09137641c037d58449/src/tools/webSearch.ts)、[托管鉴权](https://github.com/exa-labs/exa-mcp-server/blob/0b499f095c4ca145eee07b09137641c037d58449/api/mcp.ts)。
-- Jina `b938c00f0870a75b39a78d5dff1f5bf645151a6e`：[README](https://github.com/jina-ai/MCP/blob/b938c00f0870a75b39a78d5dff1f5bf645151a6e/README.md)、[工具 schema](https://github.com/jina-ai/MCP/blob/b938c00f0870a75b39a78d5dff1f5bf645151a6e/src/tools/jina-tools.ts)、[原生 question/全文降级](https://github.com/jina-ai/MCP/blob/b938c00f0870a75b39a78d5dff1f5bf645151a6e/src/utils/read.ts)、[端点与认证](https://github.com/jina-ai/MCP/blob/b938c00f0870a75b39a78d5dff1f5bf645151a6e/src/index.ts)。
-- Tavily `688b0f78d518d507cb31b94d9cc0e44c6eadd7c0`：[README](https://github.com/tavily-ai/tavily-mcp/blob/688b0f78d518d507cb31b94d9cc0e44c6eadd7c0/README.md)、[工具注册/参数](https://github.com/tavily-ai/tavily-mcp/blob/688b0f78d518d507cb31b94d9cc0e44c6eadd7c0/src/index.ts)、[格式化](https://github.com/tavily-ai/tavily-mcp/blob/688b0f78d518d507cb31b94d9cc0e44c6eadd7c0/src/format-results.ts)。
-- Firecrawl `4c20af3ef1d894400e3ec804a17e6050afe47570`：[README](https://github.com/firecrawl/firecrawl-mcp-server/blob/4c20af3ef1d894400e3ec804a17e6050afe47570/README.md)、[注册实现](https://github.com/firecrawl/firecrawl-mcp-server/blob/4c20af3ef1d894400e3ec804a17e6050afe47570/src/server.ts)。GitHub 可能跳转到 mendableai 组织。
-
-版本固定用于可复现的本地进程启动，不代表 npm 发布包与上述 Git 快照逐字相同；已额外执行发布包的协议发现核验。
-
-## 两个参考项目：只借鉴边界，不搬运行时
-
-- [web-search-plus-mcp](https://github.com/robbyczgw-cla/web-search-plus-mcp/tree/7a8bd5709c93a882a502201d203895bbd4683e10)：阅读 README、server.py 工具 schema 和 routing.py；借鉴搜索/提取职责分离、分别配置优先级、显式后备与错误信息。不迁移缓存、健康探测、研究编排或并行研究模式。
-- [agntn/web](https://github.com/agntn/web/tree/255a2e4d5b087e4266a2e12ca60577f16808f200)：阅读 README、tools.ts、core/fallback.ts、core/search-filters.ts；借鉴统一 Search/Read 封套、实际供应商/失败记录、对不支持的能力给提示。它采用的 HTTP API Adapter、融合及 continuation 框架不在本任务中复刻。
+历史业务、Schema 快照、模型失败样本分别索引于 [TESTING.md](TESTING.md)。不能把 discovery、匿名普通读取、源码规则和账户聚焦/收费验证混为一谈。

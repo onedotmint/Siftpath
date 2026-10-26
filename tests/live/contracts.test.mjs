@@ -18,5 +18,9 @@ for (const id of ['brave', 'exa', 'tavily', 'jina', 'firecrawl']) test(`CONTRACT
     const tool = tools.find(tool => tool.name === binding.name);
     assert.ok(tool, `${binding.name} missing from published official MCP`);
     for (const key of Object.keys(binding.arguments)) assert.ok(Object.hasOwn(tool.inputSchema.properties ?? {}, key), `${key} missing from published schema`);
+    if (id === 'jina') for (const [key, maximum] of [['topk', 50], ['chunk_size', 4096]]) {
+      const field = tool.inputSchema.properties[key];
+      assert.equal(field.type, 'integer'); assert.equal(field.minimum, 1); assert.equal(field.maximum, maximum);
+    }
     t.diagnostic(JSON.stringify({ provider: id, tool: tool.name, required: tool.inputSchema.required, parameters: Object.keys(tool.inputSchema.properties ?? {}), toolCalls: 0 }));
   });

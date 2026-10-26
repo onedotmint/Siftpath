@@ -111,14 +111,14 @@ with tempfile.TemporaryDirectory(prefix="siftpath-clack-pty-") as directory:
     try:
         choose_mode(w, first_time=True)
         w.until("Providers (Space: toggle, Enter: continue)")
-        # Existing defaults: Brave, Exa, Jina. Toggle to Tavily + Jina with arrows and Space.
-        w.send(" \x1b[B \x1b[B \r")
+        # New defaults: Tavily, Exa, Jina, Firecrawl. Keep only Tavily + Jina.
+        w.send("\x1b[B \x1b[B\x1b[B \r")
         w.until("Tavily credentials")
-        w.send("\x1b[A\r")  # anonymous is initially selected; move to Add API Key
+        w.send("\r")  # API Key is the default, never silently anonymous
         w.until("TAVILY_API_KEY (required)")
         w.send(SECRETS[0] + "\r")
         w.until("Jina credentials")
-        w.send("\r")  # anonymous Reader, no password required
+        w.send("\x1b[B\r")  # explicitly choose anonymous Reader
         routes(w)
     finally:
         w.abort()
@@ -129,7 +129,7 @@ with tempfile.TemporaryDirectory(prefix="siftpath-clack-pty-") as directory:
     assert not saved["providers"]["brave"]["enabled"]
     assert not list(root.glob("*.siftpath-tests.json")), "Declined tests ran or created history"
 
-    # Quick path: two service choices, recommended routes, keyless anonymous access, no route questions.
+    # Quick path: explicit anonymous choices, Tavily/Jina pair, no route questions.
     quick = root / "quick.json"
     w = Wizard(quick)
     try:
@@ -137,20 +137,20 @@ with tempfile.TemporaryDirectory(prefix="siftpath-clack-pty-") as directory:
         w.send("\r")
         w.until("What should Siftpath search and read with?")
         w.send("\r")
-        w.until("Exa credentials")
-        w.send("\r")  # anonymous is the default without a saved Key
+        w.until("Tavily credentials")
+        w.send("\x1b[B\r")  # explicitly choose anonymous
         w.until("Jina credentials")
-        w.send("\r")
+        w.send("\x1b[B\r")
         w.until("After saving, run real provider tests?")
         w.send("\r")
         w.finish()
     finally:
         w.abort()
     saved_quick = json.loads(quick.read_text())
-    assert saved_quick["routes"]["search"] == "exa" and saved_quick["routes"]["read"] == "jina"
+    assert saved_quick["routes"]["search"] == "tavily" and saved_quick["routes"]["read"] == "jina"
     assert saved_quick["credentials"] == {}, "Quick path stored a Key without one being entered"
     assert saved_quick["providers"]["jina"]["connection"]["headers"] == {}
-    assert saved_quick["providers"]["brave"]["enabled"], "Quick path must not disable an unselected provider"
+    assert not saved_quick["providers"]["brave"]["enabled"], "Optional Brave must remain disabled by default"
 
     for mode in ("keep", "replace", "cancel-after-secret"):
         original = path.read_bytes()

@@ -3,10 +3,11 @@ import { homedir } from 'node:os';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { SiftpathError, type Diagnostic } from './errors.js';
 import { intentSchema } from './inputs.js';
-import { defaultProviders, defaultRoutes } from './defaults.js';
+import { anonymousPresets, providerPresets, defaultProviders, defaultRoutes } from './defaults.js';
 
 export const configurationMaxBytes = 65536;
 const clean = z.string().min(1).max(4096).regex(/^[^\r\n\0]+$/);
@@ -41,6 +42,13 @@ export function parseConfiguration(value: unknown): Configuration {
   const parsed = schema.safeParse(value);
   if (!parsed.success) throw new SiftpathError('INVALID_CONFIG', 'Invalid configuration (version 2 required). See docs/CONFIGURATION.md; values are never echoed.');
   const config = structuredClone(parsed.data);
+  const jina = config.providers.jina;
+  // Upgrade only the exact old official binding, in memory; explicit windows/custom providers stay untouched.
+  if (jina && !jina.search &&
+      [providerPresets.jina!.connection, anonymousPresets.jina!.connection].some(connection => isDeepStrictEqual(jina.connection, connection)) &&
+      isDeepStrictEqual(jina.read, { name: 'read_url', arguments: { url: '$url', question: '$focus' } })) {
+    jina.read = structuredClone(providerPresets.jina!.read!);
+  }
   for (const id of [config.routes.search, config.routes.read, ...Object.values(config.routes.intents), ...config.routes.searchFallback, ...config.routes.readFallback]) {
     // Built-in routes may refer to absent optional providers; unknown custom IDs are still diagnosed by doctor.
     if (id && !/^[a-z][a-z0-9_-]{0,63}$/.test(id)) throw new SiftpathError('INVALID_CONFIG', 'Invalid route provider ID.');
@@ -55,11 +63,11 @@ export function configPath(env: NodeJS.ProcessEnv = process.env): string {
   return existsSync(current) || !existsSync(legacy) ? current : legacy;
 }
 export async function readConfiguration(path = configPath(), env: NodeJS.ProcessEnv = process.env): Promise<Configuration> {
-  let raw: unknown = {};
+  let raw: unknown = {}, stored = false;
   try {
     const stats = await lstat(path);
     if (!stats.isFile() || stats.isSymbolicLink() || stats.size > configurationMaxBytes) throw new SiftpathError('INVALID_CONFIG', 'Configuration must be a regular JSON file of at most 64 KiB.');
-    raw = JSON.parse(await readFile(path, 'utf8'));
+    raw = JSON.parse(await readFile(path, 'utf8')); stored = true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
       if (error instanceof SiftpathError) throw error;
@@ -70,9 +78,19 @@ export async function readConfiguration(path = configPath(), env: NodeJS.Process
   if (raw && typeof raw === 'object' && 'version' in raw && raw.version === 1) {
     const old = raw as { credentials?: Record<string, string>; disabled?: string[] };
     raw = { version: 2, credentials: old.credentials ?? {}, providers: Object.fromEntries(
-      Object.entries(defaultProviders).map(([id, provider]) => [id, { ...provider, enabled: provider.enabled && !old.disabled?.includes(id) }])) };
+      Object.entries(defaultProviders).map(([id, provider]) => [id, { ...provider, enabled: ['brave', 'exa', 'jina'].includes(id) && !old.disabled?.includes(id) }])) };
   }
   const config = parseConfiguration(raw);
+  if (stored) {
+    // Existing files may rely on the old implicit primary/intent routes; never rewrite them.
+    // Missing fallback fields now stay empty rather than opting users into extra services.
+    const saved = raw as Partial<Configuration>, routes = saved.routes;
+    if (saved.providers === undefined) {
+      for (const [id, provider] of Object.entries(config.providers)) provider.enabled = ['brave', 'exa', 'jina'].includes(id);
+    }
+    if (routes?.search === undefined) config.routes.search = 'brave';
+    if (routes?.intents === undefined) config.routes.intents = { semantic: 'exa', research: 'tavily' };
+  }
   const names = new Set([...Object.keys(config.credentials), ...[...JSON.stringify(config.providers).matchAll(/\$\{([A-Z][A-Z0-9_]*)\}/g)].map(match => match[1]!)]);
   for (const name of names) if (env[name]?.trim()) config.credentials[name] = env[name]!.trim();
   return parseConfiguration(config);

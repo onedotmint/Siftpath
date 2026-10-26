@@ -4,7 +4,9 @@ import { SiftpathError } from './errors.js';
 export const intentSchema = z.enum(['general', 'semantic', 'research']);
 const text = z.string().trim().min(1).max(2000);
 export const searchSchema = z.strictObject({ query: text, intent: intentSchema.optional(), maxResults: z.number().int().min(1).max(20).optional() });
-export const readSchema = z.strictObject({ url: z.string().max(4096), focus: text.optional() });
+export const readSchema = z.strictObject({ url: z.string().max(4096),
+  reader: z.string().regex(/^[a-z][a-z0-9_-]{0,63}$/).describe('Configured Reader ID, e.g. jina, firecrawl or a custom ID. Omit for the default; explicit selection never falls back.').optional(),
+  focus: text.describe('Specific evidence sought, including conditions. Requires a native focus binding; unsupported requests fail before reading.').optional() });
 export type SearchInput = z.infer<typeof searchSchema>;
 export type ReadInput = z.infer<typeof readSchema>;
 export type Intent = z.infer<typeof intentSchema>;

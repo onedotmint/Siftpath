@@ -1,40 +1,47 @@
 # Architecture
 
-One npm package, TypeScript, Node.js 22+.
+One npm package, TypeScript, Node.js 22+. The public tools are only:
 
 ```text
-src/inputs.ts       strict shared Zod inputs + public URL guard
-src/defaults.ts     five official MCP definitions (Brave, Exa, Tavily, Jina, Firecrawl), no vendor branches in Router
-src/config.ts       JSON config, private storage, credential references, diagnostics
-src/diagnostics.ts  CLI-only phased provider probes, private latest-test records and summaries
-src/setup-plan.ts   shared catalog, credential application and recommended routes (Pi + Clack)
-extensions/siftpath.mjs  Pi integration: registers the packaged MCP server, native menu/status, masked Key entry
-src/client.ts       official SDK Client, lazy/reused stdio or Streamable HTTP
-src/router.ts       choose one provider, map arguments, sequential fallback, idle retirement
-src/output.ts       official text + citation envelope + serialized character bound
-src/tools.ts        exactly web_search and web_read, shared CLI/MCP dispatcher
-src/mcp/stdio.ts    official SDK Server + StdioServerTransport + config revision reload
-src/cli.ts         mcp / search / read / doctor / setup / status / test
-src/setup.ts       private config orchestration + opt-in existing diagnostics
-src/setup-ui.ts    Clack quick/advanced wizards, separately bundled and lazy-loaded
-src/version.ts     package version
-src/index.ts       public TypeScript SDK exports
+web_search({ query, intent?, maxResults? })
+web_read({ url, reader?, focus? })
+Agent → shared input validation → Router/binding → official MCP → native output envelope
 ```
 
-No HTTP server, HTTP API adapters, parsing, fusion, RRF, cache, local ranking, sufficiency judgment, Gather, LLM router or agent planner remains. The runtime directly depends only on the official MCP SDK and Zod (the SDK has its own transitive dependencies).
+## Responsibilities
 
-Configuration changes are picked up without a restart: `dist/cli.js mcp` stats the config file before each tool call (one `lstat`, no polling), builds a new Router when the file changed, and retires the previous Router, which closes itself only after its in-flight calls finish. The tool list never depends on the configuration, so a missing or invalid file still announces both tools and reports `INVALID_CONFIG` per call.
+| Files | Responsibility |
+|---|---|
+| `inputs.ts`, `tools.ts` | Strict shared inputs, public URL guard, two tool definitions and dispatcher |
+| `defaults.ts`, `config.ts` | Official presets, private configuration, credential references and narrow compatibility migrations |
+| `setup-plan.ts`, `setup.ts`, `setup-ui.ts` | Shared setup rules, persistence, lazy-loaded Clack UI |
+| `extensions/siftpath.mjs` | Pi MCP registration, native menus/status and masked Key input |
+| `router.ts`, `client.ts` | Route selection, binding mapping, lazy SDK connections, explicit fallback and lifecycle |
+| `output.ts` | Native content, source index, warnings and serialized character budget |
+| `diagnostics.ts`, `cli.ts`, `mcp/stdio.ts`, `index.ts` | Explicit probes, CLI, official SDK stdio server and SDK exports |
 
-Pi integration is a registration, not a client: the extension calls `pi.registerMcpServer('siftpath', { command: process.execPath, args: [packagedCli, 'mcp'], exposure: 'direct' })` at load, so only `mcp__siftpath__web_search` and `mcp__siftpath__web_read` reach the model and upstream provider processes still start lazily on first use. Configuration UIs (Pi native components and the Clack wizards) share `src/setup-plan.ts` for the catalog, credential application and recommended routes; only the interaction layer differs.
+Runtime dependencies are the official MCP SDK and Zod, including their transitive dependencies. No local fetcher/HTML parser, vendor HTTP adapter, fusion, ranking, cache, sufficiency judgment, hidden follow-up or LLM planner. Providers own retrieval, native extraction, caching and billing.
 
-A search binding may declare `minResults` when its official tool rejects a smaller count (Tavily: 5). The Router raises such a request to the native minimum and adds a `MAX_RESULTS_RAISED` warning instead of sending an invalid argument and consuming a fallback.
+## Routing and capability checks
 
-Each operation gets an overall deadline (60s default), each provider attempt gets a deadline (20s default, including first connection), and cancellation is forwarded through the official SDK. Configuration limits both to 120s. No automatic retry or parallel provider fan-out; each configured fallback is tried once. In-flight calls share a lazy initialization promise and successful connections. On disconnection or an HTTP 404 expired session the client removes the cached connection; the next operation can reconnect. HTTP cancellation reaches the actual fetch/body, with a 4 MiB response bound; shutdown sends a best-effort session DELETE bounded to 2s, then always closes locally.
+Search uses configured intent routes. Reading without `reader` uses `routes.read`; explicit `reader` selects any valid configured provider ID with a read binding and attempts only that provider, never a fallback. New fallbacks are empty; saved explicit chains remain ordered and deduplicated, each provider at most once. Cancellation/overall deadline stops further attempts. No parallel fan-out or automatic retry.
 
-`content` preserves the official tool output and ordering, including available dates/authors/metadata. `sources` indexes public URLs present in structured results, JSON text, Markdown or plain text; it is not a semantic citation verifier. Siftpath does not claim every outgoing link supports the query. Read results always include the exact requested URL. Long text is cut, never summarized or rearranged. The entire returned JSON is bounded by maxOutputChars, not an estimated model token count.
+A focused read requires an actual `$focus` mapping in that provider's binding before the business call. Otherwise `FOCUS_UNSUPPORTED` means no call to that provider, not an unfocused success. This is a local binding check, not proof of upstream focus execution: Jina anonymous question may downgrade, and native notes remain. Forwarded focus carries `FOCUS_MAY_OMIT_CONTENT`. Tool guidance stays brief: check key evidence, reread only for a real gap, accept uncertainty.
 
-Shutdown on stdin EOF, SIGINT/SIGTERM or transport close aborts the Router and closes upstream SDK connections/stdio children. SDK users must call `close()` in `finally`. Official stdio processes are children of this process, not separately managed daemons.
+Firecrawl's new authenticated preset uses official Streamable HTTP, Bearer header and Markdown/main-content arguments with a constant objective. It does not map focus. Saved stdio/custom connections are not rewritten. The withdrawn mode-based prototype is not a second interface; explicit selection is now `reader`.
 
-Output is normalized and budgeted once after the Router has assembled all warnings. URL delimiter cleanup counts unmatched brackets in linear scans rather than repeatedly rescanning each shortened URL. Concurrent calls to `close()` all await the same teardown, including the bounded HTTP session DELETE.
+## Configuration and lifecycle
 
-Diagnostics deliberately perform stricter discovery/output-contract checks than normal business calls. Their per-config history files do not share provider records across neighboring configuration files; see DIAGNOSTICS.md. SSE response interruption is bounded by the existing provider deadline without automatic replay; a notification GET disconnect does not cancel unrelated POST work.
+Setup preserves saved Keys, custom bindings and usable routes, adds no fallback automatically, and saves complete routes. New/SDK defaults differ from compatibility defaults for existing on-disk v2/v1 files; see [MIGRATION.md](MIGRATION.md). Only the exact old official Jina binding upgrades to 3×250 in memory. No arbitrary provider-table merge or file rewrite on read; anonymous access is explicit, never credential-error recovery.
+
+Pi registers the packaged `dist/cli.js mcp` with `exposure: direct`, exposing only `mcp__siftpath__web_search` and `mcp__siftpath__web_read`. Upstream connections start lazily, share initialization and are reused. Before a tool call, the stdio server checks config revision, replaces the Router when needed and retires the old one after in-flight work. Missing/invalid config does not hide tools; calls explain the configuration error.
+
+Overall deadline defaults to 60s; provider attempts default to 20s including connection, with per-preset/provider overrides. SDK cancellation reaches HTTP fetch/body; shared initialization counts waiting callers, and cancelling the last waiter aborts the pending initialization without interrupting other waiters; responses are bounded to 4 MiB. Disconnection/session 404 clears the cached connection for the next operation, without replay. Shutdown aborts work, closes children/connections and bounds best-effort session DELETE to 2s; concurrent close awaits the same teardown. SDK users call `close()` in `finally`.
+
+## Output and trust
+
+Native text/order are preserved. For the observed `firecrawl_scrape` root `{ markdown, metadata }` envelope, an optional `WebResult.metadata` projects only validated `creditsUsed`, `cacheState` and `cachedAt` before clipping. Valid structured metadata takes precedence; JSON text is a fallback, never summed or merged. The original content is not rewritten. Other tools and unknown/nested layouts remain opaque; webpage text is not searched for usage fields. Structured content is not appended when one JSON text block already contains every field with deeply equal values (object key order irrelevant, array/string content exact); otherwise distinct evidence remains. No fuzzy matching, summary or inferred completeness class.
+
+`sources` indexes public URLs, including outgoing links, not separately fetched or semantically verified citations. Reads preserve the exact requested URL. `retrievedAt` is local processing time. Warnings and the small allowlisted metadata projection are assembled before one final serialized JSON budget pass. Provenance, warnings and metadata count toward the same limit first; the remaining space holds the longest native content prefix (no fixed extra allowance or larger default). Missing/invalid usage is omitted, credits are not currency, and cache hits are not assumed free; the original content may still contain a copy of the projected fields, not an additional charge. `truncated` remains about content, not the provider response. In particular, `truncated` describes local clipping only. Neither a non-focused read nor `truncated:false` proves upstream completeness. The stdio response carries the JSON envelope as text for client compatibility.
+
+Diagnostics intentionally check discovery/output contracts more strictly than normal calls; their private per-config records are not proof of search quality. See [DIAGNOSTICS.md](DIAGNOSTICS.md) and [TESTING.md](TESTING.md).

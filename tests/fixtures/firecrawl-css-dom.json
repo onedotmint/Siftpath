@@ -1,0 +1,508 @@
+{
+  "capturedAt": "2026-10-24T11:36:21.145033+00:00",
+  "purpose": "Public origin DOM inspection only; no Reader service",
+  "htmlArtifacts": "/tmp/siftpath-css-dom-20261024",
+  "rfc": {
+    "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+    "sha256": "ce91ee9848d2b9ac46386b0f0cbd4bfd9c0cd1948ebc363834cadc7e0997f3d7",
+    "headings": [
+      {
+        "level": 1,
+        "id": "rfcnum",
+        "text": "RFC 9111"
+      },
+      {
+        "level": 1,
+        "id": "title",
+        "text": "HTTP Caching"
+      },
+      {
+        "level": 2,
+        "id": "abstract",
+        "text": "Abstract"
+      },
+      {
+        "level": 2,
+        "id": "name-status-of-this-memo",
+        "text": "Status of This Memo"
+      },
+      {
+        "level": 2,
+        "id": "name-copyright-notice",
+        "text": "Copyright Notice"
+      },
+      {
+        "level": 2,
+        "id": "name-table-of-contents",
+        "text": "Table of Contents"
+      },
+      {
+        "level": 2,
+        "id": "name-introduction",
+        "text": "1. Introduction"
+      },
+      {
+        "level": 3,
+        "id": "name-requirements-notation",
+        "text": "1.1. Requirements Notation"
+      },
+      {
+        "level": 3,
+        "id": "name-syntax-notation",
+        "text": "1.2. Syntax Notation"
+      },
+      {
+        "level": 4,
+        "id": "name-imported-rules",
+        "text": "1.2.1. Imported Rules"
+      },
+      {
+        "level": 4,
+        "id": "name-delta-seconds",
+        "text": "1.2.2. Delta Seconds"
+      },
+      {
+        "level": 2,
+        "id": "name-overview-of-cache-operation",
+        "text": "2. Overview of Cache Operation"
+      },
+      {
+        "level": 2,
+        "id": "name-storing-responses-in-caches",
+        "text": "3. Storing Responses in Caches"
+      },
+      {
+        "level": 3,
+        "id": "name-storing-header-and-trailer-",
+        "text": "3.1. Storing Header and Trailer Fields"
+      },
+      {
+        "level": 3,
+        "id": "name-updating-stored-header-fiel",
+        "text": "3.2. Updating Stored Header Fields"
+      },
+      {
+        "level": 3,
+        "id": "name-storing-incomplete-response",
+        "text": "3.3. Storing Incomplete Responses"
+      },
+      {
+        "level": 3,
+        "id": "name-combining-partial-content",
+        "text": "3.4. Combining Partial Content"
+      },
+      {
+        "level": 3,
+        "id": "name-storing-responses-to-authen",
+        "text": "3.5. Storing Responses to Authenticated Requests"
+      },
+      {
+        "level": 2,
+        "id": "name-constructing-responses-from",
+        "text": "4. Constructing Responses from Caches"
+      },
+      {
+        "level": 3,
+        "id": "name-calculating-cache-keys-with",
+        "text": "4.1. Calculating Cache Keys with the Vary Header Field"
+      },
+      {
+        "level": 3,
+        "id": "name-freshness",
+        "text": "4.2. Freshness"
+      },
+      {
+        "level": 4,
+        "id": "name-calculating-freshness-lifet",
+        "text": "4.2.1. Calculating Freshness Lifetime"
+      },
+      {
+        "level": 4,
+        "id": "name-calculating-heuristic-fresh",
+        "text": "4.2.2. Calculating Heuristic Freshness"
+      },
+      {
+        "level": 4,
+        "id": "name-calculating-age",
+        "text": "4.2.3. Calculating Age"
+      },
+      {
+        "level": 4,
+        "id": "name-serving-stale-responses",
+        "text": "4.2.4. Serving Stale Responses"
+      },
+      {
+        "level": 3,
+        "id": "name-validation",
+        "text": "4.3. Validation"
+      },
+      {
+        "level": 4,
+        "id": "name-sending-a-validation-reques",
+        "text": "4.3.1. Sending a Validation Request"
+      },
+      {
+        "level": 4,
+        "id": "name-handling-a-received-validat",
+        "text": "4.3.2. Handling a Received Validation Request"
+      },
+      {
+        "level": 4,
+        "id": "name-handling-a-validation-respo",
+        "text": "4.3.3. Handling a Validation Response"
+      },
+      {
+        "level": 4,
+        "id": "name-freshening-stored-responses",
+        "text": "4.3.4. Freshening Stored Responses upon Validation"
+      },
+      {
+        "level": 4,
+        "id": "name-freshening-responses-with-h",
+        "text": "4.3.5. Freshening Responses with HEAD"
+      },
+      {
+        "level": 3,
+        "id": "name-invalidating-stored-respons",
+        "text": "4.4. Invalidating Stored Responses"
+      },
+      {
+        "level": 2,
+        "id": "name-field-definitions",
+        "text": "5. Field Definitions"
+      },
+      {
+        "level": 3,
+        "id": "name-age",
+        "text": "5.1. Age"
+      },
+      {
+        "level": 3,
+        "id": "name-cache-control",
+        "text": "5.2. Cache-Control"
+      },
+      {
+        "level": 4,
+        "id": "name-request-directives",
+        "text": "5.2.1. Request Directives"
+      },
+      {
+        "level": 5,
+        "id": "name-max-age",
+        "text": "5.2.1.1. max-age"
+      },
+      {
+        "level": 5,
+        "id": "name-max-stale",
+        "text": "5.2.1.2. max-stale"
+      },
+      {
+        "level": 5,
+        "id": "name-min-fresh",
+        "text": "5.2.1.3. min-fresh"
+      },
+      {
+        "level": 5,
+        "id": "name-no-cache",
+        "text": "5.2.1.4. no-cache"
+      },
+      {
+        "level": 5,
+        "id": "name-no-store",
+        "text": "5.2.1.5. no-store"
+      },
+      {
+        "level": 5,
+        "id": "name-no-transform",
+        "text": "5.2.1.6. no-transform"
+      },
+      {
+        "level": 5,
+        "id": "name-only-if-cached",
+        "text": "5.2.1.7. only-if-cached"
+      },
+      {
+        "level": 4,
+        "id": "name-response-directives",
+        "text": "5.2.2. Response Directives"
+      },
+      {
+        "level": 5,
+        "id": "name-max-age-2",
+        "text": "5.2.2.1. max-age"
+      },
+      {
+        "level": 5,
+        "id": "name-must-revalidate",
+        "text": "5.2.2.2. must-revalidate"
+      },
+      {
+        "level": 5,
+        "id": "name-must-understand",
+        "text": "5.2.2.3. must-understand"
+      },
+      {
+        "level": 5,
+        "id": "name-no-cache-2",
+        "text": "5.2.2.4. no-cache"
+      },
+      {
+        "level": 5,
+        "id": "name-no-store-2",
+        "text": "5.2.2.5. no-store"
+      },
+      {
+        "level": 5,
+        "id": "name-no-transform-2",
+        "text": "5.2.2.6. no-transform"
+      },
+      {
+        "level": 5,
+        "id": "name-private",
+        "text": "5.2.2.7. private"
+      },
+      {
+        "level": 5,
+        "id": "name-proxy-revalidate",
+        "text": "5.2.2.8. proxy-revalidate"
+      },
+      {
+        "level": 5,
+        "id": "name-public",
+        "text": "5.2.2.9. public"
+      },
+      {
+        "level": 5,
+        "id": "name-s-maxage",
+        "text": "5.2.2.10. s-maxage"
+      },
+      {
+        "level": 4,
+        "id": "name-extension-directives",
+        "text": "5.2.3. Extension Directives"
+      },
+      {
+        "level": 4,
+        "id": "name-cache-directive-registry",
+        "text": "5.2.4. Cache Directive Registry"
+      },
+      {
+        "level": 3,
+        "id": "name-expires",
+        "text": "5.3. Expires"
+      },
+      {
+        "level": 3,
+        "id": "name-pragma",
+        "text": "5.4. Pragma"
+      },
+      {
+        "level": 3,
+        "id": "name-warning",
+        "text": "5.5. Warning"
+      },
+      {
+        "level": 2,
+        "id": "name-relationship-to-application",
+        "text": "6. Relationship to Applications and Other Caches"
+      },
+      {
+        "level": 2,
+        "id": "name-security-considerations",
+        "text": "7. Security Considerations"
+      },
+      {
+        "level": 3,
+        "id": "name-cache-poisoning",
+        "text": "7.1. Cache Poisoning"
+      },
+      {
+        "level": 3,
+        "id": "name-timing-attacks",
+        "text": "7.2. Timing Attacks"
+      },
+      {
+        "level": 3,
+        "id": "name-caching-of-sensitive-inform",
+        "text": "7.3. Caching of Sensitive Information"
+      },
+      {
+        "level": 2,
+        "id": "name-iana-considerations",
+        "text": "8. IANA Considerations"
+      },
+      {
+        "level": 3,
+        "id": "name-field-name-registration",
+        "text": "8.1. Field Name Registration"
+      },
+      {
+        "level": 3,
+        "id": "name-cache-directive-registratio",
+        "text": "8.2. Cache Directive Registration"
+      },
+      {
+        "level": 3,
+        "id": "name-warn-code-registry",
+        "text": "8.3. Warn Code Registry"
+      },
+      {
+        "level": 2,
+        "id": "name-references",
+        "text": "9. References"
+      },
+      {
+        "level": 3,
+        "id": "name-normative-references",
+        "text": "9.1. Normative References"
+      },
+      {
+        "level": 3,
+        "id": "name-informative-references",
+        "text": "9.2. Informative References"
+      },
+      {
+        "level": 2,
+        "id": "name-collected-abnf",
+        "text": "Appendix A. Collected ABNF"
+      },
+      {
+        "level": 2,
+        "id": "name-changes-from-rfc-7234",
+        "text": "Appendix B. Changes from RFC 7234"
+      },
+      {
+        "level": 2,
+        "id": "name-acknowledgements",
+        "text": "Acknowledgements"
+      },
+      {
+        "level": 2,
+        "id": "name-index",
+        "text": "Index"
+      },
+      {
+        "level": 2,
+        "id": "name-authors-addresses",
+        "text": "Authors' Addresses"
+      }
+    ],
+    "sectionIds": [
+      "section-abstract",
+      "section-boilerplate.1",
+      "section-boilerplate.2",
+      "section-toc.1",
+      "section-1",
+      "section-1.1",
+      "section-1.2",
+      "section-1.2.1",
+      "section-1.2.2",
+      "section-2",
+      "section-3",
+      "section-3.1",
+      "section-3.2",
+      "section-3.3",
+      "section-3.4",
+      "section-3.5",
+      "section-4",
+      "section-4.1",
+      "section-4.2",
+      "section-4.2.1",
+      "section-4.2.2",
+      "section-4.2.3",
+      "section-4.2.4",
+      "section-4.3",
+      "section-4.3.1",
+      "section-4.3.2",
+      "section-4.3.3",
+      "section-4.3.4",
+      "section-4.3.5",
+      "section-4.4",
+      "section-5",
+      "section-5.1",
+      "section-5.2",
+      "section-5.2.1",
+      "section-5.2.1.1",
+      "section-5.2.1.2",
+      "section-5.2.1.3",
+      "section-5.2.1.4",
+      "section-5.2.1.5",
+      "section-5.2.1.6",
+      "section-5.2.1.7",
+      "section-5.2.2",
+      "section-5.2.2.1",
+      "section-5.2.2.2",
+      "section-5.2.2.3",
+      "section-5.2.2.4",
+      "section-5.2.2.5",
+      "section-5.2.2.6",
+      "section-5.2.2.7",
+      "section-5.2.2.8",
+      "section-5.2.2.9",
+      "section-5.2.2.10",
+      "section-5.2.3",
+      "section-5.2.4",
+      "section-5.3",
+      "section-5.4",
+      "section-5.5",
+      "section-6",
+      "section-7",
+      "section-7.1",
+      "section-7.2",
+      "section-7.3",
+      "section-8",
+      "section-8.1",
+      "section-8.2",
+      "section-8.3",
+      "section-9",
+      "section-9.1",
+      "section-9.2",
+      "appendix-A",
+      "appendix-B",
+      "appendix-C",
+      "appendix-D",
+      "appendix-E"
+    ]
+  },
+  "venv": {
+    "url": "https://docs.python.org/3/library/venv.html",
+    "sha256": "3130fd99740814eb62abe1a5b70a390014f0463f6b115c37c65f92be566cdb80",
+    "selector": "section#how-venvs-work",
+    "elementCount": 1,
+    "tableRows": [
+      [
+        "Platform",
+        "Shell",
+        "Command to activate virtual environment"
+      ],
+      [
+        "POSIX",
+        "bash/zsh",
+        "$ source <venv>/bin/activate"
+      ],
+      [
+        "fish",
+        "$ source <venv>/bin/activate.fish"
+      ],
+      [
+        "csh/tcsh",
+        "$ source <venv>/bin/activate.csh"
+      ],
+      [
+        "pwsh",
+        "$ <venv>/bin/Activate.ps1"
+      ],
+      [
+        "Windows",
+        "cmd.exe",
+        "C:\\> <venv>\\Scripts\\activate.bat"
+      ],
+      [
+        "PowerShell",
+        "PS C:\\> <venv>\\Scripts\\Activate.ps1"
+      ]
+    ],
+    "preCount": 0,
+    "plainText": "How venvs work¶ When a Python interpreter is running from a virtual environment, sys.prefix and sys.exec_prefix point to the directories of the virtual environment, whereas sys.base_prefix and sys.base_exec_prefix point to those of the base Python used to create the environment. It is sufficient to check sys.prefix != sys.base_prefix to determine if the current interpreter is running from a virtual environment. A virtual environment may be “activated” using a script in its binary directory (bin on POSIX; Scripts on Windows). This will prepend that directory to your PATH, so that running python will invoke the environment’s Python interpreter and you can run installed scripts without having to use their full path. The invocation of the activation script is platform-specific (<venv> must be replaced by the path to the directory containing the virtual environment): Platform Shell Command to activate virtual environment POSIX bash/zsh $ source <venv>/bin/activate fish $ source <venv>/bin/activate.fish csh/tcsh $ source <venv>/bin/activate.csh pwsh $ <venv>/bin/Activate.ps1 Windows cmd.exe C:\\> <venv>\\Scripts\\activate.bat PowerShell PS C:\\> <venv>\\Scripts\\Activate.ps1 Added in version 3.4: fish and csh activation scripts. Added in version 3.8: PowerShell activation scripts installed under POSIX for PowerShell Core support. You don’t specifically need to activate a virtual environment, as you can just specify the full path to that environment’s Python interpreter when invoking Python. Furthermore, all scripts installed in the environment should be runnable without activating it. In order to achieve this, scripts installed into virtual environments have a “shebang” line which points to the environment’s Python interpreter, #!/<path-to-venv>/bin/python. This means that the script will run with that interpreter regardless of the value of PATH. On Windows, “shebang” line processing is supported if you have the Python install manager installed. Thus, double-clicking an installed script in a Windows Explorer window should run it with the correct interpreter without the environment needing to be activated or on the PATH. When a virtual environment has been activated, the VIRTUAL_ENV environment variable is set to the path of the environment. Since explicitly activating a virtual environment is not required to use it, VIRTUAL_ENV cannot be relied upon to determine whether a virtual environment is being used. Warning Because scripts installed in environments should not expect the environment to be activated, their shebang lines contain the absolute paths to their environment’s interpreters. Because of this, environments are inherently non-portable, in the general case. You should always have a simple means of recreating an environment (for example, if you have a requirements file requirements.txt, you can invoke pip install -r requirements.txt using the environment’s pip to install all of the packages needed by the environment). If for any reason you need to move the environment to a new location, you should recreate it at the desired location and delete the one at the old location. If you move an environment because you moved a parent directory of it, you should recreate the environment in its new location. Otherwise, software installed into the environment may not work as expected. You can deactivate a virtual environment by typing deactivate in your shell. The exact mechanism is platform-specific and is an internal implementation detail (typically, a script or shell function will be used)."
+  }
+}

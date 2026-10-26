@@ -40,7 +40,9 @@ test('legacy v1 credentials/disabled flags are read without moving files or reta
 test('provider-specific credentials are skipped independently and config values are not echoed on error', () => {
   const c = parseConfiguration({});
   const statuses = diagnostics(c, {}).providers;
-  assert.equal(statuses.find(s => s.provider === 'brave').code, 'MISSING_CREDENTIALS');
+  assert.equal(statuses.find(s => s.provider === 'brave').code, 'DISABLED');
+  assert.equal(statuses.find(s => s.provider === 'tavily').code, 'MISSING_CREDENTIALS');
+  assert.equal(statuses.find(s => s.provider === 'firecrawl').code, 'MISSING_CREDENTIALS');
   assert.equal(statuses.find(s => s.provider === 'exa').code, 'MISSING_CREDENTIALS');
   assert.equal(statuses.find(s => s.provider === 'jina').code, 'MISSING_CREDENTIALS');
   assert.throws(() => parseConfiguration({ credentials: { BRAVE_API_KEY: 'SECRET\nvalue' } }), error => !error.message.includes('SECRET'));
@@ -66,4 +68,49 @@ test('bounded private config save rejects expanded JSON before touching the orig
   const before = await readFile(path, 'utf8'); await readConfiguration(path, {});
   await assert.rejects(writePrivateJson(path, config, configurationMaxBytes), { code: 'CONFIG_TOO_LARGE' });
   assert.equal(await readFile(path, 'utf8'), before); await readConfiguration(path, {});
+});
+
+
+test('old official Jina bindings upgrade narrowly in memory without changing private files', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'siftpath-jina-upgrade-')); t.after(() => rm(dir, { recursive: true, force: true }));
+  const path = join(dir, 'config.json');
+  for (const headers of [{}, { Authorization: 'Bearer ${JINA_API_KEY}' }]) {
+    const old = { version: 2, credentials: { JINA_API_KEY: 'saved-jina-test' }, providers: { jina: {
+      enabled: false, timeoutMs: 45000, connection: { transport: 'http', url: 'https://mcp.jina.ai/v1', headers },
+      read: { name: 'read_url', arguments: { question: '$focus', url: '$url' } },
+    } }, routes: { read: 'jina', readFallback: [] } };
+    await writePrivateJson(path, old); const before = await readFile(path, 'utf8');
+    const config = await readConfiguration(path, {});
+    assert.deepEqual(config.providers.jina.read.arguments, { url: '$url', question: '$focus', topk: 3, chunk_size: 250 });
+    assert.equal(config.providers.jina.enabled, false); assert.equal(config.providers.jina.timeoutMs, 45000);
+    assert.deepEqual(config.providers.jina.connection, old.providers.jina.connection);
+    assert.deepEqual(config.credentials, old.credentials); assert.deepEqual(config.routes.readFallback, []);
+    assert.equal(await readFile(path, 'utf8'), before); assert.deepEqual(JSON.parse(before), old);
+    assert.deepEqual(parseConfiguration(config), config);
+  }
+});
+test('custom Jina endpoints, headers, bindings, IDs and explicit snippet choices are never migrated', () => {
+  const original = { connection: { transport: 'http', url: 'https://mcp.jina.ai/v1', headers: {} },
+    read: { name: 'read_url', arguments: { url: '$url', question: '$focus' } } };
+  const cases = [
+    { ...original, connection: { ...original.connection, url: 'https://custom.example/mcp' } },
+    { ...original, connection: { ...original.connection, headers: { 'X-Custom': 'keep' } } },
+    { ...original, read: { ...original.read, name: 'custom_read' } },
+    ...[{ topk: 1, chunk_size: 100 }, { topk: 4 }, { chunk_size: 160 }, { withAllLinks: true }].map(extra =>
+      ({ ...original, read: { ...original.read, arguments: { ...original.read.arguments, ...extra } } })),
+    { ...original, search: { name: 'custom', arguments: {} } },
+  ];
+  for (const candidate of cases) {
+    const before = structuredClone(candidate);
+    assert.deepEqual(parseConfiguration({ providers: { jina: candidate } }).providers.jina.read, candidate.read);
+    assert.deepEqual(candidate, before);
+  }
+  assert.deepEqual(parseConfiguration({ providers: { custom: original } }).providers.custom.read, original.read);
+});
+test('new Jina defaults use the expanded window for authenticated and anonymous presets', async () => {
+  const { providerPresets, anonymousPresets } = await import('../dist/defaults.js');
+  const expected = { url: '$url', question: '$focus', topk: 3, chunk_size: 250 };
+  assert.deepEqual(parseConfiguration({}).providers.jina.read.arguments, expected);
+  assert.deepEqual(providerPresets.jina.read.arguments, expected);
+  assert.deepEqual(anonymousPresets.jina.read.arguments, expected);
 });

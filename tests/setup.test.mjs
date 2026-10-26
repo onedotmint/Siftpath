@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { parseConfiguration, providerStatus } from '../dist/config.js';
 import { providerPresets, anonymousPresets } from '../dist/defaults.js';
 import { runSetupWizard, runQuickSetup, chooseSetupMode } from '../dist/setup-ui.js';
-import { isCancel } from '@clack/prompts';
+import { applyRecommendedRoutes, providerCatalog } from '../dist/setup-plan.js';
+import { isCancel, CANCEL_SYMBOL } from '@clack/prompts';
 
 function prompts({ providers, action = 'keep', key = '', route, test = false, cancelAt } = {}) {
   const calls = [], notices = [];
-  const wrap = (name, handler) => async options => { calls.push({ name, ...options }); return options.message === cancelAt ? Symbol.for('clack:cancel') : handler(options); };
+  const wrap = (name, handler) => async options => { calls.push({ name, ...options }); return options.message === cancelAt ? CANCEL_SYMBOL : handler(options); };
   return { calls, notices, isCancel,
     intro: () => {}, outro: () => {}, cancel: text => notices.push(text),
     log: Object.fromEntries(['info', 'warn', 'error'].map(name => [name, text => notices.push(text)])),
@@ -70,7 +71,7 @@ test('cancel at any stage returns no config and never mutates saved settings', a
     assert.match(p.notices.at(-1), /no changes saved/);
   }
 });
-test('routes prioritize Exa/Jina, retain explicit primary and allow ordered fallback selection', async () => {
+test('advanced routes retain explicit choices and allow ordered fallback selection', async () => {
   const saved = parseConfiguration({ credentials: { BRAVE_API_KEY: 'fixture-b', TAVILY_API_KEY: 'fixture-t' }, providers: {
     brave: providerPresets.brave, tavily: providerPresets.tavily, exa: anonymousPresets.exa, jina: anonymousPresets.jina,
   }, routes: { search: 'brave', read: 'jina', intents: {}, searchFallback: ['tavily', 'exa'] } });
@@ -104,8 +105,9 @@ test('all built-in providers have ready authenticated presets and anonymous mode
   }
   for (const id of ['exa', 'tavily', 'jina', 'firecrawl']) assert.equal(providerStatus(id, parseConfiguration({ providers: { [id]: anonymousPresets[id] } }), {}).code, 'READY');
   assert.equal(anonymousPresets.brave, undefined);
-  assert.equal(parseConfiguration({}).providers.tavily.enabled, false);
-  assert.equal(parseConfiguration({}).providers.firecrawl.enabled, false);
+  for (const id of ['tavily', 'exa', 'jina', 'firecrawl']) assert.equal(parseConfiguration({}).providers[id].enabled, true);
+  assert.equal(parseConfiguration({}).providers.brave.enabled, false);
+  assert.deepEqual(providerCatalog.map(entry => entry.id), ['tavily', 'exa', 'jina', 'firecrawl', 'brave']);
 });
 test('read-only configuration does not invent a usable search route and asks before testing', async () => {
   const p = prompts({ providers: ['firecrawl'], action: 'anonymous', test: true });
@@ -117,7 +119,8 @@ test('read-only configuration does not invent a usable search route and asks bef
 });
 
 test('shared search fallbacks can retain the general primary when semantic search chooses Exa', async () => {
-  const saved = parseConfiguration({ providers: { brave: providerPresets.brave, exa: anonymousPresets.exa }, credentials: { BRAVE_API_KEY: 'fixture-b' } });
+  const saved = parseConfiguration({ providers: { brave: providerPresets.brave, exa: anonymousPresets.exa }, credentials: { BRAVE_API_KEY: 'fixture-b' },
+    routes: { search: 'brave', searchFallback: ['brave', 'exa'] } });
   const p = prompts();
   const result = await runSetupWizard(saved, {}, p);
   assert.equal(result.configuration.routes.search, 'brave'); assert.equal(result.configuration.routes.intents.semantic, 'exa');
@@ -175,11 +178,132 @@ test('quick setup reports nothing usable and never saves a partial configuration
   assert.match(p.notices.join('\n'), /No ready Search or Read connection/);
 });
 
-test('quick setup preselects only services that can work, never a Key-required provider on a fresh install', async () => {
-  const fresh = prompts();
+test('quick setup preselects ready recommended services or Tavily/Jina, never Brave or anonymous credentials', async () => {
+  const fresh = prompts({ key: 'fixture-quick-key' });
   await runQuickSetup(parseConfiguration({}), {}, fresh);
-  assert.deepEqual(fresh.calls.find(call => call.name === 'multiselect').initialValues, ['exa', 'jina']);
+  const picker = fresh.calls.find(call => call.name === 'multiselect');
+  assert.deepEqual(picker.initialValues, ['tavily', 'jina']);
+  assert.deepEqual(picker.options.map(option => option.value), ['tavily', 'exa', 'jina', 'firecrawl']);
+  assert.ok(fresh.calls.filter(call => call.message?.endsWith('credentials')).every(call => call.initialValue === 'key'));
   const configured = prompts();
-  await runQuickSetup(parseConfiguration({ credentials: { BRAVE_API_KEY: 'saved-brave' } }), {}, configured);
-  assert.deepEqual(configured.calls.find(call => call.name === 'multiselect').initialValues, ['brave']);
+  await runQuickSetup(parseConfiguration({ providers: { brave: providerPresets.brave, exa: providerPresets.exa, jina: providerPresets.jina },
+    credentials: { BRAVE_API_KEY: 'fixture-brave', EXA_API_KEY: 'fixture-exa', JINA_API_KEY: 'fixture-jina' } }), {}, configured);
+  assert.deepEqual(configured.calls.find(call => call.name === 'multiselect').initialValues, ['exa', 'jina']);
+  const legacy = prompts({ providers: ['jina'], key: 'fixture-jina' });
+  const result = await runQuickSetup(parseConfiguration({ providers: { brave: providerPresets.brave },
+    credentials: { BRAVE_API_KEY: 'fixture-brave' }, routes: { search: 'brave', intents: { general: 'brave' }, searchFallback: [] } }), {}, legacy);
+  assert.deepEqual(legacy.calls.find(call => call.name === 'multiselect').initialValues, ['tavily', 'jina']);
+  assert.equal(result.configuration.routes.search, 'brave');
+});
+
+
+test('explicit Jina presets use the expanded window while keep preserves custom arguments', async () => {
+  const { applySelection } = await import('../dist/setup-plan.js');
+  const saved = parseConfiguration({ providers: { jina: { ...anonymousPresets.jina,
+    read: { name: 'read_url', arguments: { url: '$url', question: '$focus', topk: 4, chunk_size: 160 } } } } });
+  assert.deepEqual(applySelection(saved, { id: 'jina', mode: 'keep' }).providers.jina.read, saved.providers.jina.read);
+  for (const mode of ['anonymous', 'existing', 'key']) {
+    const next = applySelection(saved, { id: 'jina', mode, key: 'test-only' });
+    assert.deepEqual(next.providers.jina.read.arguments, { url: '$url', question: '$focus', topk: 3, chunk_size: 250 });
+  }
+  assert.equal(saved.providers.jina.read.arguments.topk, 4);
+});
+
+for (const ids of [['tavily'], ['exa'], ['tavily', 'exa'], ['firecrawl'], ['tavily', 'exa', 'jina', 'firecrawl']]) {
+  test(`quick setup supports only configuring ${ids.join('/')} without inventing fallbacks`, async () => {
+    const saved = parseConfiguration({}), before = structuredClone(saved);
+    const p = prompts({ providers: ids, action: 'key', key: 'fixture-partial-key' });
+    const { configuration: next } = await runQuickSetup(saved, {}, p);
+    const search = ids.includes('tavily') ? 'tavily' : ids.includes('exa') ? 'exa' : 'unconfigured';
+    assert.equal(next.routes.search, search);
+    assert.deepEqual(next.routes.intents, search === 'unconfigured' ? {} : {
+      general: search, research: search, semantic: ids.includes('exa') ? 'exa' : search,
+    });
+    assert.equal(next.routes.read, ids.includes('jina') ? 'jina' : ids.includes('firecrawl') ? 'firecrawl' : 'unconfigured');
+    assert.deepEqual(next.routes.searchFallback, []);
+    assert.deepEqual(next.routes.readFallback, []);
+    for (const id of ids) assert.equal(providerStatus(id, next, {}).code, 'READY');
+    assert.deepEqual(saved, before);
+  });
+}
+
+test('quick setup preserves usable custom/Brave routes, all intents, defaultIntent and explicit fallback order', async () => {
+  const saved = parseConfiguration({ credentials: { BRAVE_API_KEY: 'fixture-brave' }, providers: {
+    ...Object.fromEntries(providerCatalog.map(({ id }) => [id, providerPresets[id]])),
+    custom: { enabled: true, connection: { transport: 'http', url: 'https://custom.example/mcp' },
+      search: { name: 'search', arguments: { q: '$query' } }, read: { name: 'read', arguments: { url: '$url' } } },
+    exa: anonymousPresets.exa, jina: anonymousPresets.jina, firecrawl: anonymousPresets.firecrawl,
+  }, routes: { defaultIntent: 'semantic', search: 'custom', read: 'firecrawl',
+    intents: { general: 'brave', research: 'exa', semantic: 'custom' },
+    searchFallback: ['exa', 'brave', 'custom'], readFallback: ['jina', 'custom'] } });
+  const p = prompts({ providers: ['tavily'], action: 'key', key: 'fixture-tavily' });
+  const result = await runQuickSetup(saved, {}, p);
+  assert.deepEqual(result.configuration.routes, saved.routes);
+  assert.deepEqual(result.configuration.providers.custom, saved.providers.custom);
+  const empty = structuredClone(saved); empty.routes.searchFallback = []; empty.routes.readFallback = [];
+  assert.deepEqual(applyRecommendedRoutes(empty, {}).routes.searchFallback, []);
+  assert.deepEqual(applyRecommendedRoutes(empty, {}).routes.readFallback, []);
+});
+
+test('recommendations repair unavailable primaries/intents and prune only unusable explicit fallbacks', () => {
+  const saved = parseConfiguration({ providers: { tavily: anonymousPresets.tavily, exa: anonymousPresets.exa,
+    jina: anonymousPresets.jina, firecrawl: { ...anonymousPresets.firecrawl, enabled: false } },
+    routes: { defaultIntent: 'research', search: 'missing', read: 'firecrawl',
+      intents: { general: 'missing', research: 'exa', semantic: 'missing' },
+      searchFallback: ['missing', 'exa', 'tavily'], readFallback: ['firecrawl', 'jina'] } });
+  const routes = applyRecommendedRoutes(saved, {}).routes;
+  assert.equal(routes.defaultIntent, 'research');
+  assert.equal(routes.search, 'tavily'); assert.equal(routes.read, 'jina');
+  assert.deepEqual(routes.intents, { general: 'tavily', research: 'exa', semantic: 'exa' });
+  assert.deepEqual(routes.searchFallback, ['exa', 'tavily']);
+  assert.deepEqual(routes.readFallback, ['jina']);
+  assert.equal(saved.routes.search, 'missing');
+});
+
+for (const [name, credentials, action, key] of [
+  ['adds', {}, 'key', 'fixture-firecrawl-new'],
+  ['replaces', { FIRECRAWL_API_KEY: 'fixture-firecrawl-old' }, 'key', 'fixture-firecrawl-replacement'],
+  ['keeps on Enter', { FIRECRAWL_API_KEY: 'fixture-firecrawl-old' }, 'key', ''],
+  ['reuses', { FIRECRAWL_API_KEY: 'fixture-firecrawl-old' }, 'existing', ''],
+]) {
+  test(`quick setup ${name} Firecrawl Key using the official authenticated HTTP preset`, async () => {
+    const p = prompts({ providers: ['firecrawl'], action, key });
+    const { configuration: next } = await runQuickSetup(parseConfiguration({ credentials }), {}, p);
+    assert.equal(next.credentials.FIRECRAWL_API_KEY, key || credentials.FIRECRAWL_API_KEY);
+    assert.deepEqual(next.providers.firecrawl.connection, { transport: 'http', url: 'https://mcp.firecrawl.dev/v2/mcp',
+      headers: { Authorization: 'Bearer ${FIRECRAWL_API_KEY}' } });
+    assert.ok(next.providers.firecrawl.read.arguments.objective);
+    for (const secret of [key, credentials.FIRECRAWL_API_KEY].filter(Boolean)) assert.ok(!JSON.stringify(p.notices).includes(secret));
+  });
+}
+
+test('quick setup keeps custom Firecrawl connections and never copies environment Keys into credentials', async () => {
+  const saved = parseConfiguration({ providers: { firecrawl: { ...anonymousPresets.firecrawl,
+    connection: { transport: 'http', url: 'https://custom.example/mcp', headers: {} } } } });
+  const p = prompts({ providers: ['firecrawl'] });
+  const kept = await runQuickSetup(saved, {}, p);
+  assert.deepEqual(kept.configuration.providers.firecrawl, saved.providers.firecrawl);
+  const env = { FIRECRAWL_API_KEY: 'fixture-env-firecrawl' }, existing = prompts({ providers: ['firecrawl'], action: 'existing' });
+  const result = await runQuickSetup(parseConfiguration({}), env, existing);
+  assert.deepEqual(result.configuration.credentials, {});
+  assert.equal(providerStatus('firecrawl', result.configuration, env).code, 'READY');
+  assert.ok(!JSON.stringify(existing.notices).includes(env.FIRECRAWL_API_KEY));
+});
+
+test('quick cancellation after an earlier Key edit discards the whole draft', async () => {
+  const saved = parseConfiguration({}), before = structuredClone(saved);
+  const p = prompts({ providers: ['tavily', 'firecrawl'], action: 'key', key: 'fixture-cancelled' });
+  const select = p.select;
+  p.select = options => options.message === 'Firecrawl credentials' ? Promise.resolve(CANCEL_SYMBOL) : select(options);
+  assert.equal(await runQuickSetup(saved, {}, p), null);
+  assert.deepEqual(saved, before);
+});
+
+test('adding Tavily does not redirect an existing Brave primary through a new general intent', async () => {
+  const saved = parseConfiguration({ providers: { brave: providerPresets.brave }, credentials: { BRAVE_API_KEY: 'fixture-brave' },
+    routes: { search: 'brave', intents: {}, searchFallback: [] } });
+  const { configuration: next } = await runQuickSetup(saved, {}, prompts({ providers: ['tavily'], action: 'key', key: 'fixture-tavily' }));
+  assert.equal(next.routes.search, 'brave');
+  assert.deepEqual(next.routes.intents, { general: 'brave', research: 'tavily', semantic: 'brave' });
+  assert.deepEqual(next.routes.searchFallback, []);
 });

@@ -2,9 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Siftpath } from '../dist/index.js';
 
-async function upstream(t, onCall, { onGet, onDelete } = {}) {
+async function upstream(t, onCall, { onGet, onDelete, onInitialize } = {}) {
   let initializations = 0;
   const server = createServer(async (req, res) => {
     if (req.method === 'GET') { if (onGet) await onGet(req, res); else res.writeHead(405).end(); return; }
@@ -14,7 +18,8 @@ async function upstream(t, onCall, { onGet, onDelete } = {}) {
     const reply = result => { res.writeHead(200, { 'content-type': 'application/json', 'mcp-session-id': `session-${initializations}` }); res.end(JSON.stringify({ jsonrpc: '2.0', id: message.id, result })); };
     if (message.method === 'initialize') {
       initializations++;
-      reply({ protocolVersion: '2025-11-25', serverInfo: { name: 'http-reliability-fixture', version: '1' }, capabilities: { tools: {} } }); return;
+      if (onInitialize) await onInitialize({ req, res, message, reply });
+      else reply({ protocolVersion: '2025-11-25', serverInfo: { name: 'http-reliability-fixture', version: '1' }, capabilities: { tools: {} } }); return;
     }
     if (message.method.startsWith('notifications/')) { res.writeHead(202).end(); return; }
     if (message.method === 'tools/call') { await onCall({ req, res, message, reply }); return; }
@@ -27,6 +32,71 @@ async function upstream(t, onCall, { onGet, onDelete } = {}) {
     routes: { search: 'remote', read: 'remote', intents: {}, searchFallback: [] }, providerTimeoutMs: 2000 };
   return { config, initializations: () => initializations };
 }
+async function eventually(check, message) {
+  const deadline = Date.now() + 5000;
+  while (!await check()) {
+    assert.ok(Date.now() < deadline, message);
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+}
+
+for (const mode of ['cancel', 'total timeout']) test(`HTTP stalled initialize is stopped on ${mode}`, async t => {
+  let started, disconnected = false;
+  const ready = new Promise(resolve => started = resolve);
+  const u = await upstream(t, () => assert.fail('Unexpected tool call'), { onInitialize: ({ res }) => {
+    res.on('close', () => disconnected = true); started();
+  } });
+  const r = new Siftpath({ ...u.config, providerTimeoutMs: 10000, timeoutMs: mode === 'cancel' ? 10000 : 500 }, {});
+  t.after(() => r.close());
+  const controller = new AbortController();
+  const work = assert.rejects(r.search({ query: 'initialize' }, { signal: controller.signal }),
+    error => mode === 'cancel' ? error.code === 'ABORTED' : error.code === 'TIMEOUT');
+  await ready;
+  if (mode === 'cancel') controller.abort();
+  await work;
+  assert.equal(r.clients.connections.size, 0);
+  await eventually(() => disconnected, 'Initialize HTTP request remained open');
+  assert.equal(u.initializations(), 1);
+});
+
+test('one cancelled initialization waiter does not cancel another, and ready connections are reused', async t => {
+  let started, release;
+  const ready = new Promise(resolve => started = resolve), gate = new Promise(resolve => release = resolve);
+  let disconnected = false;
+  const u = await upstream(t, ({ reply }) => reply(result), { onInitialize: async ({ res, reply }) => {
+    res.on('close', () => disconnected = true); started(); await gate;
+    reply({ protocolVersion: '2025-11-25', serverInfo: { name: 'fixture', version: '1' }, capabilities: { tools: {} } });
+  } });
+  const r = new Siftpath(u.config, {}); t.after(() => r.close());
+  const controller = new AbortController();
+  const first = assert.rejects(r.search({ query: 'cancel' }, { signal: controller.signal }), { code: 'ABORTED' });
+  await ready;
+  const second = r.search({ query: 'keep' });
+  controller.abort(); await first;
+  assert.equal(disconnected, false);
+  release(); assert.equal((await second).provider, 'remote');
+  assert.equal((await r.search({ query: 'reuse' })).provider, 'remote');
+  assert.equal(u.initializations(), 1);
+});
+
+test('stdio stalled initialize child exits when its last waiter cancels', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'siftpath-initialize-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const marker = join(directory, 'pid');
+  const r = new Siftpath({ providers: { local: { connection: { transport: 'stdio', command: process.execPath,
+    args: [fileURLToPath(new URL('./fixtures/initialization-mcp.mjs', import.meta.url)), marker], env: {} },
+    search: { name: 'search', arguments: { q: '$query' } } } },
+    routes: { search: 'local', read: 'local', intents: {}, searchFallback: [] }, providerTimeoutMs: 10000 }, {});
+  t.after(() => r.close());
+  const controller = new AbortController();
+  const work = assert.rejects(r.search({ query: 'stall' }, { signal: controller.signal }), { code: 'ABORTED' });
+  let pid;
+  await eventually(async () => { try { pid = Number(await readFile(marker, 'utf8')); return !!pid; } catch { return false; } }, 'Child did not initialize');
+  controller.abort(); await work;
+  assert.equal(r.clients.connections.size, 0);
+  await eventually(() => { try { process.kill(pid, 0); return false; } catch (error) { if (error.code === 'ESRCH') return true; throw error; } }, 'Initialization child remained alive');
+});
+
 const result = { content: [{ type: 'text', text: 'Original result https://example.com' }] };
 
 test('HTTP expired session is discarded so the next operation reconnects', async t => {

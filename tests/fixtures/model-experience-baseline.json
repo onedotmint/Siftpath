@@ -1,0 +1,151 @@
+{
+  "note": "Captured from the dirty-workspace baseline before this change, not git HEAD. Controlled fixtures only; retrievedAt is synthetic for replay.",
+  "results": {
+    "sqlite": [
+      {
+        "provider": "fixture",
+        "tool": "read",
+        "retrievedAt": "2026-10-24T07:50:02.299Z",
+        "url": "https://sqlite.org/foreignkeys.html",
+        "content": "{\"url\":\"https://sqlite.org/foreignkeys.html\",\"snippets\":[\"Foreign key constraints are disabled by default (for backwards compatibility), so must be enabled separately for each database connection.\",\"It is not possible to enable or disable foreign key constraints in the middle of a multi-statement transaction (when SQLite is not in autocommit mode). Attempting to do so does not return an error; it simply has no effect.\"],\"snippet_source\":\"content\",\"reader\":\"controlled-fixture\"}\n\n{\"url\":\"https://sqlite.org/foreignkeys.html\",\"snippets\":[\"Foreign key constraints are disabled by default (for backwards compatibility), so must be enabled separately for each database connection.\",\"It is not possible to enable or disable foreign key constraints in the middle of a multi-statement transaction (when SQLite is not in autocommit mode). Attempting to do so does not return an error; it simply has no effect.\"],\"snippet_source\":\"content\"}",
+        "sources": [
+          {
+            "url": "https://sqlite.org/foreignkeys.html"
+          }
+        ],
+        "truncated": false,
+        "sourcesTruncated": false,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          },
+          {
+            "provider": "fixture",
+            "code": "FOCUS_MAY_OMIT_CONTENT"
+          }
+        ]
+      }
+    ],
+    "rfc": [
+      {
+        "provider": "fixture",
+        "tool": "read",
+        "retrievedAt": "2026-10-24T07:50:02.300Z",
+        "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+        "content": "{\"url\":\"https://www.rfc-editor.org/rfc/rfc9111.html\",\"snippets\":[\"5.2.2.4. no-cache: The no-cache response directive, in its unqualified form (without an argument), indicates that the response MUST NOT be used to satisfy any other request without forwarding it for validation and receiving a successful response.\",\"5.2.1.5. no-store: The no-store request directive indicates that a cache MUST NOT store any part of either this request or any response to it.\"],\"snippet_source\":\"content\",\"reader\":\"controlled-fixture\"}\n\n{\"url\":\"https://www.rfc-editor.org/rfc/rfc9111.html\",\"snippets\":[\"5.2.2.4. no-cache: The no-cache response directive, in its unqualified form (without an argument), indicates that the response MUST NOT be used to satisfy any other request without forwarding it for validation and receiving a successful response.\",\"5.2.1.5. no-store: The no-store request directive indicates that a cache MUST NOT store any part of either this request or any response to it.\"],\"snippet_source\":\"content\"}",
+        "sources": [
+          {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html"
+          }
+        ],
+        "truncated": false,
+        "sourcesTruncated": false,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          },
+          {
+            "provider": "fixture",
+            "code": "FOCUS_MAY_OMIT_CONTENT"
+          }
+        ]
+      },
+      {
+        "provider": "fixture",
+        "tool": "read",
+        "retrievedAt": "2026-10-24T07:50:02.300Z",
+        "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+        "content": "{\"url\":\"https://www.rfc-editor.org/rfc/rfc9111.html\",\"snippets\":[\"5.2.2.5. no-store: The no-store response directive indicates that a cache MUST NOT store any part of either the immediate request or the response and MUST NOT use the response to satisfy any other request.\",\"This directive applies to both private and shared caches. \\\"MUST NOT store\\\" in this context means that the cache MUST NOT intentionally store the information in non-volatile storage and MUST make a best-effort attempt to remove the information from volatile storage as promptly as possible after forwarding it.\",\"This directive is not a reliable or sufficient mechanism for ensuring privacy. In particular, malicious or compromised caches might not recognize or obey this directive, and communications networks might be vulnerable to eavesdropping.\",\"Note that the must-understand cache directive overrides no-store in certain circumstances; see Section 5.2.2.3.\"],\"snippet_source\":\"content\",\"reader\":\"controlled-fixture\"}\n\n{\"url\":\"https://www.rfc-editor.org/rfc/rfc9111.html\",\"snippets\":[\"5.2.2.5. no-store: The no-store response directive indicates that a cache MUST NOT store any part of either the immediate request or the response and MUST NOT use the response to satisfy any other request.\",\"This directive applies to both private and shared caches. \\\"MUST NOT store\\\" in this context means that the cache MUST NOT intentionally store the information in non-volatile storage and MUST make a best-effort attempt to remove the information from volatile storage as promptly as possible after forwarding it.\",\"This directive is not a reliable or sufficient mechanism for ensuring privacy. In particular, malicious or compromised caches might not recognize or obey this directive, and communications networks might be vulnerable to eavesdropping.\",\"Note that the must-understand cache directive overrides no-store in certain circumstances; see Section 5.2.2.3.\"],\"snippet_source\":\"content\"}",
+        "sources": [
+          {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html"
+          }
+        ],
+        "truncated": false,
+        "sourcesTruncated": false,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          },
+          {
+            "provider": "fixture",
+            "code": "FOCUS_MAY_OMIT_CONTENT"
+          }
+        ]
+      }
+    ],
+    "long-spec": [
+      {
+        "provider": "fixture",
+        "tool": "read",
+        "retrievedAt": "2026-10-24T07:50:02.300Z",
+        "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+        "content": "{\"url\":\"https://www.rfc-editor.org/rfc/rfc9111.html\",\"content\":\"RFC 9111 HTTP Caching\\nAbstract\\nThis document defines HTTP caches and the associated header fields that control cache behavior or indicate cacheable response messages.\\n4. Constructing Responses from Caches\\n6. Relationship to Applications and Other Caches\",\"snippet_source\":\"full_content\",\"reader\":\"controlled-fixture\"}\n\n{\"url\":\"https://www.rfc-editor.org/rfc/rfc9111.html\",\"content\":\"RFC 9111 HTTP Caching\\nAbstract\\nThis document defines HTTP caches and the associated header fields that control cache behavior or indicate cacheable response messages.\\n4. Constructing Responses from Caches\\n6. Relationship to Applications and Other Caches\",\"snippet_source\":\"full_content\"}",
+        "sources": [
+          {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html"
+          }
+        ],
+        "truncated": false,
+        "sourcesTruncated": false,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          },
+          {
+            "provider": "fixture",
+            "code": "FOCUS_MAY_OMIT_CONTENT"
+          }
+        ]
+      }
+    ],
+    "code-table": [
+      {
+        "provider": "fixture",
+        "tool": "read",
+        "retrievedAt": "2026-10-24T07:50:02.300Z",
+        "url": "https://example.com/client-v9.7",
+        "content": "{\"url\":\"https://example.com/client-v9.7\",\"snippets\":[\"Client v9.7\\n```js\\nconnect({ retries: 0, mode: \\\"safe\\\" });\\n```\\nModes (selected rows):\\n| Mode | Deferred writes |\\n| safe | no |\"],\"snippet_source\":\"content\",\"reader\":\"controlled-fixture\"}\n\n{\"url\":\"https://example.com/client-v9.7\",\"snippets\":[\"Client v9.7\\n```js\\nconnect({ retries: 0, mode: \\\"safe\\\" });\\n```\\nModes (selected rows):\\n| Mode | Deferred writes |\\n| safe | no |\"],\"snippet_source\":\"content\"}",
+        "sources": [
+          {
+            "url": "https://example.com/client-v9.7"
+          }
+        ],
+        "truncated": false,
+        "sourcesTruncated": false,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          },
+          {
+            "provider": "fixture",
+            "code": "FOCUS_MAY_OMIT_CONTENT"
+          }
+        ]
+      },
+      {
+        "provider": "fixture",
+        "tool": "read",
+        "retrievedAt": "2026-10-24T07:50:02.300Z",
+        "url": "https://example.com/client-v9.7",
+        "content": "{\"url\":\"https://example.com/client-v9.7\",\"markdown\":\"Client v9.7\\n```js\\nconnect({ retries: 0, mode: \\\"safe\\\" });\\n```\\nretries: 0 disables retries; it does not mean unlimited retries.\\nComplete supported modes table for v9.7:\\n| Mode | Deferred writes |\\n| safe | no |\\n| buffered | yes |\\n| audit | no |\",\"reader\":\"controlled-fixture\"}\n\n{\"url\":\"https://example.com/client-v9.7\",\"markdown\":\"Client v9.7\\n```js\\nconnect({ retries: 0, mode: \\\"safe\\\" });\\n```\\nretries: 0 disables retries; it does not mean unlimited retries.\\nComplete supported modes table for v9.7:\\n| Mode | Deferred writes |\\n| safe | no |\\n| buffered | yes |\\n| audit | no |\"}",
+        "sources": [
+          {
+            "url": "https://example.com/client-v9.7"
+          }
+        ],
+        "truncated": false,
+        "sourcesTruncated": false,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          },
+          {
+            "provider": "fixture",
+            "code": "FOCUS_MAY_OMIT_CONTENT"
+          }
+        ]
+      }
+    ]
+  }
+}

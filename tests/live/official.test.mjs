@@ -12,7 +12,7 @@ for (const id of ['brave', 'exa', 'jina']) {
     { skip: !enabled ? 'Set SIFTPATH_LIVE=1 to allow network/quota usage.' : id === 'brave' && !key ? 'BRAVE_API_KEY is absent; no real Brave search verified.' : false, timeout: 90000 }, async t => {
       const defaults = parseConfiguration({});
       const provider = key ? defaults.providers[id] : anonymous[id];
-      const r = new Siftpath({ providers: { [id]: provider }, providerTimeoutMs: 60000, timeoutMs: 80000,
+      const r = new Siftpath({ providers: { [id]: { ...provider, enabled: true } }, providerTimeoutMs: 60000, timeoutMs: 80000,
         routes: { search: id, read: id, intents: {}, searchFallback: [], readFallback: [] } });
       t.after(() => r.close());
       const result = id === 'jina' ? await r.read({ url: 'https://example.com', ...(key ? { focus: 'What is this domain for?' } : {}) })

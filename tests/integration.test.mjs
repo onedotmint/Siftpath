@@ -51,11 +51,23 @@ test('real stdio MCP client sees only two tools and exercises search/read/errors
   assert.deepEqual(tools.map(tool => tool.name), ['web_search', 'web_read']);
   assert.ok(tools.every(tool => tool.inputSchema.additionalProperties === false));
   assert.ok(!JSON.stringify(tools).match(/apiKey|providerTimeout|baseUrl/));
+  assert.match(tools.find(tool => tool.name === 'web_search').description, /excerpts/);
+  const readTool = tools.find(tool => tool.name === 'web_read');
+  assert.match(readTool.description, /narrower focus/);
+  assert.match(readTool.description, /stop when sufficient/);
+  assert.match(readTool.description, /truncated=false.*page completeness/);
+  assert.equal(readTool.inputSchema.properties.mode, undefined);
+  assert.equal(readTool.inputSchema.properties.reader.type, 'string');
+  assert.match(readTool.description, /unfetched links/);
+  assert.match(readTool.inputSchema.properties.focus.description, /conditions/);
+  assert.ok(tools.every(tool => /truncated.*local output clipping/.test(tool.description)));
   const search = await client.callTool({ name: 'web_search', arguments: { query: 'actual MCP protocol', maxResults: 1 } });
   assert.equal(search.isError, false); assert.equal(JSON.parse(search.content[0].text).provider, 'brave');
   assert.ok(JSON.parse(search.content[0].text).sources.length);
   const read = await client.callTool({ name: 'web_read', arguments: { url: 'https://example.com', focus: 'page title' } });
-  assert.match(JSON.parse(read.content[0].text).content, /page title/);
+  const readResult = JSON.parse(read.content[0].text);
+  assert.match(readResult.content, /page title/);
+  assert.ok(readResult.warnings.some(w => w.code === 'FOCUS_MAY_OMIT_CONTENT'));
   for (const params of [{ name: 'web_search', arguments: { query: '', apiKey: 'secret' } }, { name: 'web_read', arguments: { url: 'file:///etc/passwd' } }, { name: 'web_gather', arguments: { query: 'x' } }]) {
     const error = await client.callTool(params); assert.equal(error.isError, true);
     assert.ok(['INVALID_INPUT', 'UNKNOWN_TOOL'].includes(JSON.parse(error.content[0].text).code));

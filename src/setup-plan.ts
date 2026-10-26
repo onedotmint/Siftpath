@@ -7,13 +7,13 @@ export interface ProviderInfo {
 }
 export type CredentialMode = 'keep' | 'existing' | 'key' | 'anonymous';
 
-/** Order is the recommendation order for the quick path: Tavily/Exa first, Jina for reading. */
+/** Quick recommendation order: Tavily/Exa search, Jina/Firecrawl read; Brave stays advanced-only. */
 export const providerCatalog: ProviderInfo[] = [
-  { id: 'tavily', label: 'Tavily', hint: 'Web search; API Key or official keyless mode', key: 'TAVILY_API_KEY', search: true, read: false, anonymous: true },
-  { id: 'exa', label: 'Exa', hint: 'Semantic web search; official anonymous access supported', key: 'EXA_API_KEY', search: true, read: false, anonymous: true },
-  { id: 'brave', label: 'Brave', hint: 'General web search; API Key required', key: 'BRAVE_API_KEY', search: true, read: false, anonymous: false },
-  { id: 'jina', label: 'Jina', hint: 'Web reading with native focus; API Key or official anonymous access', key: 'JINA_API_KEY', search: false, read: true, anonymous: true },
-  { id: 'firecrawl', label: 'Firecrawl', hint: 'Optional complex page reading; API Key or official anonymous access', key: 'FIRECRAWL_API_KEY', search: false, read: true, anonymous: true },
+  { id: 'tavily', label: 'Tavily', hint: 'Default general/research search; API Key recommended', key: 'TAVILY_API_KEY', search: true, read: false, anonymous: true },
+  { id: 'exa', label: 'Exa', hint: 'Semantic search; API Key recommended', key: 'EXA_API_KEY', search: true, read: false, anonymous: true },
+  { id: 'jina', label: 'Jina', hint: 'Default webpage reader with native focus; API Key recommended', key: 'JINA_API_KEY', search: false, read: true, anonymous: true },
+  { id: 'firecrawl', label: 'Firecrawl', hint: 'Explicit reader: web_read({ url, reader: "firecrawl" }); API Key recommended', key: 'FIRECRAWL_API_KEY', search: false, read: true, anonymous: true },
+  { id: 'brave', label: 'Brave', hint: 'Advanced optional general search; API Key required', key: 'BRAVE_API_KEY', search: true, read: false, anonymous: false },
 ];
 const preferred = { search: ['tavily', 'exa', 'brave'], read: ['jina', 'firecrawl'] } as const;
 export function providerInfo(id: string): ProviderInfo | undefined { return providerCatalog.find(entry => entry.id === id); }
@@ -45,17 +45,19 @@ export function disableProvider(config: Configuration, id: string): Configuratio
   if (next.providers[id]) next.providers[id]!.enabled = false;
   return next;
 }
-/** Recommended routes for the quick path: no fallback questions, remaining ready providers stay as ordered fallbacks. */
+/** Fill only unusable routes; explicit ready routes and fallback order belong to the user. */
 export function applyRecommendedRoutes(config: Configuration, env: NodeJS.ProcessEnv): Configuration {
   const next = structuredClone(config), searched = readyFor(next, env, 'search'), read = readyFor(next, env, 'read'), routes = next.routes;
+  if (!searched.includes(routes.search)) routes.search = searched[0] ?? 'unconfigured';
   if (searched.length) {
-    routes.search = searched[0]!;
-    routes.defaultIntent = 'general';
-    routes.intents = { general: routes.search,
-      ...(searched.includes('exa') ? { semantic: 'exa' } : {}), ...(searched.includes('tavily') ? { research: 'tavily' } : {}) };
-    routes.searchFallback = searched.slice(1);
-  } else { routes.search = 'unconfigured'; routes.intents = {}; routes.searchFallback = []; }
-  if (read.length) { routes.read = read[0]!; routes.readFallback = read.slice(1); }
-  else { routes.read = 'unconfigured'; routes.readFallback = []; }
+    for (const intent of ['general', 'research', 'semantic'] as const) {
+      if (searched.includes(routes.intents[intent] ?? '')) continue;
+      const preferred = intent === 'general' ? routes.search : intent === 'semantic' ? 'exa' : 'tavily';
+      routes.intents[intent] = searched.includes(preferred) ? preferred : routes.search;
+    }
+  } else routes.intents = {};
+  if (!read.includes(routes.read)) routes.read = read[0] ?? 'unconfigured';
+  routes.searchFallback = routes.searchFallback.filter(id => searched.includes(id));
+  routes.readFallback = routes.readFallback.filter(id => read.includes(id));
   return next;
 }

@@ -14,6 +14,9 @@ export function mapArguments(template: Binding['arguments'], input: Record<strin
   };
   return map(template) as Record<string, unknown>;
 }
+function mapsFocus(value: unknown): boolean {
+  return value === '$focus' || !!value && typeof value === 'object' && Object.values(value).some(mapsFocus);
+}
 export class Siftpath {
   readonly configuration: Configuration;
   private clients: McpClients;
@@ -44,8 +47,10 @@ export class Siftpath {
   private async attempt(kind: 'search' | 'read', input: Record<string, unknown>, caller?: AbortSignal): Promise<WebResult> {
     const c = this.configuration, routes = c.routes, deadline = AbortSignal.timeout(c.timeoutMs);
     const signal = AbortSignal.any([deadline, this.shutdown.signal, ...(caller ? [caller] : [])]);
-    const primary = kind === 'search' ? routes.intents[input.intent as keyof typeof routes.intents] ?? routes.search : routes.read;
-    const order = [...new Set([primary, ...routes[kind === 'search' ? 'searchFallback' : 'readFallback']])];
+    const explicit = kind === 'read' && typeof input.reader === 'string';
+    const primary = explicit ? input.reader as string
+      : kind === 'search' ? routes.intents[input.intent as keyof typeof routes.intents] ?? routes.search : routes.read;
+    const order = explicit ? [primary] : [...new Set([primary, ...routes[kind === 'search' ? 'searchFallback' : 'readFallback']])];
     const diagnostics: Diagnostic[] = [];
     const cancelled = () => {
       if (this.shutdown.signal.aborted) throw new SiftpathError('CLOSED', 'Siftpath has been closed.');
@@ -57,6 +62,9 @@ export class Siftpath {
       const status = providerStatus(id, c, this.env), provider = c.providers[id], binding = provider?.[kind];
       if (status.code !== 'READY') { diagnostics.push(status); continue; }
       if (!binding) { diagnostics.push({ provider: id, code: 'UNSUPPORTED_OPERATION' }); continue; }
+      if (kind === 'read' && input.focus && !mapsFocus(binding.arguments)) {
+        diagnostics.push({ provider: id, code: 'FOCUS_UNSUPPORTED' }); continue;
+      }
       const attempt = AbortSignal.timeout(provider!.timeoutMs ?? c.providerTimeoutMs);
       try {
         const effective = { ...input };
@@ -66,7 +74,7 @@ export class Siftpath {
         cancelled();
         const warnings: WebResult['warnings'] = [];
         if (raised) warnings.push({ provider: id, code: 'MAX_RESULTS_RAISED' });
-        if (kind === 'read' && input.focus && !JSON.stringify(binding.arguments).includes('"$focus"')) warnings.push({ provider: id, code: 'FOCUS_UNSUPPORTED' });
+        if (kind === 'read' && input.focus) warnings.push({ provider: id, code: 'FOCUS_MAY_OMIT_CONTENT' });
         warnings.push(...diagnostics.map(({ provider, code }) => ({ provider, code })));
         return normalize(raw, id, binding.name, c.maxOutputChars, kind === 'read' ? String(input.url) : undefined, warnings);
       } catch (error) {
@@ -76,6 +84,7 @@ export class Siftpath {
       }
     }
     cancelled();
-    throw new SiftpathError('NO_PROVIDER_SUCCEEDED', 'No official MCP succeeded. Run siftpath doctor and check credentials, tool names and connectivity.', diagnostics);
+    const code = diagnostics.length === 1 && (explicit || diagnostics[0]!.code === 'FOCUS_UNSUPPORTED') ? diagnostics[0]!.code : 'NO_PROVIDER_SUCCEEDED';
+    throw new SiftpathError(code, 'No configured provider could serve this request. Check status, credentials and the requested capability.', diagnostics);
   }
 }

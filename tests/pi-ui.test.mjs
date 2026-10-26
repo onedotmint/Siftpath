@@ -6,11 +6,11 @@ import { join } from 'node:path';
 import { CancellableLoader, visibleWidth } from '@earendil-works/pi-tui';
 import extension, { validateSecret } from '../extensions/siftpath.mjs';
 import { parseConfiguration } from '../dist/config.js';
-import { anonymousPresets } from '../dist/defaults.js';
+import { anonymousPresets, providerPresets } from '../dist/defaults.js';
 
 const theme = { fg: (_color, text) => `\x1b[36m${text}\x1b[0m` };
 const ready = () => parseConfiguration({ providers: { exa: anonymousPresets.exa, tavily: anonymousPresets.tavily, jina: anonymousPresets.jina },
-  routes: { search: 'exa', read: 'jina', intents: { general: 'exa' } } });
+  routes: { search: 'exa', read: 'jina', intents: { general: 'exa', semantic: 'exa', research: 'tavily' } } });
 const status = () => ({ version: '2.0.0', ok: true, configPath: '/tmp/中文配置.json', nextStep: '测试连接',
   routes: ready().routes, providers: ['exa', 'tavily', 'jina'].map(provider => ({ provider, code: 'READY', operations: ['search'], lastTest: null })) });
 
@@ -209,3 +209,112 @@ test('successful test closes and disposes its loader before presenting results',
   assert.equal(app.screens[0].intervalId, null);
   assert.match(app.screens[1].render(80).join('\n'), /exa: PASSED/);
 });
+
+const searchCombination = 'Tavily (tavily) + Exa (exa)（推荐组合）';
+const readCombination = 'Jina (jina) + Firecrawl (firecrawl)（推荐组合）';
+
+test('Pi quick configures both recommended search/read pairs without saving environment Keys or adding fallbacks', async t => {
+  const path = await isolated(t, parseConfiguration({}));
+  for (const id of ['TAVILY', 'EXA', 'JINA', 'FIRECRAWL']) process.env[id + '_API_KEY'] = 'fixture-env-' + id;
+  const app = harness({ answers: [['Siftpath', '快速配置'], ['用哪个服务搜索', searchCombination], ['用哪个服务阅读', readCombination],
+    ...['Tavily', 'Exa', 'Jina', 'Firecrawl'].map(label => [label + ' 凭据', '继续使用现有 API Key（环境或本地）'])] });
+  await app.run('');
+  const saved = JSON.parse(await readFile(path, 'utf8'));
+  assert.deepEqual(saved.credentials, {});
+  assert.equal(saved.routes.search, 'tavily'); assert.equal(saved.routes.read, 'jina');
+  assert.deepEqual(saved.routes.intents, { general: 'tavily', research: 'tavily', semantic: 'exa' });
+  assert.deepEqual(saved.routes.searchFallback, []); assert.deepEqual(saved.routes.readFallback, []);
+  assert.deepEqual(saved.providers.firecrawl.connection, providerPresets.firecrawl.connection);
+  assert.ok(saved.providers.firecrawl.read.arguments.objective);
+  const search = app.prompts.find(prompt => prompt.title.startsWith('用哪个服务搜索'));
+  assert.deepEqual(search.options, [searchCombination, 'Tavily (tavily)', 'Exa (exa)', '保持现有搜索']);
+  assert.deepEqual(app.prompts.find(prompt => prompt.title.startsWith('用哪个服务阅读')).options,
+    [readCombination, 'Jina (jina)', 'Firecrawl (firecrawl)', '保持现有阅读']);
+  assert.match(app.confirmations[0].message, /reader: "firecrawl"/);
+  assert.match(app.confirmations[0].message, /显式指定不使用后备/);
+  assert.ok(!JSON.stringify([app.notices, app.confirmations]).includes('fixture-env-'));
+  assert.ok(app.calls.every(call => call.args[0] === 'status'));
+});
+
+for (const id of ['tavily', 'exa']) {
+  test(`Pi quick supports only ${id} and fills research/semantic routes`, async t => {
+    const path = await isolated(t, parseConfiguration({}));
+    const label = id === 'tavily' ? 'Tavily' : 'Exa';
+    const app = harness({ answers: [['Siftpath', '快速配置'], ['用哪个服务搜索', `${label} (${id})`], ['用哪个服务阅读', '保持现有阅读'],
+      [label + ' 凭据', '输入 API Key']], drivers: [component => { component.handleInput('fixture-single-key'); component.handleInput('\r'); }] });
+    await app.run('');
+    const saved = JSON.parse(await readFile(path, 'utf8'));
+    assert.equal(saved.routes.search, id); assert.equal(saved.routes.read, 'unconfigured');
+    assert.deepEqual(saved.routes.intents, { general: id, research: id, semantic: id });
+    assert.deepEqual(saved.routes.searchFallback, []); assert.deepEqual(saved.routes.readFallback, []);
+  });
+}
+
+test('Pi quick can skip individual services in either combination', async t => {
+  const path = await isolated(t, parseConfiguration({}));
+  const app = harness({ answers: [['Siftpath', '快速配置'], ['用哪个服务搜索', searchCombination], ['用哪个服务阅读', readCombination],
+    ['Tavily 凭据', '暂不配置此服务'], ['Exa 凭据', '输入 API Key'],
+    ['Jina 凭据', '暂不配置此服务'], ['Firecrawl 凭据', '暂不配置此服务']],
+    drivers: [component => { component.handleInput('fixture-exa-only'); component.handleInput('\r'); }] });
+  await app.run('');
+  const saved = JSON.parse(await readFile(path, 'utf8'));
+  assert.equal(saved.routes.search, 'exa'); assert.equal(saved.routes.read, 'unconfigured');
+  assert.deepEqual(saved.credentials, { EXA_API_KEY: 'fixture-exa-only' });
+});
+
+test('Pi quick preserves ready primaries, intents, defaultIntent, custom connections and explicit fallbacks', async t => {
+  const initial = ready();
+  initial.providers.brave = providerPresets.brave; initial.credentials.BRAVE_API_KEY = 'fixture-brave';
+  initial.providers.firecrawl = anonymousPresets.firecrawl;
+  initial.providers.custom = { enabled: true, connection: { transport: 'http', url: 'https://custom.example/mcp', headers: {} },
+    read: { name: 'read', arguments: { url: '$url' } } };
+  initial.routes = { defaultIntent: 'research', search: 'brave', read: 'custom',
+    intents: { general: 'brave', semantic: 'tavily', research: 'exa' }, searchFallback: ['exa', 'brave', 'tavily'], readFallback: ['firecrawl', 'jina'] };
+  const path = await isolated(t, initial);
+  const app = harness({ answers: [['Siftpath', '快速配置'], ['用哪个服务搜索', 'Tavily (tavily)'], ['用哪个服务阅读', '保持现有阅读'],
+    ['Tavily 凭据', '保留当前连接']] });
+  await app.run('');
+  const saved = JSON.parse(await readFile(path, 'utf8'));
+  assert.deepEqual(saved.routes, initial.routes);
+  assert.deepEqual(saved.providers.custom, initial.providers.custom);
+});
+
+for (const [name, action, input, expected] of [
+  ['adds', '输入 API Key', 'fixture-firecrawl-new', 'fixture-firecrawl-new'],
+  ['replaces', '输入新的 API Key（替换现有）', 'fixture-firecrawl-replacement', 'fixture-firecrawl-replacement'],
+  ['keeps on Enter', '输入新的 API Key（替换现有）', '', 'fixture-firecrawl-old'],
+  ['keeps connection', '保留当前连接', undefined, 'fixture-firecrawl-old'],
+]) {
+  test(`Pi quick ${name} Firecrawl Key without exposing it`, async t => {
+    const initial = ready();
+    initial.providers.firecrawl = providerPresets.firecrawl;
+    if (name !== 'adds') initial.credentials.FIRECRAWL_API_KEY = 'fixture-firecrawl-old';
+    const path = await isolated(t, initial);
+    const app = harness({ answers: [['Siftpath', '快速配置'], ['用哪个服务搜索', '保持现有搜索'], ['用哪个服务阅读', 'Firecrawl (firecrawl)'],
+      ['Firecrawl 凭据', action]], drivers: input === undefined ? [] : [component => {
+        component.handleInput(input); assert.ok(!component.render(100).join('\n').includes('fixture-firecrawl-')); component.handleInput('\r');
+      }] });
+    await app.run('');
+    const saved = JSON.parse(await readFile(path, 'utf8'));
+    assert.equal(saved.credentials.FIRECRAWL_API_KEY, expected);
+    assert.deepEqual(saved.providers.firecrawl.connection, { transport: 'http', url: 'https://mcp.firecrawl.dev/v2/mcp',
+      headers: { Authorization: 'Bearer ${FIRECRAWL_API_KEY}' } });
+    assert.ok(saved.providers.firecrawl.read.arguments.objective);
+    assert.deepEqual(saved.routes, initial.routes);
+    assert.ok(!JSON.stringify([app.notices, app.confirmations]).includes(expected));
+  });
+}
+
+for (const stage of ['用哪个服务搜索', '用哪个服务阅读', 'Firecrawl 凭据']) {
+  test(`Pi quick cancellation at ${stage} saves no partial combination or Key`, async t => {
+    const path = await isolated(t), before = await readFile(path, 'utf8');
+    const answers = [['Siftpath', '快速配置'], ['用哪个服务搜索', searchCombination], ['用哪个服务阅读', readCombination],
+      ['Tavily 凭据', '保留当前连接'], ['Exa 凭据', '保留当前连接'], ['Jina 凭据', '保留当前连接'], ['Firecrawl 凭据', '输入 API Key']];
+    const index = answers.findIndex(([title]) => title === stage);
+    answers[index][1] = undefined; answers.splice(index + 1);
+    const app = harness({ answers });
+    await app.run('');
+    assert.equal(await readFile(path, 'utf8'), before);
+    assert.equal(app.confirmations.length, 0);
+  });
+}

@@ -1,0 +1,1258 @@
+{
+  "capturedAt": "2026-10-24T12:28:15.775Z",
+  "model": "deepseek/deepseek-flash",
+  "maxModelRequests": 24,
+  "maxReaderCalls": 18,
+  "artifactDirectory": "/tmp/siftpath-dual-live-ggSGQX",
+  "measuredToolOutputTokens": null,
+  "note": "Real Pi and providers; one sample per cell, not a deterministic recall benchmark or causal proof. Whole-request usage is not isolated tool tokens. Costs may be absent or configured as zero.",
+  "runs": [
+    {
+      "case": "simple",
+      "variant": "before",
+      "url": "https://sqlite.org/foreignkeys.html",
+      "processExit": 0,
+      "stopReason": "stop",
+      "model": "deepseek/deepseek-flash",
+      "elapsedMs": 7893,
+      "calls": [
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://sqlite.org/foreignkeys.html",
+          "focus": "Is foreign key enforcement disabled by default and must be enabled separately for each database connection? Quote the exact original sentence."
+        }
+      ],
+      "modelRequests": 2,
+      "blockedModelEvents": [],
+      "native": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://sqlite.org/foreignkeys.html",
+            "question": "Is foreign key enforcement disabled by default and must be enabled separately for each database connection? Quote the exact original sentence.",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        }
+      ],
+      "rawEvidence": [
+        {
+          "provider": "jina",
+          "bodyChars": 5395,
+          "reportedCreditsUsed": null,
+          "nativeSnippetMarker": "content"
+        }
+      ],
+      "providerEvents": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://sqlite.org/foreignkeys.html",
+            "question": "Is foreign key enforcement disabled by default and must be enabled separately for each database connection? Quote the exact original sentence.",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "completed": 1,
+          "provider": "jina",
+          "elapsedMs": 3649,
+          "rawChars": 5793,
+          "isError": false
+        }
+      ],
+      "outputs": [
+        {
+          "toolCallId": "call_00_ET_Qxcq5tVEFA5GoGCOGe3G2561|682deef0-fd8a-4780-ba20-5d2f630c5557",
+          "isError": false,
+          "outputChars": 6088,
+          "provider": "jina",
+          "truncated": false,
+          "warnings": [
+            {
+              "code": "UNTRUSTED_WEB_CONTENT"
+            },
+            {
+              "provider": "jina",
+              "code": "FOCUS_MAY_OMIT_CONTENT"
+            }
+          ],
+          "bodyChars": 5395,
+          "sources": [
+            {
+              "url": "https://sqlite.org/foreignkeys.html"
+            }
+          ]
+        }
+      ],
+      "usage": [
+        {
+          "input": 1007,
+          "output": 102,
+          "cacheRead": 256,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 1365,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 1505,
+          "output": 146,
+          "cacheRead": 1280,
+          "cacheWrite": 0,
+          "reasoning": 12,
+          "totalTokens": 2931,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        }
+      ],
+      "answer": "Yes. According to the official SQLite documentation, foreign key enforcement is off by default and must be turned on for each connection.\n\nSupporting original sentence:\n\n> \"Foreign key constraints are disabled by default (for backwards compatibility), so must be enabled separately for each database connection.\"\n\nThe page explains this in Section 2, \"Enabling Foreign Key Support,\" noting that the application enables enforcement at runtime with `PRAGMA foreign_keys = ON;`. It also adds that future releases might change the default, so developers should explicitly enable or disable foreign keys rather than assume.\n\nSource: [SQLite Foreign Key Support](https://sqlite.org/foreignkeys.html)",
+      "modelError": null,
+      "measuredUsage": {
+        "input": 2512,
+        "output": 248,
+        "cacheRead": 1536,
+        "cacheWrite": 0,
+        "totalTokens": 4296
+      },
+      "totalToolOutputChars": 6088,
+      "rawEvidenceChecks": {
+        "perConnection": true
+      }
+    },
+    {
+      "case": "simple",
+      "variant": "after",
+      "url": "https://sqlite.org/foreignkeys.html",
+      "processExit": 0,
+      "stopReason": "stop",
+      "model": "deepseek/deepseek-flash",
+      "elapsedMs": 6271,
+      "calls": [
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://sqlite.org/foreignkeys.html",
+          "focus": "foreign key enforcement enabled separately for each database connection, per-connection setting, PRAGMA foreign_keys"
+        }
+      ],
+      "modelRequests": 2,
+      "blockedModelEvents": [],
+      "native": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://sqlite.org/foreignkeys.html",
+            "question": "foreign key enforcement enabled separately for each database connection, per-connection setting, PRAGMA foreign_keys",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        }
+      ],
+      "rawEvidence": [
+        {
+          "provider": "jina",
+          "bodyChars": 5395,
+          "reportedCreditsUsed": null,
+          "nativeSnippetMarker": "content"
+        }
+      ],
+      "providerEvents": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://sqlite.org/foreignkeys.html",
+            "question": "foreign key enforcement enabled separately for each database connection, per-connection setting, PRAGMA foreign_keys",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "completed": 1,
+          "provider": "jina",
+          "elapsedMs": 3359,
+          "rawChars": 5767,
+          "isError": false
+        }
+      ],
+      "outputs": [
+        {
+          "toolCallId": "call_00_ET_YcIOs24I1eEQe0DdN4vU4713|71e8e89e-a494-4f34-b84a-eb96eec35fff",
+          "isError": false,
+          "outputChars": 6062,
+          "provider": "jina",
+          "truncated": false,
+          "warnings": [
+            {
+              "code": "UNTRUSTED_WEB_CONTENT"
+            },
+            {
+              "provider": "jina",
+              "code": "FOCUS_MAY_OMIT_CONTENT"
+            }
+          ],
+          "bodyChars": 5395,
+          "sources": [
+            {
+              "url": "https://sqlite.org/foreignkeys.html"
+            }
+          ]
+        }
+      ],
+      "usage": [
+        {
+          "input": 1104,
+          "output": 88,
+          "cacheRead": 256,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 1448,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 1458,
+          "output": 94,
+          "cacheRead": 1408,
+          "cacheWrite": 0,
+          "reasoning": 4,
+          "totalTokens": 2960,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        }
+      ],
+      "answer": "Yes. SQLite disables foreign key enforcement by default, so it must be turned on at runtime for each connection.\n\nSupporting original sentence from Section 2, “Enabling Foreign Key Support”:\n\n> “Foreign key constraints are disabled by default (for backwards compatibility), so must be enabled separately for each database connection.”\n\nSource: [SQLite Foreign Key Support](https://sqlite.org/foreignkeys.html) (Section 2).",
+      "modelError": null,
+      "measuredUsage": {
+        "input": 2562,
+        "output": 182,
+        "cacheRead": 1664,
+        "cacheWrite": 0,
+        "totalTokens": 4408
+      },
+      "totalToolOutputChars": 6062,
+      "rawEvidenceChecks": {
+        "perConnection": true
+      }
+    },
+    {
+      "case": "conditions",
+      "variant": "after",
+      "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+      "processExit": 87,
+      "stopReason": "toolUse",
+      "model": "deepseek/deepseek-flash",
+      "elapsedMs": 21950,
+      "calls": [
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+          "focus": "no-cache and no-store response directives: validation, private vs shared caches, non-volatile storage, volatile storage, privacy; request directives"
+        },
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+          "focus": "Section 5.2.2.4 no-cache response directive MUST NOT reuse without validation; Section 5.2.2.5 no-store response directive MUST NOT store any part and MUST NOT store in non-volatile storage; Section 5.2.1.5 no-store request directive"
+        },
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+          "mode": "document"
+        },
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+          "focus": "\"The no-store response directive indicates that a cache MUST NOT store any part of either the immediate request or the response\" and \"MUST NOT use a stored response to satisfy\" no-cache response directive exact wording"
+        }
+      ],
+      "modelRequests": 4,
+      "blockedModelEvents": [
+        {
+          "blocked": "tool-cap"
+        }
+      ],
+      "native": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+            "question": "no-cache and no-store response directives: validation, private vs shared caches, non-volatile storage, volatile storage, privacy; request directives",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "request": 2,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+            "question": "Section 5.2.2.4 no-cache response directive MUST NOT reuse without validation; Section 5.2.2.5 no-store response directive MUST NOT store any part and MUST NOT store in non-volatile storage; Section 5.2.1.5 no-store request directive",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "request": 3,
+          "provider": "firecrawl",
+          "tool": "firecrawl_scrape",
+          "arguments": {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+            "formats": [
+              "markdown"
+            ],
+            "onlyMainContent": true,
+            "objective": "Read the supplied public webpage as Markdown."
+          }
+        }
+      ],
+      "rawEvidence": [
+        {
+          "provider": "jina",
+          "bodyChars": 4236,
+          "reportedCreditsUsed": null,
+          "nativeSnippetMarker": "content"
+        },
+        {
+          "provider": "jina",
+          "bodyChars": 4267,
+          "reportedCreditsUsed": null,
+          "nativeSnippetMarker": "content"
+        },
+        {
+          "provider": "firecrawl",
+          "bodyChars": 133247,
+          "reportedCreditsUsed": 1,
+          "nativeSnippetMarker": null
+        }
+      ],
+      "providerEvents": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+            "question": "no-cache and no-store response directives: validation, private vs shared caches, non-volatile storage, volatile storage, privacy; request directives",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "completed": 1,
+          "provider": "jina",
+          "elapsedMs": 5148,
+          "rawChars": 4670,
+          "isError": false
+        },
+        {
+          "request": 2,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+            "question": "Section 5.2.2.4 no-cache response directive MUST NOT reuse without validation; Section 5.2.2.5 no-store response directive MUST NOT store any part and MUST NOT store in non-volatile storage; Section 5.2.1.5 no-store request directive",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "completed": 2,
+          "provider": "jina",
+          "elapsedMs": 1850,
+          "rawChars": 4755,
+          "isError": false
+        },
+        {
+          "request": 3,
+          "provider": "firecrawl",
+          "tool": "firecrawl_scrape",
+          "arguments": {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+            "formats": [
+              "markdown"
+            ],
+            "onlyMainContent": true,
+            "objective": "Read the supplied public webpage as Markdown."
+          }
+        },
+        {
+          "completed": 3,
+          "provider": "firecrawl",
+          "elapsedMs": 8137,
+          "rawChars": 276898,
+          "isError": false
+        }
+      ],
+      "outputs": [
+        {
+          "toolCallId": "call_00_ET_4ah4n9llTC4U13TVzMKL0713|b35cd9c0-f276-4085-9d2e-e36a2e61400c",
+          "isError": false,
+          "outputChars": 4981,
+          "provider": "jina",
+          "truncated": false,
+          "warnings": [
+            {
+              "code": "UNTRUSTED_WEB_CONTENT"
+            },
+            {
+              "provider": "jina",
+              "code": "FOCUS_MAY_OMIT_CONTENT"
+            }
+          ],
+          "bodyChars": 4236,
+          "sources": [
+            {
+              "url": "https://www.rfc-editor.org/rfc/rfc9111.html"
+            }
+          ]
+        },
+        {
+          "toolCallId": "call_00_Cc312pra4u6zc8QebNUK6569|ddfbd09c-fb84-4816-8053-f7f942e19866",
+          "isError": false,
+          "outputChars": 5066,
+          "provider": "jina",
+          "truncated": false,
+          "warnings": [
+            {
+              "code": "UNTRUSTED_WEB_CONTENT"
+            },
+            {
+              "provider": "jina",
+              "code": "FOCUS_MAY_OMIT_CONTENT"
+            }
+          ],
+          "bodyChars": 4267,
+          "sources": [
+            {
+              "url": "https://www.rfc-editor.org/rfc/rfc9111.html"
+            }
+          ]
+        },
+        {
+          "toolCallId": "call_00_PS6fvbdaJkzc5ZyoGHds8005|74ef3b3d-fcdc-421c-8507-89a8b70bcec1",
+          "isError": false,
+          "outputChars": 16000,
+          "provider": "firecrawl",
+          "truncated": true,
+          "warnings": [
+            {
+              "code": "UNTRUSTED_WEB_CONTENT"
+            }
+          ],
+          "bodyChars": 14805,
+          "sources": [
+            {
+              "url": "https://www.rfc-editor.org/rfc/rfc9111.html"
+            },
+            {
+              "url": "https://www.rfc-editor.org/rfc/rfc9111.html#name-calculating-cache-keys-with-",
+              "title": "RFC 9111: HTTP Caching"
+            }
+          ]
+        }
+      ],
+      "usage": [
+        {
+          "input": 1145,
+          "output": 113,
+          "cacheRead": 256,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 1514,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 1634,
+          "output": 184,
+          "cacheRead": 1408,
+          "cacheWrite": 0,
+          "reasoning": 36,
+          "totalTokens": 3226,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 1562,
+          "output": 109,
+          "cacheRead": 3200,
+          "cacheWrite": 0,
+          "reasoning": 19,
+          "totalTokens": 4871,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 4884,
+          "output": 257,
+          "cacheRead": 4864,
+          "cacheWrite": 0,
+          "reasoning": 120,
+          "totalTokens": 10005,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        }
+      ],
+      "answer": "",
+      "modelError": null,
+      "measuredUsage": {
+        "input": 9225,
+        "output": 663,
+        "cacheRead": 9728,
+        "cacheWrite": 0,
+        "totalTokens": 19616
+      },
+      "totalToolOutputChars": 26047,
+      "rawEvidenceChecks": {
+        "noCacheResponse": true,
+        "noStoreResponse": true,
+        "storageConditions": true
+      },
+      "documentEvidence": {
+        "rawHasNoStoreResponse": true,
+        "outputHasNoStoreResponse": false,
+        "rawChars": 133247,
+        "outputChars": 14805,
+        "truncated": true
+      }
+    },
+    {
+      "case": "conditions",
+      "variant": "before",
+      "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+      "processExit": 87,
+      "stopReason": "toolUse",
+      "model": "deepseek/deepseek-flash",
+      "elapsedMs": 13176,
+      "calls": [
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+          "focus": "Response directive no-cache: must not be used to satisfy a subsequent request without successful validation; private vs shared cache; field names qualification. Response directive no-store: MUST NOT store any part of request or response in non-volatile storage, MUST make best effort to remove from volatile storage; does not guarantee privacy. Request directives no-cache and no-store wording."
+        },
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+          "focus": "Section 5.2.1 request directives no-cache and no-store: exact paragraph wording including \"MUST NOT use a stored response\" and \"MUST NOT store any part of this request or any response to it\". Section 5.2.2.4 response no-cache: unqualified, field-name forms, \"MUST NOT use ... without successful validation\". Section 5.2.2.5 response no-store exact text about non-volatile storage and volatile storage best effort."
+        },
+        {
+          "name": "mcp__siftpath__web_read",
+          "focus": "The no-store response directive paragraph beginning \"The no-store response directive indicates that a cache MUST NOT store any part of either the immediate request or the response\" and the following sentences about non-volatile storage and volatile storage. Also the no-cache response directive paragraph beginning \"The no-cache response directive, in its unqualified form\".",
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html#name-no-store"
+        },
+        {
+          "name": "mcp__siftpath__web_read",
+          "focus": "Find the text of section 5.2.2.5 no-store: \"The no-store response directive indicates that a cache MUST NOT store any part of either the immediate request or the response and MUST NOT use the response to satisfy any other request.\" Include the next sentences: \"This directive applies to both private and shared caches. 'MUST NOT store' in this context means that the cache MUST NOT intentionally store the information in non-volatile storage and MUST make a best-effort attempt to remove the information from volatile storage as promptly as possible after forwarding it.\" Also section 5.2.2.4 no-cache unqualified form.",
+          "url": "https://www.rfc-editor.org/rfc/rfc9111.html"
+        }
+      ],
+      "modelRequests": 4,
+      "blockedModelEvents": [
+        {
+          "blocked": "scope",
+          "tool": "mcp__siftpath__web_read"
+        },
+        {
+          "blocked": "tool-cap"
+        }
+      ],
+      "native": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+            "question": "Response directive no-cache: must not be used to satisfy a subsequent request without successful validation; private vs shared cache; field names qualification. Response directive no-store: MUST NOT store any part of request or response in non-volatile storage, MUST make best effort to remove from volatile storage; does not guarantee privacy. Request directives no-cache and no-store wording.",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "request": 2,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+            "question": "Section 5.2.1 request directives no-cache and no-store: exact paragraph wording including \"MUST NOT use a stored response\" and \"MUST NOT store any part of this request or any response to it\". Section 5.2.2.4 response no-cache: unqualified, field-name forms, \"MUST NOT use ... without successful validation\". Section 5.2.2.5 response no-store exact text about non-volatile storage and volatile storage best effort.",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        }
+      ],
+      "rawEvidence": [
+        {
+          "provider": "jina",
+          "bodyChars": 5318,
+          "reportedCreditsUsed": null,
+          "nativeSnippetMarker": "content"
+        },
+        {
+          "provider": "jina",
+          "bodyChars": 4267,
+          "reportedCreditsUsed": null,
+          "nativeSnippetMarker": "content"
+        }
+      ],
+      "providerEvents": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+            "question": "Response directive no-cache: must not be used to satisfy a subsequent request without successful validation; private vs shared cache; field names qualification. Response directive no-store: MUST NOT store any part of request or response in non-volatile storage, MUST make best effort to remove from volatile storage; does not guarantee privacy. Request directives no-cache and no-store wording.",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "completed": 1,
+          "provider": "jina",
+          "elapsedMs": 3177,
+          "rawChars": 6003,
+          "isError": false
+        },
+        {
+          "request": 2,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://www.rfc-editor.org/rfc/rfc9111.html",
+            "question": "Section 5.2.1 request directives no-cache and no-store: exact paragraph wording including \"MUST NOT use a stored response\" and \"MUST NOT store any part of this request or any response to it\". Section 5.2.2.4 response no-cache: unqualified, field-name forms, \"MUST NOT use ... without successful validation\". Section 5.2.2.5 response no-store exact text about non-volatile storage and volatile storage best effort.",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "completed": 2,
+          "provider": "jina",
+          "elapsedMs": 1373,
+          "rawChars": 4949,
+          "isError": false
+        }
+      ],
+      "outputs": [
+        {
+          "toolCallId": "call_00_ET_iQOtHyFkAJTGBwT7gJvM1948|6bbbcd33-ade0-480c-82aa-1677153430ec",
+          "isError": false,
+          "outputChars": 6314,
+          "provider": "jina",
+          "truncated": false,
+          "warnings": [
+            {
+              "code": "UNTRUSTED_WEB_CONTENT"
+            },
+            {
+              "provider": "jina",
+              "code": "FOCUS_MAY_OMIT_CONTENT"
+            }
+          ],
+          "bodyChars": 5318,
+          "sources": [
+            {
+              "url": "https://www.rfc-editor.org/rfc/rfc9111.html"
+            }
+          ]
+        },
+        {
+          "toolCallId": "call_00_hkqZm9ikP4HQYbpcM29S2377|46275dbc-d009-4142-9133-40ea0dbb0bda",
+          "isError": false,
+          "outputChars": 5260,
+          "provider": "jina",
+          "truncated": false,
+          "warnings": [
+            {
+              "code": "UNTRUSTED_WEB_CONTENT"
+            },
+            {
+              "provider": "jina",
+              "code": "FOCUS_MAY_OMIT_CONTENT"
+            }
+          ],
+          "bodyChars": 4267,
+          "sources": [
+            {
+              "url": "https://www.rfc-editor.org/rfc/rfc9111.html"
+            }
+          ]
+        },
+        {
+          "toolCallId": "call_00_FSHG5tVT7WR5iYfEo6A82606|02ff80e8-4db2-476b-998e-42b81ca01a5b",
+          "isError": true,
+          "outputChars": 82,
+          "bodyChars": null
+        }
+      ],
+      "usage": [
+        {
+          "input": 1048,
+          "output": 155,
+          "cacheRead": 256,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 1459,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 1703,
+          "output": 236,
+          "cacheRead": 1408,
+          "cacheWrite": 0,
+          "reasoning": 42,
+          "totalTokens": 3347,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 1603,
+          "output": 304,
+          "cacheRead": 3328,
+          "cacheWrite": 0,
+          "reasoning": 137,
+          "totalTokens": 5235,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 142,
+          "output": 245,
+          "cacheRead": 5120,
+          "cacheWrite": 0,
+          "reasoning": 40,
+          "totalTokens": 5507,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        }
+      ],
+      "answer": "",
+      "modelError": null,
+      "measuredUsage": {
+        "input": 4496,
+        "output": 940,
+        "cacheRead": 10112,
+        "cacheWrite": 0,
+        "totalTokens": 15548
+      },
+      "totalToolOutputChars": 11656,
+      "rawEvidenceChecks": {
+        "noCacheResponse": false,
+        "noStoreResponse": false,
+        "storageConditions": false
+      }
+    },
+    {
+      "case": "table",
+      "variant": "before",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+      "processExit": 0,
+      "stopReason": "stop",
+      "model": "deepseek/deepseek-flash",
+      "elapsedMs": 11722,
+      "calls": [
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+          "focus": "HTTP method table rows for GET, POST, DELETE with Safe, Idempotent, Cacheable columns; condition/note attached to POST and PATCH cacheability"
+        },
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+          "focus": "Footnote or note explaining the asterisk / Conditional cacheability for POST and PATCH, including exact wording about explicit freshness information and Content-Location"
+        }
+      ],
+      "modelRequests": 3,
+      "blockedModelEvents": [],
+      "native": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+            "question": "HTTP method table rows for GET, POST, DELETE with Safe, Idempotent, Cacheable columns; condition/note attached to POST and PATCH cacheability",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "request": 2,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+            "question": "Footnote or note explaining the asterisk / Conditional cacheability for POST and PATCH, including exact wording about explicit freshness information and Content-Location",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        }
+      ],
+      "rawEvidence": [
+        {
+          "provider": "jina",
+          "bodyChars": 3572,
+          "reportedCreditsUsed": null,
+          "nativeSnippetMarker": "content"
+        },
+        {
+          "provider": "jina",
+          "bodyChars": 2939,
+          "reportedCreditsUsed": null,
+          "nativeSnippetMarker": "content"
+        }
+      ],
+      "providerEvents": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+            "question": "HTTP method table rows for GET, POST, DELETE with Safe, Idempotent, Cacheable columns; condition/note attached to POST and PATCH cacheability",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "completed": 1,
+          "provider": "jina",
+          "elapsedMs": 3709,
+          "rawChars": 3977,
+          "isError": false
+        },
+        {
+          "request": 2,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+            "question": "Footnote or note explaining the asterisk / Conditional cacheability for POST and PATCH, including exact wording about explicit freshness information and Content-Location",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "completed": 2,
+          "provider": "jina",
+          "elapsedMs": 1295,
+          "rawChars": 3369,
+          "isError": false
+        }
+      ],
+      "outputs": [
+        {
+          "toolCallId": "call_00_ET_iB9VTAWxZn3bzuVpUdjw4009|fbe0d27b-e27e-441c-a5a6-761c12039c72",
+          "isError": false,
+          "outputChars": 4336,
+          "provider": "jina",
+          "truncated": false,
+          "warnings": [
+            {
+              "code": "UNTRUSTED_WEB_CONTENT"
+            },
+            {
+              "provider": "jina",
+              "code": "FOCUS_MAY_OMIT_CONTENT"
+            }
+          ],
+          "bodyChars": 3572,
+          "sources": [
+            {
+              "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods"
+            }
+          ]
+        },
+        {
+          "toolCallId": "call_00_vSHqo8BpwuJLyypJsVC60644|796ec606-eeca-482d-8fab-db610748b278",
+          "isError": false,
+          "outputChars": 3728,
+          "provider": "jina",
+          "truncated": false,
+          "warnings": [
+            {
+              "code": "UNTRUSTED_WEB_CONTENT"
+            },
+            {
+              "provider": "jina",
+              "code": "FOCUS_MAY_OMIT_CONTENT"
+            }
+          ],
+          "bodyChars": 2939,
+          "sources": [
+            {
+              "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods"
+            }
+          ]
+        }
+      ],
+      "usage": [
+        {
+          "input": 1039,
+          "output": 109,
+          "cacheRead": 256,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 1404,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 1275,
+          "output": 134,
+          "cacheRead": 1280,
+          "cacheWrite": 0,
+          "reasoning": 30,
+          "totalTokens": 2689,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 1358,
+          "output": 285,
+          "cacheRead": 2688,
+          "cacheWrite": 0,
+          "reasoning": 106,
+          "totalTokens": 4331,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        }
+      ],
+      "answer": "According to MDN’s table on the cited page:\n\n| Method | Safe | Idempotent | Cacheable |\n|---|---|---|---|\n| `GET` | Yes | Yes | Yes |\n| `POST` | No | No | Conditional* |\n| `DELETE` | No | Yes | No |\n\nThe table’s asterisk note states:\n\n> “`POST` and `PATCH` are cacheable when responses explicitly include freshness information and a matching `Content-Location` header.”\n\nThus, POST is neither safe nor idempotent and only conditionally cacheable; DELETE is not safe, is idempotent, and is not cacheable; GET is safe, idempotent, and cacheable.\n\nSource: [MDN Web Docs — HTTP request methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods)",
+      "modelError": null,
+      "measuredUsage": {
+        "input": 3672,
+        "output": 528,
+        "cacheRead": 4224,
+        "cacheWrite": 0,
+        "totalTokens": 8424
+      },
+      "totalToolOutputChars": 8064,
+      "rawEvidenceChecks": {
+        "getRow": true,
+        "postRow": true,
+        "deleteRow": true,
+        "footnote": true
+      }
+    },
+    {
+      "case": "table",
+      "variant": "after",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+      "processExit": 0,
+      "stopReason": "stop",
+      "model": "deepseek/deepseek-flash",
+      "elapsedMs": 13448,
+      "calls": [
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+          "focus": "HTTP method table: GET, POST, DELETE Safe, Idempotent, Cacheable columns; POST/PATCH cacheability condition and exact wording"
+        },
+        {
+          "name": "mcp__siftpath__web_read",
+          "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+          "focus": "Exact footnote below the table explaining Conditional* for POST and PATCH cacheability, including freshness information and Content-Location"
+        }
+      ],
+      "modelRequests": 3,
+      "blockedModelEvents": [],
+      "native": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+            "question": "HTTP method table: GET, POST, DELETE Safe, Idempotent, Cacheable columns; POST/PATCH cacheability condition and exact wording",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "request": 2,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+            "question": "Exact footnote below the table explaining Conditional* for POST and PATCH cacheability, including freshness information and Content-Location",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        }
+      ],
+      "rawEvidence": [
+        {
+          "provider": "jina",
+          "bodyChars": 3572,
+          "reportedCreditsUsed": null,
+          "nativeSnippetMarker": "content"
+        },
+        {
+          "provider": "jina",
+          "bodyChars": 2311,
+          "reportedCreditsUsed": null,
+          "nativeSnippetMarker": "content"
+        }
+      ],
+      "providerEvents": [
+        {
+          "request": 1,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+            "question": "HTTP method table: GET, POST, DELETE Safe, Idempotent, Cacheable columns; POST/PATCH cacheability condition and exact wording",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "completed": 1,
+          "provider": "jina",
+          "elapsedMs": 4965,
+          "rawChars": 3965,
+          "isError": false
+        },
+        {
+          "request": 2,
+          "provider": "jina",
+          "tool": "read_url",
+          "arguments": {
+            "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods",
+            "question": "Exact footnote below the table explaining Conditional* for POST and PATCH cacheability, including freshness information and Content-Location",
+            "topk": 3,
+            "chunk_size": 250
+          }
+        },
+        {
+          "completed": 2,
+          "provider": "jina",
+          "elapsedMs": 2340,
+          "rawChars": 2698,
+          "isError": false
+        }
+      ],
+      "outputs": [
+        {
+          "toolCallId": "call_00_ET_MkhCVlNAXx3D0ZPNTnKM5150|4e5a17f7-b66e-4fb9-9773-4154ceeb52e4",
+          "isError": false,
+          "outputChars": 4324,
+          "provider": "jina",
+          "truncated": false,
+          "warnings": [
+            {
+              "code": "UNTRUSTED_WEB_CONTENT"
+            },
+            {
+              "provider": "jina",
+              "code": "FOCUS_MAY_OMIT_CONTENT"
+            }
+          ],
+          "bodyChars": 3572,
+          "sources": [
+            {
+              "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods"
+            }
+          ]
+        },
+        {
+          "toolCallId": "call_00_EK3FtAVKgWl6YlhFQQd81556|663f426a-1c46-46ac-985c-99624a5eb16d",
+          "isError": false,
+          "outputChars": 3057,
+          "provider": "jina",
+          "truncated": false,
+          "warnings": [
+            {
+              "code": "UNTRUSTED_WEB_CONTENT"
+            },
+            {
+              "provider": "jina",
+              "code": "FOCUS_MAY_OMIT_CONTENT"
+            }
+          ],
+          "bodyChars": 2311,
+          "sources": [
+            {
+              "url": "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods"
+            }
+          ]
+        }
+      ],
+      "usage": [
+        {
+          "input": 1136,
+          "output": 120,
+          "cacheRead": 256,
+          "cacheWrite": 0,
+          "reasoning": 0,
+          "totalTokens": 1512,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 1253,
+          "output": 161,
+          "cacheRead": 1408,
+          "cacheWrite": 0,
+          "reasoning": 44,
+          "totalTokens": 2822,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        {
+          "input": 847,
+          "output": 282,
+          "cacheRead": 2816,
+          "cacheWrite": 0,
+          "reasoning": 92,
+          "totalTokens": 3945,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        }
+      ],
+      "answer": "Verified against MDN’s official HTTP request methods page:\n\n| Method | Safe | Idempotent | Cacheable |\n|---|---|---|---|\n| `GET` | Yes | Yes | Yes |\n| `POST` | No | No | Conditional* |\n| `DELETE` | No | Yes | No |\n\nThe table marks both `POST` and `PATCH` as “Conditional*” for cacheability. MDN’s footnote states:\n\n> “`POST` and `PATCH` are cacheable when responses explicitly include freshness information and a matching `Content-Location` header.”\n\nThus, for `POST`, cacheability is not unconditional: the response must explicitly provide freshness information and a matching `Content-Location` header. `DELETE` remains non-cacheable in the table.\n\nSource: [MDN — HTTP request methods](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Methods)",
+      "modelError": null,
+      "measuredUsage": {
+        "input": 3236,
+        "output": 563,
+        "cacheRead": 4480,
+        "cacheWrite": 0,
+        "totalTokens": 8279
+      },
+      "totalToolOutputChars": 7381,
+      "rawEvidenceChecks": {
+        "getRow": true,
+        "postRow": true,
+        "deleteRow": true,
+        "footnote": true
+      }
+    }
+  ],
+  "decision": {
+    "status": "reverted",
+    "productionModeAvailable": false,
+    "reason": "Explicit selection worked, but no completed-answer or request-count benefit in this small acceptance. RFC document evidence was fetched but locally clipped; table task already succeeded with Jina.",
+    "prototypePatch": "tests/fixtures/dual-reader-prototype.patch",
+    "candidateOfflineTests": "tests/experiments/dual-reader.test.mjs",
+    "caveats": [
+      "One sample per cell; model/provider/caching variation is uncontrolled.",
+      "The baseline RFC attempt with a same-page URL fragment was blocked by an overly strict test URL guard, weakening the comparison. No quota-consuming rerun was made.",
+      "Fourth tool calls were proposed by the model but stopped before execution. No completed RFC answer; cannot grade its correctness.",
+      "The table answer was already supported by Jina flattened rows plus a targeted footnote followup; not selecting Firecrawl was not a factual error.",
+      "Exact isolated tool-output tokens are unavailable; whole-request usage includes system/tool declarations and retransmission.",
+      "This is not proof that dual-reader is universally useless or that new mode caused regression."
+    ]
+  },
+  "totals": {
+    "sessions": 6,
+    "modelRequests": 18,
+    "readerCalls": 11,
+    "jinaReads": 10,
+    "firecrawlReads": 1,
+    "reportedFirecrawlCredits": 1,
+    "jinaBillingKnown": false,
+    "modelCurrencyChargeKnown": false
+  }
+}

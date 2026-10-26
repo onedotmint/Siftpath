@@ -42,11 +42,13 @@ test('native read focus passes unchanged and original requested URL is retained'
   const result = await r.read({ url, focus: 'what changed?' });
   assert.equal(result.provider, 'jina'); assert.equal(result.url, url); assert.equal(result.sources[0].url, url);
   assert.match(result.content, /what changed\?/); assert.ok(result.retrievedAt);
+  assert.ok(result.warnings.some(w => w.provider === 'jina' && w.code === 'FOCUS_MAY_OMIT_CONTENT'));
 });
 test('unsupported native focus is explicit and never implements local extraction', async t => {
   const jina = provider(); delete jina.read.arguments.question;
   const r = await router(t, config({ jina }));
-  assert.ok((await r.read({ url: 'https://example.com', focus: 'x' })).warnings.some(w => w.code === 'FOCUS_UNSUPPORTED'));
+  await assert.rejects(r.read({ url: 'https://example.com', focus: 'x' }), error => error.code === 'FOCUS_UNSUPPORTED' && error.diagnostics[0].code === 'FOCUS_UNSUPPORTED');
+  assert.equal(r.clients.connections.size, 0);
 });
 for (const failing of ['fail', 'secret', 'empty', 'malformed', 'slow']) test(`sequential fallback after ${failing}, with sanitized errors`, async t => {
   const r = await router(t, config({ brave: { ...provider(failing), timeoutMs: failing === 'slow' ? 1000 : 5000 }, exa: provider() }));
@@ -135,14 +137,14 @@ test('simultaneous operations share initialization and closing aborts pending wo
 
 test('read failure uses its own fallback chain without calling a search provider', async t => {
   const failedReader = provider(); failedReader.read.name = 'fail';
-  const backup = provider(); delete backup.read.arguments.question;
+  const backup = provider();
   const r = await router(t, config({ jina: failedReader, backup, brave: provider() }, {
     routes: { ...config().routes, readFallback: ['backup'] },
   }));
   const result = await r.read({ url: 'https://example.com/page', focus: 'native focus' });
   assert.equal(result.provider, 'backup'); assert.equal(result.url, 'https://example.com/page');
   assert.ok(result.warnings.some(w => w.provider === 'jina' && w.code === 'UPSTREAM_ERROR'));
-  assert.ok(result.warnings.some(w => w.code === 'FOCUS_UNSUPPORTED'));
+  assert.ok(result.warnings.some(w => w.code === 'FOCUS_MAY_OMIT_CONTENT'));
   assert.ok(!r.clients.connections.has('brave'));
 });
 
@@ -197,4 +199,44 @@ test('retiring a router after a configuration change lets in-flight calls finish
   assert.equal(result.provider, 'brave');
   await new Promise(resolve => setTimeout(resolve, 50));
   await assert.rejects(r.search({ query: 'after retirement' }), { code: 'CLOSED' });
+});
+
+test('focused excerpts stay unchanged and warn about incompleteness without hidden rereads', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'siftpath-focus-')); t.after(() => rm(dir, { recursive: true, force: true }));
+  const log = join(dir, 'calls.jsonl');
+  const content = 'url: https://sqlite.org/foreignkeys.html\nquestion: Per-connection setting and transaction behavior?\nsnippets:\n  - "Foreign keys must be enabled separately for each database connection."\nsnippet_source: content\n';
+  const r = await router(t, config({ jina: provider('search', { MOCK_LOG: log, MOCK_READ_CONTENT: JSON.stringify(content) }) }, { maxOutputChars: 2000 }));
+  const result = await r.read({ url: 'https://sqlite.org/foreignkeys.html', focus: 'Per-connection setting and transaction behavior?' });
+  assert.equal(result.content, content); assert.equal(result.truncated, false);
+  assert.ok(JSON.stringify(result).length <= 2000);
+  assert.ok(result.warnings.some(w => w.provider === 'jina' && w.code === 'FOCUS_MAY_OMIT_CONTENT'));
+  const calls = (await readFile(log, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(calls.length, 1); assert.equal(calls[0].args.question, 'Per-connection setting and transaction behavior?');
+  const plain = await r.read({ url: 'https://sqlite.org/foreignkeys.html' });
+  assert.ok(!plain.warnings.some(w => w.code === 'FOCUS_MAY_OMIT_CONTENT'));
+  assert.equal((await readFile(log, 'utf8')).trim().split('\n').length, 2);
+});
+
+test('retrievedAt uses the local clock, not a date reported by the provider', t => {
+  const now = Date.parse('2026-10-23T12:15:43.000Z');
+  t.mock.timers.enable({ apis: ['Date'], now });
+  const content = 'URL: https://example.com\nPublished: 2009-10-14';
+  const result = normalize({ content: [{ type: 'text', text: content }] }, 'fixture', 'search', 2000);
+  assert.equal(result.retrievedAt, new Date(now).toISOString());
+  assert.equal(result.content, content); assert.equal(result.truncated, false);
+});
+
+
+test('Jina preset constants reach the provider in one call with and without focus', async t => {
+  const { providerPresets } = await import('../dist/defaults.js');
+  const dir = await mkdtemp(join(tmpdir(), 'siftpath-jina-window-')); t.after(() => rm(dir, { recursive: true, force: true }));
+  const log = join(dir, 'calls.jsonl'), jina = provider('search', { MOCK_LOG: log });
+  jina.read = { ...providerPresets.jina.read, name: 'read' };
+  const r = await router(t, config({ jina }));
+  await r.read({ url: 'https://example.com', focus: 'multiple facts' });
+  await r.read({ url: 'https://example.com' });
+  const calls = (await readFile(log, 'utf8')).trim().split('\n').map(line => JSON.parse(line));
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0].args, { url: 'https://example.com', question: 'multiple facts', topk: 3, chunk_size: 250 });
+  assert.deepEqual(calls[1].args, { url: 'https://example.com', topk: 3, chunk_size: 250 });
 });
