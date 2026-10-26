@@ -4,7 +4,7 @@ import { readFile, readdir, lstat } from 'node:fs/promises';
 import { resolve, relative, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root = resolve(process.argv[2] ?? fileURLToPath(new URL('..', import.meta.url)));
-const required = ['README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'package.json', 'package-lock.json', 'tsconfig.json',
+const required = ['README.md', 'CHANGELOG.md', 'docs/RELEASE-2.1.0.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'package.json', 'package-lock.json', 'tsconfig.json',
   'extensions/siftpath.mjs', 'src/diagnostics.ts', 'src/index.ts', 'src/router.ts', 'src/client.ts', 'src/config.ts', 'src/defaults.ts', 'src/cli.ts', 'src/mcp/stdio.ts',
   'src/setup.ts', 'src/setup-ui.ts', 'src/setup-plan.ts', 'src/errors.ts', 'src/inputs.ts', 'src/output.ts', 'src/tools.ts',
   'docs/ARCHITECTURE.md', 'docs/PROVIDERS.md', 'docs/CONFIGURATION.md', 'docs/TESTING.md', 'docs/MIGRATION.md', 'docs/DIAGNOSTICS.md'];

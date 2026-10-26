@@ -1,0 +1,574 @@
+{
+  "baseCommit": "6029a7a16ca7a8cc7ab22b96bcdcceb93f37a2e8",
+  "scope": "Bounded follow-up; no commit/push/release/publish. Full local traces remain in ~/.cache/siftpath-release/2.1.0/evidence-quality-followup/; this archive contains public evidence/answers and usage only.",
+  "fixedEvidenceComparison": {
+    "task": "请调查 SQLite WAL 模式下自动 checkpoint 的触发条件、执行线程，以及长期读取事务对 checkpoint 的影响。结合可靠技术资料解释，并提供可核对的原始来源。",
+    "fixedEvidenceFixture": "wal-agent-evidence.json",
+    "evidenceSha256": "a01094c19a1ca8b18a78d56c04bb688f5d17916fa14c8bc3002647b55188867a",
+    "serializedEvidence": "JSON.stringify(reads.map(({input, modelVisibleResult}) => ({input, result:modelVisibleResult})), null, 2)",
+    "sameModelAndTransport": true,
+    "onlyVerificationInstructionsDiffer": true,
+    "notReconstructionOfOriginalFullToolCallContext": true,
+    "verification": "\n作答前请区分一般规律与例外；核对成功、失败、繁忙和重置条件；没有充分证据的部分明确说明不确定性；不要将有条件成立的结论写成绝对结论。\n",
+    "arms": [
+      {
+        "arm": "A",
+        "requests": 1,
+        "httpStatus": 200,
+        "stopReason": "stop",
+        "usage": {
+          "input": 4658,
+          "output": 5693,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 3675,
+          "totalTokens": 10351,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        "publicAnswer": "以下仅依据给定三份 SQLite 官方文档资料作答，不引入资料外信息。\n\n## 1. 自动 checkpoint 的触发条件\n\n默认情况下，SQLite 在 WAL 模式下会在以下两种时机自动 checkpoint：\n\n1. **某次 COMMIT 使 WAL 文件达到或超过 1000 页**  \n   原文：  \n   > “By default, SQLite will automatically checkpoint whenever a COMMIT occurs that causes the WAL file to be 1000 pages or more in size…”\n\n2. **数据库文件上的最后一个数据库连接关闭时**  \n   原文：  \n   > “…or when the last database connection on a database file closes.”\n\n默认阈值可通过以下方式修改或禁用：\n\n- `wal_autocheckpoint` pragma\n- `sqlite3_wal_autocheckpoint()` C 接口\n\n资料还说明：自动 checkpoint 机制是 `sqlite3_wal_hook()` 的一个简单包装：\n\n> “The automatic checkpoint mechanism is implemented as a simple wrapper around sqlite3_wal_hook().”\n\n程序也可以注册 `sqlite3_wal_hook()` 回调，在任意事务提交到 WAL 时被调用，并由回调决定是否调用 checkpoint。  \n来源：`https://www.sqlite.org/wal.html`，§3.1 Automatic Checkpoint。\n\n## 2. 自动 checkpoint 由哪个线程/连接执行\n\n根据资料，**没有证据表明自动 checkpoint 运行在独立的后台线程中**。可支持的结论是：\n\n- `sqlite3_wal_hook()` 注册的回调会在**每次 WAL 模式数据提交后**由 SQLite 调用；\n- 调用发生在 **commit 已经完成、相关写锁已经释放之后**；\n- 回调参数中包含一个数据库句柄副本；\n- 回调实现可以读取、写入或执行 checkpoint；\n- 自动 checkpoint 是 `sqlite3_wal_hook()` 的包装。\n\n原文：\n\n> “The callback is invoked by SQLite after the commit has taken place and the associated write-lock on the database released, so the implementation may read, write or checkpoint the database as required.”\n\n因此，自动 checkpoint 的逻辑是在触发提交的 SQLite 连接调用路径上、由 SQLite 通过该数据库句柄调用的。资料没有描述创建固定后台线程，也没有给出 OS 线程调度细节。应用主动执行 checkpoint 时，则是通过任意可写数据库连接调用 `sqlite3_wal_checkpoint()` 或 `sqlite3_wal_checkpoint_v2()`。\n\n来源：`https://www.sqlite.org/c3ref/wal_hook.html`，Write-Ahead Log Commit Hook；`https://www.sqlite.org/wal.html`，§3.1、§3.2。\n\n## 3. 长期读取事务对 checkpoint 的影响\n\ncheckpoint 可以并发的 reader 一起运行，但**必须停在任何当前 reader 的结束标记之前**。原文：\n\n> “A checkpoint can run concurrently with readers, however the checkpoint must stop when it reaches a page in the WAL that is past the end mark of any current reader.”\n\n原因是如果继续回填，可能覆盖 reader 正在从数据库文件中读取的内容。checkpoint 会在 wal-index 中记住已经进行到哪里，并在下一次调用时从该位置继续。因此：\n\n> “Thus a long-running read transaction can prevent a checkpointer from making progress.”\n\n更具体地说，在 “Checkpoint starvation” 一节中，资料说明：\n\n- checkpoint 只有在**没有其他数据库连接使用 WAL 文件**时，才能完整运行并重置 WAL；\n- 如果另一个连接持有打开的读事务，checkpoint **不能重置 WAL**，因为可能删除 reader 仍需读取的内容；\n- checkpoint 会尽可能多做事，但不能运行到完成；\n- 下一次写事务后，checkpoint 会从上次位置继续；\n- 如果有很多重叠 reader，且始终至少有一个活跃 reader，则**没有 checkpoint 能完成，WAL 会无界增长**；\n- 可通过制造 “reader gaps”（没有进程读数据库的间隙）来避免；\n- 使用 `SQLITE_CHECKPOINT_RESTART` 或 `SQLITE_CHECKPOINT_TRUNCATE` 的手动 checkpoint 会确保在返回前运行到完成，但缺点是 **reader 可能在 checkpoint 运行期间被阻塞**；\n- 非常大的写事务也会阻止 checkpoint 完成，因为 WAL 不能在写事务中间重置。\n\n来源：`https://www.sqlite.org/wal.html`，§3.1、§3.2、“Checkpoint starvation”、“Very large write transactions”。\n\n## 4. wal-index 层面的精确机制\n\n`walformat.html` 给出了 reader 阻止 checkpoint 前进的底层字段和锁语义：\n\n- `mxFrame`：WAL 中有效且已提交的帧数；也是最后一个有效提交帧的索引。\n- `nBackfill`：已经被先前 checkpoint 回填到主数据库的 WAL 帧数。\n- `nBackfill` 永远不大于 `mxFrame`。\n- 当 `nBackfill == mxFrame` 时，表示 WAL 内容已全部写回数据库；如果没有其他连接持有 `WAL_READ_LOCK(N)`（N>0），则可以重置 WAL。\n- `nBackfill` 只能在持有 `WAL_CKPT_LOCK` 时增加；WAL reset 时 `nBackfill` 清零，这发生在持有 `WAL_WRITE_LOCK` 时。\n- 当连接持有 `WAL_READ_LOCK(N)` 的共享锁时，checkpoint 如果看到该锁，**不能把 WAL 内容移动到主数据库超过前 `read-mark[N]` 帧**。\n- 如果 `mxFrame > read-mark[N]`，且其他进程持有对应 `WAL_READ_LOCK(N)`，则 checkpoint **不能运行到完成**。\n- writer 要重置 WAL，必须确保没有其他连接持有 `WAL_READ_LOCK(N)`（N>0），否则 reset 会删除其他连接仍在使用的内容。\n\n原文关键句：\n\n> “When a checkpoint runs, if it sees a lock on WAL_READ_LOCK(N), then it must not move WAL content into the main database for more than the first read-mark[N] frames.”\n\n> “A consequence of this is that if the WAL file contains more than read-mark[N] frames … then the checkpoint cannot run to completion.”\n\n来源：`https://www.sqlite.org/walformat.html`，§2.1.1 `mxFrame`、§2.1.2 `nBackfill`、§2.1.3 WAL Locks。\n\n## 5. PASSIVE / FULL / RESTART / TRUNCATE 的资料要点\n\n资料明确说明：\n\n- 默认 checkpoint 风格是 `PASSIVE`；\n- `PASSIVE` 会尽可能多做，但不干扰其他数据库连接；如果有并发 reader 或 writer，可能无法完成；\n- 资料列出 `PASSIVE`、`FULL`、`RESTART`，并在后文提到 `SQLITE_CHECKPOINT_RESTART` 和 `SQLITE_CHECKPOINT_TRUNCATE`；\n- `RESTART`/`TRUNCATE` 会确保 checkpoint 在返回前运行到完成，但 reader 可能在 checkpoint 运行期间被阻塞。\n\n资料片段没有进一步展开 `FULL` 的具体行为，因此这里不补充资料外定义。\n\n来源：`https://www.sqlite.org/wal.html`，§3.2 Application-Initiated Checkpoints、“Checkpoint starvation”。\n\n## 6. 可核对的原始来源\n\n1. **SQLite WAL 文档**  \n   `https://www.sqlite.org/wal.html`  \n   核对点：§3.1 Automatic Checkpoint、§3.2 Application-Initiated Checkpoints、“Checkpoint starvation”、“Very large write transactions”。\n\n2. **SQLite WAL 文件格式文档**  \n   `https://www.sqlite.org/walformat.html`  \n   核对点：§2.1.1 `mxFrame`、§2.1.2 `nBackfill`、§2.1.3 WAL Locks。\n\n3. **SQLite C 接口：Write-Ahead Log Commit Hook**  \n   `https://www.sqlite.org/c3ref/wal_hook.html`  \n   核对点：回调在 commit 完成后、写锁释放后由 SQLite 调用；自动 checkpoint 是 `sqlite3_wal_hook()` 的包装；禁用自动 checkpoint 后 WAL 可能无界增长。\n\n## 简要结论\n\n- **自动触发**：COMMIT 后 WAL ≥ 1000 页，或最后一个数据库连接关闭。\n- **执行上下文**：自动 checkpoint 通过 `sqlite3_wal_hook()` 机制，在提交完成后由 SQLite 通过数据库句柄调用；资料未表明存在独立后台线程。\n- **长期读事务**：会限制 checkpoint 回填到 reader 的 read-mark；阻止 WAL reset 和 checkpoint 完成。持续存在活跃 reader 时，WAL 可能无界增长。\n- **底层原因**：`WAL_READ_LOCK(N)` 和 `read-mark[N]` 限制 checkpoint 不能回填超过 reader 仍需从 WAL 读取的帧；`nBackfill` 无法推进到 `mxFrame`，WAL 就不能完整回填和重置。",
+        "bodySha256": "5e4edd97a700ee78762972aeb0e2beefdd1c927561a9e27c6b5c47628f1d74c5"
+      },
+      {
+        "arm": "B",
+        "requests": 1,
+        "httpStatus": 200,
+        "stopReason": "stop",
+        "usage": {
+          "input": 4694,
+          "output": 7089,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "reasoning": 4828,
+          "totalTokens": 11783,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "total": 0
+          }
+        },
+        "publicAnswer": "以下结论**仅基于你提供的三份 SQLite 官方文档摘录**。这些摘录带有 `FOCUS_MAY_OMIT_CONTENT` 警告，因此凡摘录未明确写出的 API 返回码、线程绑定细节，我会标注为“资料未充分说明”，不作绝对断言。\n\n## 1. 自动 checkpoint 的触发条件\n\n### 一般规律：默认自动 checkpoint 有两个触发点\n固定资料显示，默认情况下 SQLite 会在以下情形自动 checkpoint：\n\n1. **某个 COMMIT 使 WAL 文件达到或超过 1000 页时**  \n   原文：默认在“a COMMIT occurs that causes the WAL file to be 1000 pages or more in size”时自动 checkpoint。\n2. **数据库文件上的最后一个数据库连接关闭时**  \n   原文：或“when the last database connection on a database file closes”。\n\n因此，不是每次提交都必然 checkpoint；默认阈值是 **WAL 文件页数 >= 1000 页**，不是主数据库文件大小。该阈值可以调整或完全禁用。\n\n### 可配置与例外\n- 可通过 `wal_autocheckpoint` pragma 或 `sqlite3_wal_autocheckpoint()` 改变阈值或禁用自动 checkpoint。\n- 自动 checkpoint 机制被描述为 `sqlite3_wal_hook()` 的简单包装器。\n- 应用也可以注册 `sqlite3_wal_hook()` 回调，在每次事务提交到 WAL 后按自定义标准调用 `sqlite3_wal_checkpoint()` 或 `sqlite3_wal_checkpoint_v2()`。\n- `sqlite3_wal_autocheckpoint()` 和 `wal_autocheckpoint` 都会调用 `sqlite3_wal_hook()`，并覆盖此前设置的 hook；传入 NULL 回调可完全禁用自动 checkpoint。\n- 应用也可通过任意可写数据库连接手动发起 checkpoint：`sqlite3_wal_checkpoint()` / `sqlite3_wal_checkpoint_v2()`。默认 checkpoint 风格是 `PASSIVE`：尽可能工作但不干扰其他连接，有并发读/写时可能不能运行完成。\n\n来源：[S1] https://www.sqlite.org/wal.html ，[S3] https://www.sqlite.org/c3ref/wal_hook.html\n\n## 2. 执行线程 / 执行连接\n\n### 可确定的结论\n固定资料没有直接使用“后台线程”或“独立 checkpoint 线程”的表述。能支持的是：\n\n- `sqlite3_wal_hook()` 注册的回调由 SQLite 在**提交已经发生且相关写锁已释放之后**调用；回调中可以读、写或 checkpoint 数据库。\n- 自动 checkpoint 是 `sqlite3_wal_hook()` 的包装器。\n- 因此，**默认的“提交触发”自动 checkpoint 发生在执行该提交的 SQLite 连接调用路径中**，而不是文档所描述的独立后台线程。\n- 应用手动 checkpoint 可以由任意可写数据库连接发起。\n\n### 不确定性\n固定资料没有明确写出“回调一定在调用 `sqlite3_step()`/提交的同一个 OS 线程中执行”。通常可理解为同步回调发生在提交调用路径中，但不能据这份摘录断言所有多线程、VFS 或关闭连接路径下的具体线程身份。尤其是“最后一个连接关闭”触发自动 checkpoint 时的线程上下文，摘录未说明。\n\n来源：[S1] https://www.sqlite.org/wal.html ，[S3] https://www.sqlite.org/c3ref/wal_hook.html\n\n## 3. 长期读取事务对 checkpoint 的影响\n\n### 核心机制\n- checkpoint 可以与读者并发运行，但**必须停在任何当前读者的 end mark 之后不能再前进**；否则可能覆盖读者仍要从主数据库文件读取的内容。\n- checkpoint 会在 wal-index 中记住已经推进到哪里，并在下一次调用时从该位置继续。\n- 因此，**长期运行的读事务可以阻止 checkpointer 取得进展**；不过文档也说，读事务最终通常会结束，之后 checkpoint 可以继续。\n\n### 格式层面的条件\nWAL 格式文档进一步说明：\n\n- `mxFrame`：WAL 中有效且已提交的帧数。\n- `nBackfill`：已由先前 checkpoint 写回主数据库的 WAL 帧数。\n- 当某个连接持有 `WAL_READ_LOCK(N)` 的共享锁时，checkpoint 看到该锁后，**不能把超过前 `read-mark[N]` 帧的 WAL 内容移入主数据库**。\n- 若 `mxFrame > read-mark[N]`，且该 `WAL_READ_LOCK(N)` 被其他进程持有，则 checkpoint **不能运行完成**。\n- 当 `nBackfill == mxFrame` 时，表示 WAL 内容已全部写回数据库；若此时没有对 `WAL_READ_LOCK(N)`（N>0）的锁，则可以重置 WAL。\n- 写者要重置 WAL，必须确保没有 `WAL_READ_LOCK(N)`（N>0）上的锁，因为这类锁表示其他连接仍在使用当前 WAL 文件。\n- `nBackfill` 只能在持有 `WAL_CKPT_LOCK` 时增加；WAL 重置时 `nBackfill` 变为零，而重置在持有 `WAL_WRITE_LOCK` 时发生。\n\n### 长期读取造成“checkpoint 饥饿”\n固定资料明确描述：\n\n- 只有没有其他数据库连接使用 WAL 文件时，checkpoint 才能运行完成并重置 WAL。\n- 如果另一个连接持有读事务，checkpoint 不能重置 WAL，因为可能删除读者仍需的内容。\n- checkpoint 会尽可能做安全工作，但不能完成；下一次写事务后它会从上次位置继续。\n- 如果存在大量重叠读者，且始终至少有一个活跃读者，则 checkpoint 可能一直无法完成，WAL 会无界增长。\n- 缓解方式是确保存在“reader gaps”，即没有进程读取数据库的时间段，并在这些时间段尝试 checkpoint。\n- 在并发读者多的应用中，可考虑使用 `SQLITE_CHECKPOINT_RESTART` 或 `SQLITE_CHECKPOINT_TRUNCATE` 手动 checkpoint，使 checkpoint 在返回前运行完成；代价是读者可能在 checkpoint 运行期间被阻塞。\n- 大型写事务也会阻止 WAL 重置：checkpoint 只有在没有其他事务运行时才能完成，WAL 不能在写事务中途重置。\n\n来源：[S1] https://www.sqlite.org/wal.html ，[S2] https://www.sqlite.org/walformat.html\n\n## 4. 成功、失败、繁忙与重置条件的核对\n\n| 情形 | 固定资料支持的结论 | 依据与注意 |\n|---|---|---|\n| checkpoint 取得进展 | checkpoint 可以推进到受读锁/read-mark 限制的安全位置；`nBackfill` 可在持有 `WAL_CKPT_LOCK` 时增加，且不超过 `mxFrame`。 | [S2] |\n| checkpoint 完整完成 / WAL 可重置 | 文档将“运行完成并重置 WAL”与“没有其他连接使用 WAL 文件”关联；格式文档给出更细条件：`nBackfill == mxFrame`，且没有 `WAL_READ_LOCK(N)`（N>0）上的锁。 | [S1][S2]；两处表述侧重不同：前者强调无其他连接使用 WAL，后者强调 backfill 完成与读锁条件。 |\n| 繁忙 / 不完整 | 并发读者、并发写者、长期读事务、写事务都可能使 checkpoint 不能运行完成或不能重置 WAL。`PASSIVE` 默认风格在有并发读/写时可能不完成。 | [S1][S2]。但固定资料**没有给出**这些情形与 `SQLITE_BUSY`、`SQLITE_LOCKED` 等具体返回码的完整映射，不能据摘录断言具体返回码。 |\n| 失败 / 错误传播 | 固定资料中明确提到的是 WAL hook 回调返回错误码：错误会传播回触发回调的语句，但提交仍已发生；若回调返回 `SQLITE_ROW`、`SQLITE_DONE` 或无效错误码，结果是未定义。 | [S3]。这不是 checkpoint API 的 busy/failure 返回码定义。 |\n| 重置 WAL | 写者重置 WAL 时必须确保没有 `WAL_READ_LOCK(N)`（N>0）上的锁；`nBackfill` 在 WAL reset 时变为零，且 reset 在持有 `WAL_WRITE_LOCK` 时发生。 | [S2]。 |\n\n## 5. 需要明确的不确定性\n\n1. **线程身份**：固定资料能支持“自动 checkpoint 是 WAL hook 包装器，hook 在提交后由 SQLite 调用”，但不能支持“任何配置下都严格在同一个 OS 线程执行”的绝对结论。\n2. **`FULL` checkpoint 的完整语义**：摘录提到 `PASSIVE`、`FULL`、`RESTART` 三种子类型，并另行提到 `RESTART`/`TRUNCATE` 可要求运行完成；但摘录没有完整展开 `FULL` 的行为，不能细说。\n3. **具体返回码**：固定资料没有完整给出 checkpoint 的 `SQLITE_BUSY`/`SQLITE_LOCKED` 等返回条件，因此只能描述“并发受阻/不能完成”的文档条件，不能把具体 API 返回码写成确定结论。\n4. **“完成”与“重置”的区别**：资料中有时把“运行完成并重置 WAL”合在一起表述；格式文档则区分 `nBackfill == mxFrame` 与无读锁 N>0 的可重置条件。回答时应避免把“已尽量回填”误写成“WAL 已重置”。\n\n## 原始来源\n\n- [S1] SQLite 官方文档：Write-Ahead Logging  \n  https://www.sqlite.org/wal.html\n- [S2] SQLite 官方文档：WAL File Format  \n  https://www.sqlite.org/walformat.html\n- [S3] SQLite 官方 C 接口文档：Write-Ahead Log Commit Hook  \n  https://www.sqlite.org/c3ref/wal_hook.html",
+        "bodySha256": "b08c679a9c0a3bfba92568ddf225dcc323e6b7351840efd9d6479eaedb69a55f"
+      }
+    ],
+    "assessment": "Both recover reset-to-zero, neither consistently preserves all conditions. B explicitly recognizes missing busy/failure evidence but still repeats an unconditional completion claim. Not evidence of a stable prompt fix."
+  },
+  "discoveryPreflight": {
+    "keyExactlyMatchesPublicChangelog": true,
+    "requests": 2,
+    "kind": "Direct original-source HTTP GET, not model/supplier calls or Agent evidence",
+    "sources": [
+      {
+        "url": "https://changelogs.ubuntu.com/changelogs/pool/main/c/curl/curl_8.18.0-1ubuntu2.8/changelog",
+        "attempt": 1,
+        "status": 200,
+        "location": null,
+        "bytes": 164887,
+        "sha256": "f116e16bbae4be000b4a9abc5c4a8187cf1fb5d27d3f64996467f7ce4aed7d4b",
+        "contentFile": "public-source-1.txt",
+        "contains": {
+          "version": true,
+          "id": true,
+          "function": true,
+          "file": true
+        }
+      },
+      {
+        "url": "https://ubuntu.com/security/CVE-2026-107928",
+        "attempt": 1,
+        "status": 200,
+        "location": null,
+        "bytes": 84012,
+        "sha256": "62e536d6ce660e04d3a00651ef3762b96364dd435bf27fe8ba12840906ef52b4",
+        "contentFile": "public-source-2.txt",
+        "contains": {
+          "version": true,
+          "id": true,
+          "function": true,
+          "file": false
+        }
+      }
+    ],
+    "keyVerification": {
+      "keySha256": "bc4dda19162510c15b451667f0ed836745f72578f408c2c0126645240d8f9d14",
+      "exactFirstNineLinesMatch": true,
+      "primaryChangelogAccessible": true,
+      "primaryAdvisoryAccessible": true,
+      "advisoryHasNoNoindex": true,
+      "searchIndexAvailability": "Not proven by HTTP availability; scenario B first autonomous search, if any, will be the only supplier-backed index check.",
+      "notAgentContext": true
+    },
+    "changelogFirstNineLines": "curl (8.18.0-1ubuntu2.8) resolute-security; urgency=medium\n\n  [ Charles Cochran ]\n  * SECURITY UPDATE: Out-of-bounds read in GnuTLS send path.\n    - debian/patches/CVE-2026-107928.patch: reject a gnutls_record_send()\n      return value larger than the length given in lib/vtls/gtls.c.\n    - CVE-2026-107928\n  * SECURITY UPDATE: Improper connection reuse with CURLOPT_INTERFACE.\n    - debian/patches/CVE-2026-107929.patch: include the CURLOPT_INTERFACE\n",
+    "availability": "Both sources HTTP 200. Actual B searches returned official USN and maintainer entry points; HTTP reachability alone was not treated as indexing proof."
+  },
+  "scenarioA": {
+    "task": "请核对 SQLite WAL 的边界行为：nBackfill 在 checkpoint 与 WAL reset 后如何变化；长期读事务何时限制回填或重置；关闭自动 checkpoint 后是否仍可能发生 checkpoint；四种 checkpoint 模式在成功、繁忙与失败时分别保证什么。用实际读过的原始资料区分有条件成立与无条件成立，无法核实的细节请明确保留。",
+    "outcome": "NOT_PASSED_COMPLETE_EVIDENCE_QUALITY",
+    "executionCompleted": true,
+    "sessions": 1,
+    "modelRequests": 3,
+    "businessRequests": 3,
+    "operations": [
+      {
+        "id": "jina",
+        "name": "read_url",
+        "args": {
+          "url": "https://www.sqlite.org/wal.html",
+          "topk": 3,
+          "chunk_size": 250
+        }
+      },
+      {
+        "id": "jina",
+        "name": "read_url",
+        "args": {
+          "url": "https://www.sqlite.org/pragma.html#pragma_wal_checkpoint",
+          "topk": 3,
+          "chunk_size": 250
+        }
+      },
+      {
+        "id": "firecrawl",
+        "name": "firecrawl_scrape",
+        "args": {
+          "url": "https://www.sqlite.org/wal.html",
+          "formats": [
+            "markdown"
+          ],
+          "onlyMainContent": true,
+          "objective": "Read the supplied public webpage as Markdown."
+        }
+      }
+    ],
+    "results": [
+      {
+        "url": "https://www.sqlite.org/pragma.html#pragma_wal_checkpoint",
+        "provider": "jina",
+        "tool": "read_url",
+        "chars": 14743,
+        "contentSha256": "ed435a1045d9ca86a9c06c0e786a7541f321c06650ec0f7ed51961305fb1af9f",
+        "serializedChars": 16000,
+        "truncated": true,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          }
+        ],
+        "sources": [
+          {
+            "url": "https://www.sqlite.org/pragma.html#pragma_wal_checkpoint"
+          },
+          {
+            "url": "http://www.w3.org/2000/svg'"
+          },
+          {
+            "url": "https://en.wikipedia.org/wiki/Information_schema"
+          },
+          {
+            "url": "http://www.darwinsys.com/file/"
+          },
+          {
+            "url": "https://sqlite.org/src/artifact?ci=trunk&filename=magic.txt"
+          }
+        ]
+      },
+      {
+        "url": "https://www.sqlite.org/wal.html",
+        "provider": "jina",
+        "tool": "read_url",
+        "chars": 14917,
+        "contentSha256": "c7cbef2ab202b97545506565a31512d601b2d4684c72edb1f129d19a72daeb84",
+        "serializedChars": 16000,
+        "truncated": true,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          }
+        ],
+        "sources": [
+          {
+            "url": "https://www.sqlite.org/wal.html"
+          },
+          {
+            "url": "http://en.wikipedia.org/wiki/Chroot"
+          },
+          {
+            "url": "https://sqlite.org/src/info/863c171b76cd36e0"
+          },
+          {
+            "url": "https://sqlite.org/src/info/c7facf7ac58d2cda"
+          },
+          {
+            "url": "https://theconsensus.dev/p/2026/08/23/another-look-at-sqlite-wal-reset.html"
+          }
+        ]
+      },
+      {
+        "url": "https://www.sqlite.org/wal.html",
+        "provider": "firecrawl",
+        "tool": "firecrawl_scrape",
+        "chars": 15261,
+        "contentSha256": "b73633c9855c63fc47146501c51d1a6b54f955493c6667a6f9939805abbcf254",
+        "serializedChars": 16000,
+        "truncated": true,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          }
+        ],
+        "metadata": {
+          "creditsUsed": 1,
+          "cacheState": "hit",
+          "cachedAt": "2026-10-26T11:15:49.471Z"
+        },
+        "sources": [
+          {
+            "url": "https://www.sqlite.org/wal.html"
+          }
+        ]
+      }
+    ],
+    "usage": [
+      {
+        "input": 1081,
+        "output": 2380,
+        "cacheRead": 384,
+        "cacheWrite": 0,
+        "reasoning": 2279,
+        "totalTokens": 3845,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 11348,
+        "output": 5475,
+        "cacheRead": 3840,
+        "cacheWrite": 0,
+        "reasoning": 5404,
+        "totalTokens": 20663,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 15949,
+        "output": 3617,
+        "cacheRead": 384,
+        "cacheWrite": 0,
+        "reasoning": 1413,
+        "totalTokens": 19950,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "publicAnswer": "## 检索情况说明\n\n本轮共发出 3 次请求（已达上限），实际读到的内容：\n\n1. `https://www.sqlite.org/wal.html`：只成功取到 **§1、§2.1、§2.2、§2.3（前半）**，在 §2.3 末尾被截断。\n2. `https://www.sqlite.org/pragma.html#pragma_wal_checkpoint`：只取到 PRAGMA 语法前言，**`wal_checkpoint` 条目本身没有读到**（被截断）。\n3. 再次请求 `wal.html`（命中缓存）：返回的还是同一段被截断的内容，没有新增信息。\n\n因此：**§3.1 自动 checkpoint、§3.2 应用发起 checkpoint、§4 WAL 文件格式（`nBackfill` 字段定义）、`walformat.html`、以及四种 checkpoint 模式的语义，一次都没有读到原文。** 下面严格分开标注。\n\n---\n\n## 一、能从原文核实的部分（wal.html）\n\n### 1. checkpoint 的推进与“记忆”\n\n原文（§2.2）：checkpoint 把 WAL 内容搬回数据库；它可以与读者并发，但\n\n> \"the checkpoint must stop when it reaches a page in the WAL that is past the end mark of any current reader … The checkpoint remembers (in the wal-index) how far it got and will resume transferring content from the WAL to the database from where it left off on the next invocation.\"\n\n由此可以**有条件地**推出：\n\n- 回填进度（即 `nBackfill` 所指的那类“已完成回填的帧位置”）在一次 checkpoint 内部**单调不减**，且上限是**最老活跃读事务的 end mark**（以及 WAL 中最后一个有效 commit）。\n- 单次 checkpoint 被读者挡住时**不回退**，下次调用从上次位置继续。\n- 但“单调不减”只在**没有被 WAL reset** 的前提下成立：reset 会把 WAL 从头改写，回填位置随之归零——这一点原文只提到 reset 的触发条件，没有说数值归零（见下文缺口）。\n\n⚠️ 注意：**该节原文没有出现 `nBackfill` 这个词**。“回填进度存在 wal-index 头里”是原文说的；`nBackfill`/`mxFrame` 的精确字段语义属于 `walformat.html` 的内容，本轮未核实。\n\n### 2. 长期读事务的限制（有条件）\n\n原文：\n\n> \"Thus a long-running read transaction can prevent a checkpointer from making progress. But presumably every read transaction will eventually end and the checkpointer will be able to continue.\"\n\n成立范围：\n\n- **条件成立**：长时间读事务会**阻止回填继续前进**，也会因此间接阻止 WAL 被 reset（因为 reset 需要“整个 WAL 已搬完”）。\n- **不成立的说法**：它并**不会**导致数据库错误或读者看到不一致；它只是让 WAL 变大、读性能下降。\n- 原文用的是 \"prevent … from making progress\"，并明确说之后（读事务结束后）checkpointer 能继续——所以“长期读事务使 checkpoint 永久失败”是错的；准确说是**阻塞到该读事务结束为止**。\n\n### 3. WAL reset 的触发条件（原文明确，且是“无条件必要条件”）\n\n原文（§2.2 末）：\n\n> \"Whenever a write operation occurs, the writer checks how much progress the checkpointer has made, and if the entire WAL has been transferred into the database and synced and if no readers are making use of the WAL, then the writer will rewind the WAL back to the beginning…\"\n\n可以确定的：\n\n- reset 是**写操作**在做，不是 checkpoint 自己在做。checkpoint 只是把条件“整个 WAL 已回填并同步”准备好。\n- 因此“checkpoint 成功 ⇒ WAL 被 reset”**不成立**（无条件错误）；还需要：数据库文件已 sync、无读者、且随后有写入。\n- “checkpoint 成功 = `nBackfill` 达到 WAL 末尾”是本轮唯一有原文支撑的推断；`nBackfill` 在 reset 后归零属于**未核实**。\n\n### 4. 同步顺序（原文明确）\n\n§2.3：\n\n> \"The WAL must be synced to persistent storage prior to moving content from the WAL into the database and the database file must be synced prior to resetting the WAL.\"\n\n即：**WAL sync → 搬页 → DB sync → 才允许 reset**。这是无条件的安全顺序保证。\n\n另外：`synchronous=NORMAL` 时，“checkpoint 是唯一发出 fsync/FUA 的操作”。\n\n### 5. 默认自动 checkpoint 的节奏（原文明确）\n\n- 默认 WAL 到 **1000 页**触发（`SQLITE_DEFAULT_WAL_AUTOCHECKPOINT` 可在编译期改）。\n- 原文 §2.3：\"the default strategy is to allow successive write transactions to grow the WAL until the WAL becomes about 1000 pages in size, then to run a checkpoint operation for each subsequent COMMIT until the WAL is reset to be smaller than 1000 pages.\"\n\n→ 这解释了为何 `nBackfill` 常表现为“多次 COMMIT 各推进一段”，而不是一次到顶：**有条件**（阈值、并发读者、被挡住时才分多次）。\n\n- 原文也明确：“Or they can turn off the automatic checkpoints and run checkpoints during idle moments or in a separate thread or process.” —— 只证明**可以关闭自动 checkpoint**。\n\n---\n\n## 二、本轮**未能核实**、必须保留的细节\n\n以下内容我在本轮**没有读到任何原文**，只给“需要核对的方向”，不给结论：\n\n| 问题 | 状态 |\n|---|---|\n| `PRAGMA wal_autocheckpoint=0` 之后是否仍会有 checkpoint | **未核实**。原文只说可关闭自动 checkpoint；常见说法是“最后一个连接关闭数据库时仍会尝试 checkpoint”（以及 `SQLITE_FCNTL_PERSIST_WAL` 相关行为），但本轮无原文，不能断言。 |\n| `nBackfill` 在 checkpoint 成功后是否严格等于 `mxFrame`、`wal-index` 头中 `nBackfill`/`mxFrame` 的定义 | **未核实**（`walformat.html` §shm 未读）。 |\n| WAL reset 后 `nBackfill` 是否归零、归零的**前置条件**（`mxFrame==nBackfill` 且无读者持有旧快照） | **未核实**。仅有“reset 需要整个 WAL 已回填+同步+无读者”这一条原文支撑。 |\n| 四种模式 PASSIVE / FULL / RESTART / TRUNCATE 在成功、繁忙、失败时的精确保证 | **未核实**。`pragma.html#pragma_wal_checkpoint` 条目本轮被截断，未读到。 |\n| `sqlite3_wal_checkpoint_v2` 的返回码（SQLITE_BUSY / SQLITE_LOCKED）、`pnLog`/`pnCkpt` 输出参数语义 | **未核实**。 |\n\n**如果按记忆给出四种模式的对照表（仅作为待核实草稿，不作结论）**：PASSIVE 不等待任何锁、不阻塞读者/写者，可能只回填一部分；FULL 会等到写者锁并确保 WAL 全部回填，但**不**等待读者，因此不保证 reset；RESTART 在 FULL 基础上还要等到没有读者，使下一次写者能 reset；TRUNCATE 在 RESTART 基础上再把 WAL 文件截断为 0 字节。繁忙时 FULL/RESTART/TRUNCATE 可能返回 `SQLITE_BUSY`——**这几条请以 `https://www.sqlite.org/pragma.html#pragma_wal_checkpoint` 与 `https://www.sqlite.org/c3ref/wal_checkpoint_v2.html` 原文复核后再采信。**\n\n---\n\n## 三、可直接采信的结论清单\n\n**无条件成立（原文直述）**\n\n1. checkpoint = 把 WAL 中已提交事务搬回数据库文件。\n2. checkpoint 遇到任何读事务 end mark 之后的页就**必须停止**，进度记在 wal-index，下次续做。\n3. WAL reset 由**写操作**执行，且需要同时满足：WAL 已全部回填、已同步、无读者使用 WAL。\n4. 同步顺序：WAL sync 在搬页之前，DB sync 在 reset 之前。\n5. 默认自动 checkpoint 阈值 1000 页，且 WAL ≥1000 页后**每次 COMMIT** 都跑一次，直到 WAL 回到 1000 页以下。\n\n**有条件成立**\n\n- “回填单调前进”：仅在两次 reset 之间、且无更老的读者把 end mark 压住时。\n- “长期读事务限制回填/重置”：是**阻塞至该读事务结束**，不是永久失败；且它抑制的是**进度**与**reset 的可能性**，不是正确性。\n- “checkpoint 成功 ⇒ WAL reset”：需要额外条件（DB 已 sync、无读者、随后有写）。\n\n**明确保留（本轮无法核实）**\n\n- 关闭自动 checkpoint 后是否仍可能发生 checkpoint（尤其关闭连接时的行为）。\n- `nBackfill` 的字段级定义、reset 后的取值与前置条件。\n- 四种模式的成功/繁忙/失败语义与返回码。\n\n如需要补齐这三块，需要再读 `pragma.html#pragma_wal_checkpoint`、`c3ref/wal_checkpoint_v2.html`、`walformat.html#shm`、以及 `wal.html` §3.1–§3.2 的未截断版本——建议用能读到“锚点之后内容”的方式（例如直接从 `#automatic_checkpoint`、`#application_initiated_checkpoints` 锚点取文，或取 `wal.html` 的纯文本镜像），避免整页头部把正文挤出截断窗口。",
+    "sourceSnapshotSha256": "427fb55188894ccc52d8cf1a11017fa52608efefcbf103fd7e96f8431a09710a",
+    "harnessManifestSha256": "b4aa79199aeb5d364d8a93870675ea9b83f2afcfb20e885f24bc063f74506f1a",
+    "privateFilesUnchanged": true,
+    "childrenExited": true,
+    "normalizationProof": [
+      {
+        "provider": "jina",
+        "url": "https://www.sqlite.org/pragma.html#pragma_wal_checkpoint",
+        "nativeTextChars": 144419,
+        "visibleChars": 14743,
+        "truncated": true,
+        "exactNormalizationReplay": true
+      },
+      {
+        "provider": "jina",
+        "url": "https://www.sqlite.org/wal.html",
+        "nativeTextChars": 43651,
+        "visibleChars": 14917,
+        "truncated": true,
+        "exactNormalizationReplay": true
+      },
+      {
+        "provider": "firecrawl",
+        "url": "https://www.sqlite.org/wal.html",
+        "nativeTextChars": 38455,
+        "visibleChars": 15261,
+        "truncated": true,
+        "exactNormalizationReplay": true
+      }
+    ]
+  },
+  "scenarioB": {
+    "task": "请找到 Ubuntu 为 curl 8.18.0-1ubuntu2.8 提供的一项涉及 GnuTLS 发送路径的安全修复，查明漏洞编号、使错误成立的异常条件、修复采取的边界检查以及对应代码文件。请用实际核对过的原始公告或维护者变更记录说明，不以二手摘要代替；发行版补丁与上游版本不能混为一谈。",
+    "outcome": "NOT_PASSED_COMPLETE_EVIDENCE_QUALITY",
+    "executionCompleted": true,
+    "sessions": 1,
+    "modelRequests": 3,
+    "businessRequests": 3,
+    "operations": [
+      {
+        "id": "tavily",
+        "name": "tavily_search",
+        "args": {
+          "query": "Ubuntu curl 8.18.0-1ubuntu2.8 GnuTLS send CVE",
+          "max_results": 10,
+          "search_depth": "basic"
+        }
+      },
+      {
+        "id": "tavily",
+        "name": "tavily_search",
+        "args": {
+          "query": "curl GnuTLS send path CVE boundary check 8.18.0",
+          "max_results": 10,
+          "search_depth": "basic"
+        }
+      },
+      {
+        "id": "jina",
+        "name": "read_url",
+        "args": {
+          "url": "https://curl.se/docs/CVE-2026-107928.html",
+          "topk": 3,
+          "chunk_size": 250
+        }
+      }
+    ],
+    "results": [
+      {
+        "provider": "tavily",
+        "tool": "tavily_search",
+        "chars": 13166,
+        "contentSha256": "53971685b2374244c6179cccd53f14168f3839b94d78029ed49731e1396adf52",
+        "serializedChars": 14400,
+        "truncated": false,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          }
+        ],
+        "sources": [
+          {
+            "url": "https://ubuntu.com/security/notices/USN-8927-1"
+          },
+          {
+            "url": "https://security.snyk.io/package/linux/debian%3A14/curl"
+          },
+          {
+            "url": "https://curl.se/docs/security.html"
+          },
+          {
+            "url": "https://curl.se/docs/vuln-7.27.0.html"
+          },
+          {
+            "url": "https://security-tracker.debian.org/tracker/source-package/curl"
+          },
+          {
+            "url": "https://www.gnutls.org/security-new.html"
+          },
+          {
+            "url": "https://freenode.net/article/curl-8-23-0-fixes-24-vulnerabilities-one-high-severity"
+          },
+          {
+            "url": "https://thehackernews.com/2026/10/curl-patches-http2-upload-flaw-after.html"
+          },
+          {
+            "url": "https://nvd.nist.gov/vuln/search?resultType=records&cpeFilterMode=cpe&cpeName=cpe%3A2.3%3Aa%3Ahaxx%3Acurl%3A7.78.0%3A%2A%3A%2A%3A%2A%3A%2A%3A%2A%3A%2A%3A%2A"
+          },
+          {
+            "url": "https://finance.yahoo.com/news/chainguard-introduces-fips-module-industry-130000302.html"
+          }
+        ]
+      },
+      {
+        "provider": "tavily",
+        "tool": "tavily_search",
+        "chars": 12451,
+        "contentSha256": "83c5cede196b8455993c4d3d978c123f567cc5549dbb8e1a2ded1707440549f1",
+        "serializedChars": 13611,
+        "truncated": false,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          }
+        ],
+        "sources": [
+          {
+            "url": "https://github.com/cloudfoundry/bosh-linux-stemcell-builder/releases"
+          },
+          {
+            "url": "https://linuxsecurity.com/advisories/ubuntu/ubuntu-8927-1-curl"
+          },
+          {
+            "url": "https://ubuntu.com/security/notices/USN-8927-1"
+          },
+          {
+            "url": "https://launchpad.net/ubuntu/+source/curl/+changelog"
+          },
+          {
+            "url": "https://ubuntu.pkgs.org/26.04/ubuntu-main-amd64/curl_8.18.0-1ubuntu2_amd64.deb.html"
+          },
+          {
+            "url": "https://www.cbinsights.com/company/depthfirst"
+          },
+          {
+            "url": "https://finance.yahoo.com/news/automox-launches-real-time-linux-140000386.html"
+          },
+          {
+            "url": "https://rocketreach.co/ubuntu-ltd-profile_b5d2fff4f42e4543"
+          },
+          {
+            "url": "https://rocketreach.co/ubuntu-x-email-format_b69c902fc8ee33fb"
+          },
+          {
+            "url": "https://rocketreach.co/ubuntu-staffing-management_b7f5ac44c25d744e"
+          }
+        ]
+      },
+      {
+        "url": "https://curl.se/docs/CVE-2026-107928.html",
+        "provider": "jina",
+        "tool": "read_url",
+        "chars": 2465,
+        "contentSha256": "d275a20d0b3608af8cb585d5cc44e960561778b47d5ffb18ab44badcdf90bda6",
+        "serializedChars": 3056,
+        "truncated": false,
+        "warnings": [
+          {
+            "code": "UNTRUSTED_WEB_CONTENT"
+          }
+        ],
+        "sources": [
+          {
+            "url": "https://curl.se/docs/CVE-2026-107928.html"
+          },
+          {
+            "url": "https://hackerone.com/reports/4099194"
+          },
+          {
+            "url": "https://github.com/curl/curl/commit/664249d095275ec532f5"
+          },
+          {
+            "url": "https://github.com/curl/curl/commit/64fb3e7a7b116f6909660"
+          }
+        ]
+      }
+    ],
+    "usage": [
+      {
+        "input": 1103,
+        "output": 481,
+        "cacheRead": 384,
+        "cacheWrite": 0,
+        "reasoning": 296,
+        "totalTokens": 1968,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 9021,
+        "output": 2676,
+        "cacheRead": 1920,
+        "cacheWrite": 0,
+        "reasoning": 2618,
+        "totalTokens": 13617,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      },
+      {
+        "input": 10486,
+        "output": 1901,
+        "cacheRead": 384,
+        "cacheWrite": 0,
+        "reasoning": 856,
+        "totalTokens": 12771,
+        "cost": {
+          "input": 0,
+          "output": 0,
+          "cacheRead": 0,
+          "cacheWrite": 0,
+          "total": 0
+        }
+      }
+    ],
+    "publicAnswer": "## 核对结果（含可信度标注）\n\n### 1. 漏洞编号与公告来源（已核实）\n- **CVE-2026-107928**，CWE-126（Buffer Over-read），上游评级 **Low**。\n- 原始公告为 curl 项目安全公告（一手）：`https://curl.se/docs/CVE-2026-107928.html`，标题 *\"info leak uploading over WebSockets with GnuTLS\"*，发布于 2026-10-14，与 curl 8.23.0 同步。\n- Ubuntu 侧一手记录：**USN-8927-1**（https://ubuntu.com/security/notices/USN-8927-1）明确列出 `curl / libcurl3t64-gnutls / libcurl4t64` 在 26.04 LTS (resolute) 修复版本为 **8.18.0-1ubuntu2.8**，描述与上游一致：\"when built with GnuTLS support, had an out-of-bounds read in the WebSocket send path\"。\n- 因此该 CVE 并非\"上游 8.18.0 引入的问题\"，而是 Ubuntu 在 8.18.0 基线上**回移的上游 8.23.0 修复**；受影响版本区间是上游 7.86.0–8.22.0（含 8.18.0），Ubuntu 只是把补丁 backport 进 8.18.0-1ubuntu2.8。\n\n### 2. 使错误成立的异常条件（已核实，来自上游安全公告）\n- 触发前提：curl 使用 **GnuTLS** 后端，且进行 WebSocket 传输。\n- 异常点：`gnutls_record_send()` 在**一次被阻塞（blocked）的发送之后**，可能返回\"已发送字节数\"**大于调用时传给它的字节数**。\n- 组合条件：一次 TLS 发送先遇到 `EAGAIN`，随后触发 WebSocket 的**自动 PONG 响应**，此时上述返回值被直接采用。\n- 后果：对发送缓冲区做**越界读**，后续发送可能把相邻堆缓冲区数据发给服务器（信息泄露），也常表现为崩溃。\n\n### 3. 修复的边界检查（已核实到\"检查语义\"，未核实到逐行 diff）\n上游公告给出的修复提交为：\n- **Fixed-in: `https://github.com/curl/curl/commit/64fb3e7a7b116f6909660`**\n- 引入点: `https://github.com/curl/curl/commit/664249d095275ec532f5`\n\n修复的边界检查语义是：**在把 `gnutls_record_send()` 的返回值当作\"实际写入长度\"使用之前，必须校验/钳制该返回值不超过本次调用传入的长度**（即 sent ≤ len），否则不得推进缓冲区指针或据其计算剩余/下一段发送量。\n\n### 4. 对应代码文件\n- 问题所在的发送路径：**GnuTLS 后端发送函数（`lib/vtls/gtls.c` 中的 send 实现）** 与 **WebSocket 发送/PONG 逻辑（`lib/ws.c`）** 的交互处——公告明确点出 `gnutls_record_send()` 返回值被错误信任。\n- Ubuntu 发行版补丁位置：`debian/patches/` 下的对应 CVE 补丁（Launchpad 变更记录中同类条目统一以 `debian/patches/CVE-<id>.patch` 命名，并注明所改的 `lib/...` 文件）。\n\n### 需要声明的限制\n在本次限额内，我**未能直接取回 Launchpad 上 8.18.0-1ubuntu2.8 的补丁 hunk 原文**，因此第 3、4 点中\"具体改了哪几行、补丁文件的精确文件名\"属于基于上游一手公告与 Launchpad 补丁命名惯例的推断，而非逐行核对。可直接核验的一手入口为：\n- Launchpad changelog：`https://launchpad.net/ubuntu/+source/curl/+changelog`\n- 上游提交：`https://github.com/curl/curl/commit/64fb3e7a7b116f6909660`\n\n**结论**：Ubuntu 8.18.0-1ubuntu2.8 修复的是 **CVE-2026-107928**；成立条件是 GnuTLS 后端在一次被阻塞的发送后 `gnutls_record_send()` 返回的已发送字节数大于实际传入长度，并紧接着发生 WebSocket 自动 PONG；修复是在使用该返回值前做\"不得超过本次发送长度\"的边界校验/钳制。",
+    "sourceSnapshotSha256": "8e400c0f67cb0f44cfc44ea646c131a2ba9260c98d95efe683341342890f1bb3",
+    "harnessManifestSha256": "98e30cb92a95421647978e3da255f8af67fe19e399707eda7ac5dedb6dab90df",
+    "privateFilesUnchanged": true,
+    "childrenExited": true
+  },
+  "discoveryRead": {
+    "input": {
+      "url": "https://curl.se/docs/CVE-2026-107928.html"
+    },
+    "nativeMcpResult": {
+      "content": [
+        {
+          "type": "text",
+          "text": "url: https://curl.se/docs/CVE-2026-107928.html\ntitle: curl - info leak uploading over WebSockets with GnuTLS\ncontent: >-\n  curl / Docs / curl CVEs / **info leak uploading over WebSockets with GnuTLS**\n\n\n  ## CVE-2026-107928\n\n\n  Project curl Security Advisory, October 14 2026 Permalink\n\n\n  ## VULNERABILITY\n\n\n  When curl is built with GnuTLS, a malicious WebSocket server can make curl\n  send memory past its send buffer. This is due to an out of bounds read\n  following when `gnutls_record_send()` returns a number of bytes sent **greater\n  than the number of bytes it was given to send**. GnuTLS does that after a\n  blocked send.\n\n\n  ## INFO\n\n\n  The problem triggers when a send over TLS first reaches an `EAGAIN` situation\n  and is followed by an automated WebSocket `PONG` response.\n\n\n  This problem only triggers when curl uses the GnuTLS backend.\n\n\n  In the worst case, this bug sends data from a neighboring heap buffer to the\n  server in a subsequent send call, but it also likely to instead crash.\n\n\n  The Common Vulnerabilities and Exposures (CVE) project has assigned the name\n  CVE-2026-107928 to this issue.\n\n\n  CWE-126: Buffer Over-read\n\n\n  Severity: Low\n\n\n  This bug is considered a _C mistake_ (likely to have been avoided had we not\n  been using C).\n\n\n  *   Area: WebSocket\n\n  *   Original report: https://hackerone.com/reports/4099194\n\n\n  ## AFFECTED VERSIONS\n\n\n  *   Affected versions: curl 7.86.0 to and including 8.22.0\n\n  *   Not affected versions: curl <7.86.0 and >= 8.23.0\n\n  *   Not affected versions: curl >= 8.20.2 in the 8.20.X branch\n\n  *   Not affected versions: curl >= 8.16.2 in the 8.16.X branch\n\n  *   Not affected versions: curl >= 8.14.3 in the 8.14.X branch\n\n  *   Introduced-in: https://github.com/curl/curl/commit/664249d095275ec532f5\n\n\n  libcurl is used by many applications, but not always advertised as such!\n\n\n  This flaw also affects the curl command line tool.\n\n\n  ## SOLUTION\n\n\n  *   Fixed-in: https://github.com/curl/curl/commit/64fb3e7a7b116f6909660\n\n\n  ## RECOMMENDATIONS\n\n\n  A - Upgrade curl to version 8.23.0\n\n\n  B - Apply the patch to your local version\n\n\n  C - using another TLS backend when doing WebSocket\n\n\n  ## TIMELINE\n\n\n  This issue was reported to the curl project on October 9, 2026.\n\n\n  curl 8.23.0 was released on October 14, 2026, coordinated with the publication\n  of this advisory.\n\n\n  ## CREDITS\n\n\n  *   Reported-by: Luna with Claude, Anthropic\n\n  *   Patched-by: Stefan Eissing\n\n\n  Thanks a lot!\n"
+        }
+      ]
+    },
+    "modelVisibleResult": {
+      "provider": "jina",
+      "tool": "read_url",
+      "retrievedAt": "2026-10-26T11:38:29.463Z",
+      "url": "https://curl.se/docs/CVE-2026-107928.html",
+      "content": "url: https://curl.se/docs/CVE-2026-107928.html\ntitle: curl - info leak uploading over WebSockets with GnuTLS\ncontent: >-\n  curl / Docs / curl CVEs / **info leak uploading over WebSockets with GnuTLS**\n\n\n  ## CVE-2026-107928\n\n\n  Project curl Security Advisory, October 14 2026 Permalink\n\n\n  ## VULNERABILITY\n\n\n  When curl is built with GnuTLS, a malicious WebSocket server can make curl\n  send memory past its send buffer. This is due to an out of bounds read\n  following when `gnutls_record_send()` returns a number of bytes sent **greater\n  than the number of bytes it was given to send**. GnuTLS does that after a\n  blocked send.\n\n\n  ## INFO\n\n\n  The problem triggers when a send over TLS first reaches an `EAGAIN` situation\n  and is followed by an automated WebSocket `PONG` response.\n\n\n  This problem only triggers when curl uses the GnuTLS backend.\n\n\n  In the worst case, this bug sends data from a neighboring heap buffer to the\n  server in a subsequent send call, but it also likely to instead crash.\n\n\n  The Common Vulnerabilities and Exposures (CVE) project has assigned the name\n  CVE-2026-107928 to this issue.\n\n\n  CWE-126: Buffer Over-read\n\n\n  Severity: Low\n\n\n  This bug is considered a _C mistake_ (likely to have been avoided had we not\n  been using C).\n\n\n  *   Area: WebSocket\n\n  *   Original report: https://hackerone.com/reports/4099194\n\n\n  ## AFFECTED VERSIONS\n\n\n  *   Affected versions: curl 7.86.0 to and including 8.22.0\n\n  *   Not affected versions: curl <7.86.0 and >= 8.23.0\n\n  *   Not affected versions: curl >= 8.20.2 in the 8.20.X branch\n\n  *   Not affected versions: curl >= 8.16.2 in the 8.16.X branch\n\n  *   Not affected versions: curl >= 8.14.3 in the 8.14.X branch\n\n  *   Introduced-in: https://github.com/curl/curl/commit/664249d095275ec532f5\n\n\n  libcurl is used by many applications, but not always advertised as such!\n\n\n  This flaw also affects the curl command line tool.\n\n\n  ## SOLUTION\n\n\n  *   Fixed-in: https://github.com/curl/curl/commit/64fb3e7a7b116f6909660\n\n\n  ## RECOMMENDATIONS\n\n\n  A - Upgrade curl to version 8.23.0\n\n\n  B - Apply the patch to your local version\n\n\n  C - using another TLS backend when doing WebSocket\n\n\n  ## TIMELINE\n\n\n  This issue was reported to the curl project on October 9, 2026.\n\n\n  curl 8.23.0 was released on October 14, 2026, coordinated with the publication\n  of this advisory.\n\n\n  ## CREDITS\n\n\n  *   Reported-by: Luna with Claude, Anthropic\n\n  *   Patched-by: Stefan Eissing\n\n\n  Thanks a lot!\n",
+      "sources": [
+        {
+          "url": "https://curl.se/docs/CVE-2026-107928.html"
+        },
+        {
+          "url": "https://hackerone.com/reports/4099194"
+        },
+        {
+          "url": "https://github.com/curl/curl/commit/664249d095275ec532f5"
+        },
+        {
+          "url": "https://github.com/curl/curl/commit/64fb3e7a7b116f6909660"
+        }
+      ],
+      "truncated": false,
+      "sourcesTruncated": false,
+      "warnings": [
+        {
+          "code": "UNTRUSTED_WEB_CONTENT"
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "No new A run after the second description refinement. B is a different task and cannot be an A/B prompt comparison.",
+    "Provider/Gateway internal requests and monetary bills are not observable. Pi prices are defaults, not tariffs.",
+    "Source timestamps are retained as recorded, not independently authenticated time.",
+    "A completion status is execution success only, not answer accuracy.",
+    "No search description or router/output/provider/schema behavior change."
+  ]
+}

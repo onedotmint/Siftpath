@@ -12,7 +12,8 @@ test('npm tarball includes only current runtime/docs/examples and resolves both 
   assert.ok(paths.includes('extensions/siftpath.mjs')); assert.ok(paths.includes('dist/index.d.ts')); assert.ok(paths.includes('examples/anonymous.json'));
   assert.ok(!paths.some(path => /^(src|tests|node_modules|integrations|skills|benchmarks)\//.test(path)));
   assert.ok(!paths.some(path => path.startsWith('docs/') && path.endsWith('.json')), 'Historical raw reports stay in Git, not the runtime tarball.');
-  assert.ok(paths.includes('docs/CONFIGURATION.md')); assert.ok(paths.includes('docs/SECURITY.md'));
+  for (const path of ['CHANGELOG.md', 'docs/RELEASE-2.1.0.md', 'docs/CONFIGURATION.md', 'docs/SECURITY.md']) assert.ok(paths.includes(path));
+  for (const name of ['TESTING', 'MODEL-EXPERIENCE', 'SELECTIVE-READING']) assert.ok(!paths.includes(`docs/${name}.md`), 'Historical diagnostics stay in Git.');
   assert.ok(!paths.some(path => /engine|gather|core\/|providers\/|mcp\/http|session/.test(path)));
   assert.deepEqual(toolDefinitions.map(tool => tool.name), ['web_search', 'web_read']);
 });

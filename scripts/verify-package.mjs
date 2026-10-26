@@ -16,6 +16,7 @@ try {
   const [pack] = JSON.parse(runNpm(['pack', '--ignore-scripts', '--json', '--pack-destination', dir], root));
   assert.ok(pack.files.some(file => file.path === 'dist/cli.js'), 'Build before verifying the tarball.');
   assert.ok(!pack.files.some(file => /^(?:tests|src|node_modules)\//.test(file.path) || /^docs\/.*\.json$/.test(file.path)));
+  for (const name of ['TESTING', 'MODEL-EXPERIENCE', 'SELECTIVE-READING']) assert.ok(!pack.files.some(file => file.path === `docs/${name}.md`));
   execFileSync('tar', ['-xzf', join(dir, pack.filename), '-C', dir], { timeout: 15000 });
   const installed = join(dir, 'package');
   // The lock is verification input, not a workspace dependency or an npm-shipped file.

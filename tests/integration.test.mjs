@@ -53,9 +53,9 @@ test('real stdio MCP client sees only two tools and exercises search/read/errors
   assert.ok(!JSON.stringify(tools).match(/apiKey|providerTimeout|baseUrl/));
   assert.match(tools.find(tool => tool.name === 'web_search').description, /excerpts/);
   const readTool = tools.find(tool => tool.name === 'web_read');
-  assert.match(readTool.description, /narrower focus/);
+  assert.match(readTool.description, /narrow focus/);
   assert.match(readTool.description, /stop when sufficient/);
-  assert.match(readTool.description, /truncated=false.*page completeness/);
+  assert.match(readTool.description, /truncated=false.*completeness/);
   assert.equal(readTool.inputSchema.properties.mode, undefined);
   assert.equal(readTool.inputSchema.properties.reader.type, 'string');
   assert.match(readTool.description, /unfetched links/);

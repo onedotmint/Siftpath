@@ -2,9 +2,13 @@
 
 ## 当前验收状态
 
-当前发布候选版本为 **2.1.0**，尚未创建 Tag/Release 或发布 npm；变更与兼容性见 [Release Notes](RELEASE-2.1.0.md)。PR [#3](https://github.com/onedotmint/Siftpath/pull/3) 已按既有 merge-commit 策略合并至 `main`：`6af5846f3c4c43368978b51eb93c16701d4fce2b`，文件树与 RC `63d004ad44f233e103f2d83c482cb9703d0f20cb` 一致。[合并后 CI 40259123093](https://github.com/onedotmint/Siftpath/actions/runs/40259123093) 的 Linux/Windows × Node22/24 四格均通过。以下历史 RC 记录保留原样，不冒充最终 2.1.0 提交验收。
+版本 **2.1.0** 进入正式发布准备，Tag/Release/npm 发布仍须维护者确认；变更与兼容性见 [Release Notes](RELEASE-2.1.0.md) 与 [Changelog](../CHANGELOG.md)。最终提交必须重新通过 Linux/Windows × Node22/24、Package artifact、隔离安装及包哈希比对；下方旧 RC 的 CI/哈希不能替代最终提交验证。本文件是仅在 Git 保存的测试与历史验收索引，不进入 npm 包。
 
-历史 RC 本地 **223/223** 离线通过；本轮历史 `/tmp` 正文目录已不存在，正常套件明确跳过该单项而不补抓网络。四家认证已有业务成功记录，不混作闭环证明。**本轮模型短请求通过，自主 Agent 闭环仍未完成**：授权后的普通请求返回 OK；随后唯一真实 Pi 会话被临时验收 connector 的隐式 HTTPS 端口校验缺陷在 TLS 前阻断，0工具/0供应商业务/无答案，未补试。这不是外部模型超时或 Siftpath 实现故障的证据，详细计数和最终版本检查见文末。
+已有四家认证业务成功证据，也有真实 Pi 自主搜索 → 原始来源阅读、显式 Reader 选择和最终答复记录。此前端口/SSE 验收问题不再代表最新链路状态。答案中的误读、缺少上游证据与 16k 长文裁剪仍明确保留，不将答案全面准确作为适配层承诺或继续扩展目标。最新原始对照保存在 [公开响应/答案记录](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/evidence-quality-followup.json) 与 [逐项历史诊断](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/wal-agent-diagnosis.md)。本轮只运行工程离线验证，不调用付费模型或供应商业务。历史 `/tmp` 正文目录已不存在时，正常套件明确跳过该单项，不自动补抓网络。
+
+## 本轮发布准备的本地工程检查
+
+在本轮发布分支上已实际执行：锁定依赖离线安装、typecheck/build、完整离线套件 **226 passed / 1 skipped / 0 failed**（共227项；唯一 skip 为历史临时完整正文目录缺失）、Linux Clack PTY、源码校验91文件、npm pack、仅生产依赖的隔离安装及 CLI/SDK/真实 Pi 1.4.0 RPC 加载。隔离包62文件，不含历史报告/fixtures；工作区和包加载均0推理/0供应商业务。16项 live 测试显式关闭并全部 skip，不把它们当真实能力验收。最终 main 的四格 CI、Package artifact 和本地/CI tarball 哈希另作发布门禁，本段不提前宣称其通过。
 
 ## 当前命令
 
