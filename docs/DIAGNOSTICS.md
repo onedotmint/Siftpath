@@ -122,4 +122,4 @@ Key 输入使用自带的**遮罩输入组件**（`•` 回显、不回显明文
 
 ## Pi 首次安装验收
 
-见 [TESTING.md](TESTING.md) 的“本轮 Pi 首次安装验收”一节：使用隔离的 Pi 用户目录与本仓库 `npm pack` 产物完成安装、`/siftpath` 快速配置、工具注册与首次真实搜索/阅读；真实联网调用仅在获得许可时执行，会单独标注。
+见 Git 仓库的 [测试与验收记录](https://github.com/onedotmint/Siftpath/blob/main/docs/TESTING.md)：隔离 npm 包的真实 Pi 加载检查不进行推理；既有认证供应商和自主搜索/阅读记录另列。新的模型或真实供应商业务必须另行授权。

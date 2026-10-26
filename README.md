@@ -31,7 +31,7 @@ siftpath status                 # offline, not an availability test
 siftpath mcp                    # stdio server: only web_search and web_read
 ```
 
-A client may instead launch `node /absolute/path/to/package/dist/cli.js mcp`. For this checkout, install dependencies with `npm ci` before `pi install /absolute/path/to/Siftpath`. Pi directory installs need the directory's runtime dependencies; a bare tarball path is not a Pi package source—npm-install or unpack it first. Package version is `2.1.0`; source version does not establish registry publication. See the [2.1.0 release notes](docs/RELEASE-2.1.0.md) for changes and acceptance limits.
+A client may instead launch `node /absolute/path/to/package/dist/cli.js mcp`. For this checkout, install dependencies with `npm ci` before `pi install /absolute/path/to/Siftpath`. Pi directory installs need the directory's runtime dependencies; a bare tarball path is not a Pi package source—npm-install or unpack it first. Package version is `2.1.0`; source version does not establish registry publication. See the [changelog](CHANGELOG.md) and [2.1.0 release notes](docs/RELEASE-2.1.0.md) for changes and known limits.
 
 ## Use
 
@@ -46,7 +46,7 @@ siftpath read https://www.rfc-editor.org/rfc/rfc9111.html --reader firecrawl
 
 Before a focused business call, Siftpath checks that the selected binding actually maps `$focus`. Otherwise it returns `FOCUS_UNSUPPORTED` without calling that provider or silently reading the full page. Mapping is not proof of successful extraction: Jina anonymous `question` cannot guarantee focus, and providers may themselves downgrade. Native notes and warnings are preserved.
 
-For specific facts, use a precise focus when supported. Check the evidence for key conclusions; reread only for a real gap, or state uncertainty. Neither focused excerpts nor a non-focused read prove completeness. No automatic follow-up is performed.
+For specific facts, use a precise focus when supported. Check key claims, exceptions and failure conditions; reread only for a real gap, or qualify the affected claim. Neither focused excerpts nor a non-focused read prove completeness. No automatic follow-up is performed.
 
 ## Results, credentials and cost
 
@@ -74,6 +74,6 @@ npm run verify:package         # actual tarball, prod-only install, CLI/SDK/Pi l
 
 `AUTH_FAILED` / `MISSING_CREDENTIALS`: fix the Key or explicitly change access mode. `FOCUS_UNSUPPORTED`: choose a capable binding/reader or explicitly omit focus if a broader read is appropriate. `TOOL_NOT_FOUND`: review the binding against the provider's schema. Cold `npx` downloads can consume the provider deadline. Windows and WSL use separate homes/configurations.
 
-Historical JSON reports and raw fixtures stay in the Git repository, not the npm runtime tarball. Documentation links to those reports open GitHub. `verify:package` uses cached locked dependencies offline; install dependencies first. Its Pi loading check explicitly skips when Pi is absent; CI installs pinned Pi 1.4.0 to exercise it.
+Historical experiment/acceptance reports and raw fixtures stay in the Git repository, not the npm runtime tarball. Authenticated calls to all four recommended providers and real Pi autonomous search/read/tool workflows have succeeded; this does not guarantee complete upstream evidence or accurate model answers. Documentation links to those reports open GitHub. `verify:package` uses cached locked dependencies offline; install dependencies first. Its Pi loading check explicitly skips when Pi is absent; CI installs pinned Pi 1.4.0 to exercise it.
 
-[Configuration](docs/CONFIGURATION.md) · [Providers and pinned sources](docs/PROVIDERS.md) · [Architecture](docs/ARCHITECTURE.md) · [Diagnostics](docs/DIAGNOSTICS.md) · [Security](docs/SECURITY.md) · [Testing and historical evidence](docs/TESTING.md) · [Selective reading](docs/SELECTIVE-READING.md) · [Model-experience limits](docs/MODEL-EXPERIENCE.md)
+[Configuration](docs/CONFIGURATION.md) · [Providers and pinned sources](docs/PROVIDERS.md) · [Architecture](docs/ARCHITECTURE.md) · [Diagnostics](docs/DIAGNOSTICS.md) · [Security](docs/SECURITY.md) · [Testing and historical evidence](https://github.com/onedotmint/Siftpath/blob/main/docs/TESTING.md) · [Selective reading](https://github.com/onedotmint/Siftpath/blob/main/docs/SELECTIVE-READING.md) · [Model-experience limits](https://github.com/onedotmint/Siftpath/blob/main/docs/MODEL-EXPERIENCE.md)

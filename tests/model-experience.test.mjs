@@ -88,13 +88,14 @@ test('controlled regression fixtures separate sufficient SQLite, missing RFC and
   }
 });
 
-test('focus schema preserves limits and tool contract describes explicit, conditional rereads', () => {
+test('focus schema and advertised evidence guidance are stable contracts, not proof of model compliance', () => {
   assert.equal(readSchema.parse({ url, focus: '  no-store response  ' }).focus, 'no-store response');
   assert.throws(() => readSchema.parse({ url, focus: '' }));
   assert.throws(() => readSchema.parse({ url, focus: 'x'.repeat(2001) }));
   assert.deepEqual(toolDefinitions.map(tool => tool.name), ['web_search', 'web_read']);
   const description = toolDefinitions[1].description;
-  for (const pattern of [/Jina/, /Firecrawl/, /each key conclusion/, /narrower focus/, /stop when sufficient/, /Unsupported focus/, /no fallback/, /unfetched links/]) assert.match(description, pattern);
+  for (const pattern of [/no fallback/, /narrow focus/, /Unsupported focus/, /Firecrawl without focus/, /completeness/, /local output clipping only/, /exceptions and failure\/return conditions/, /qualify the affected claim/, /stop when sufficient/, /unfetched links/]) assert.match(description, pattern);
+  assert.ok(!description.includes('Prefer Jina'), 'The configured default is not evidence that one reader is always preferable.');
 });
 
 

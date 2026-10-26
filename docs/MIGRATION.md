@@ -30,4 +30,4 @@ Pi 安装包通过官方 MCP 注册两工具，升级后重启或 `/reload`；�
 - 只对确切旧官方 Jina 两参数 binding 在内存补 `topk:3,chunk_size:250`；显式窗口、自定义 ID/端点/header/参数不改。完整匹配条件见 [CONFIGURATION.md](CONFIGURATION.md#jina-聚焦窗口与旧配置兼容)。
 - Firecrawl **新认证选择**改为官方 HTTP `https://mcp.firecrawl.dev/v2/mcp` + Bearer `${FIRECRAWL_API_KEY}`，Markdown、onlyMainContent=true、固定 objective。已有 stdio/custom 配置不自动重写，也不增加额外适配器；要换连接须明确重新选预设。
 
-升级不会解决所有长文裁剪，也没有新的付费认证或模型行为成功保证。当前验证与历史证据分开记录在 [TESTING.md](TESTING.md)。
+升级不会解决所有长文裁剪，也没有新的付费认证或模型行为成功保证。当前验证与历史证据分开记录在 [TESTING.md](https://github.com/onedotmint/Siftpath/blob/main/docs/TESTING.md)。

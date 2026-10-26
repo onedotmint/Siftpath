@@ -1,0 +1,43 @@
+{
+  "provenance": {
+    "source": "Local installed SQLite C API header; no network fetch; separate reviewer reference, never provided to the recorded Agent",
+    "version": "3.46.1",
+    "sourceSha256": "f319f664239fdd3154721a70b7cf37fa1475703c6a4deaf7605511851c1edb17",
+    "versionEvidence": [
+      "#define SQLITE_VERSION        \"3.46.1\"",
+      "#define SQLITE_VERSION_NUMBER 3046001",
+      "#define SQLITE_SOURCE_ID      \"2024-08-13 09:16:08 c9c2ab54ba1f5f46360f1b4f35d849cd3f080e6fc2b6c60e91b16c63f69aalt1\""
+    ],
+    "status": "Versioned API contract, not proof of current hosted page contents",
+    "license": "SQLite public domain"
+  },
+  "sections": [
+    {
+      "id": "checkpoint-on-close",
+      "originalLines": [
+        2346,
+        2358
+      ],
+      "referenceUrl": "https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfignockptonclose",
+      "text": "** [[SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE]]\n** <dt>SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE</dt>\n** <dd> Usually, when a database in wal mode is closed or detached from a\n** database handle, SQLite checks if this will mean that there are now no\n** connections at all to the database. If so, it performs a checkpoint\n** operation before closing the connection. This option may be used to\n** override this behavior. The first parameter passed to this operation\n** is an integer - positive to disable checkpoints-on-close, or zero (the\n** default) to enable them, and negative to leave the setting unchanged.\n** The second parameter is a pointer to an integer\n** into which is written 0 or 1 to indicate whether checkpoints-on-close\n** have been disabled - 0 if they are not disabled, 1 if they are.\n** </dd>\n"
+    },
+    {
+      "id": "auto-checkpoint",
+      "originalLines": [
+        9605,
+        9634
+      ],
+      "referenceUrl": "https://www.sqlite.org/c3ref/wal_autocheckpoint.html",
+      "text": "/*\n** CAPI3REF: Configure an auto-checkpoint\n** METHOD: sqlite3\n**\n** ^The [sqlite3_wal_autocheckpoint(D,N)] is a wrapper around\n** [sqlite3_wal_hook()] that causes any database on [database connection] D\n** to automatically [checkpoint]\n** after committing a transaction if there are N or\n** more frames in the [write-ahead log] file.  ^Passing zero or\n** a negative value as the nFrame parameter disables automatic\n** checkpoints entirely.\n**\n** ^The callback registered by this function replaces any existing callback\n** registered using [sqlite3_wal_hook()].  ^Likewise, registering a callback\n** using [sqlite3_wal_hook()] disables the automatic checkpoint mechanism\n** configured by this function.\n**\n** ^The [wal_autocheckpoint pragma] can be used to invoke this interface\n** from SQL.\n**\n** ^Checkpoints initiated by this mechanism are\n** [sqlite3_wal_checkpoint_v2|PASSIVE].\n**\n** ^Every new [database connection] defaults to having the auto-checkpoint\n** enabled with a threshold of 1000 or [SQLITE_DEFAULT_WAL_AUTOCHECKPOINT]\n** pages.  The use of this interface\n** is only necessary if the default setting is found to be suboptimal\n** for a particular application.\n*/\nSQLITE_API int sqlite3_wal_autocheckpoint(sqlite3 *db, int N);\n"
+    },
+    {
+      "id": "checkpoint-modes",
+      "originalLines": [
+        9658,
+        9749
+      ],
+      "referenceUrl": "https://www.sqlite.org/c3ref/wal_checkpoint_v2.html",
+      "text": "/*\n** CAPI3REF: Checkpoint a database\n** METHOD: sqlite3\n**\n** ^(The sqlite3_wal_checkpoint_v2(D,X,M,L,C) interface runs a checkpoint\n** operation on database X of [database connection] D in mode M.  Status\n** information is written back into integers pointed to by L and C.)^\n** ^(The M parameter must be a valid [checkpoint mode]:)^\n**\n** <dl>\n** <dt>SQLITE_CHECKPOINT_PASSIVE<dd>\n**   ^Checkpoint as many frames as possible without waiting for any database\n**   readers or writers to finish, then sync the database file if all frames\n**   in the log were checkpointed. ^The [busy-handler callback]\n**   is never invoked in the SQLITE_CHECKPOINT_PASSIVE mode.\n**   ^On the other hand, passive mode might leave the checkpoint unfinished\n**   if there are concurrent readers or writers.\n**\n** <dt>SQLITE_CHECKPOINT_FULL<dd>\n**   ^This mode blocks (it invokes the\n**   [sqlite3_busy_handler|busy-handler callback]) until there is no\n**   database writer and all readers are reading from the most recent database\n**   snapshot. ^It then checkpoints all frames in the log file and syncs the\n**   database file. ^This mode blocks new database writers while it is pending,\n**   but new database readers are allowed to continue unimpeded.\n**\n** <dt>SQLITE_CHECKPOINT_RESTART<dd>\n**   ^This mode works the same way as SQLITE_CHECKPOINT_FULL with the addition\n**   that after checkpointing the log file it blocks (calls the\n**   [busy-handler callback])\n**   until all readers are reading from the database file only. ^This ensures\n**   that the next writer will restart the log file from the beginning.\n**   ^Like SQLITE_CHECKPOINT_FULL, this mode blocks new\n**   database writer attempts while it is pending, but does not impede readers.\n**\n** <dt>SQLITE_CHECKPOINT_TRUNCATE<dd>\n**   ^This mode works the same way as SQLITE_CHECKPOINT_RESTART with the\n**   addition that it also truncates the log file to zero bytes just prior\n**   to a successful return.\n** </dl>\n**\n** ^If pnLog is not NULL, then *pnLog is set to the total number of frames in\n** the log file or to -1 if the checkpoint could not run because\n** of an error or because the database is not in [WAL mode]. ^If pnCkpt is not\n** NULL,then *pnCkpt is set to the total number of checkpointed frames in the\n** log file (including any that were already checkpointed before the function\n** was called) or to -1 if the checkpoint could not run due to an error or\n** because the database is not in WAL mode. ^Note that upon successful\n** completion of an SQLITE_CHECKPOINT_TRUNCATE, the log file will have been\n** truncated to zero bytes and so both *pnLog and *pnCkpt will be set to zero.\n**\n** ^All calls obtain an exclusive \"checkpoint\" lock on the database file. ^If\n** any other process is running a checkpoint operation at the same time, the\n** lock cannot be obtained and SQLITE_BUSY is returned. ^Even if there is a\n** busy-handler configured, it will not be invoked in this case.\n**\n** ^The SQLITE_CHECKPOINT_FULL, RESTART and TRUNCATE modes also obtain the\n** exclusive \"writer\" lock on the database file. ^If the writer lock cannot be\n** obtained immediately, and a busy-handler is configured, it is invoked and\n** the writer lock retried until either the busy-handler returns 0 or the lock\n** is successfully obtained. ^The busy-handler is also invoked while waiting for\n** database readers as described above. ^If the busy-handler returns 0 before\n** the writer lock is obtained or while waiting for database readers, the\n** checkpoint operation proceeds from that point in the same way as\n** SQLITE_CHECKPOINT_PASSIVE - checkpointing as many frames as possible\n** without blocking any further. ^SQLITE_BUSY is returned in this case.\n**\n** ^If parameter zDb is NULL or points to a zero length string, then the\n** specified operation is attempted on all WAL databases [attached] to\n** [database connection] db.  In this case the\n** values written to output parameters *pnLog and *pnCkpt are undefined. ^If\n** an SQLITE_BUSY error is encountered when processing one or more of the\n** attached WAL databases, the operation is still attempted on any remaining\n** attached databases and SQLITE_BUSY is returned at the end. ^If any other\n** error occurs while processing an attached database, processing is abandoned\n** and the error code is returned to the caller immediately. ^If no error\n** (SQLITE_BUSY or otherwise) is encountered while processing the attached\n** databases, SQLITE_OK is returned.\n**\n** ^If database zDb is the name of an attached database that is not in WAL\n** mode, SQLITE_OK is returned and both *pnLog and *pnCkpt set to -1. ^If\n** zDb is not NULL (or a zero length string) and is not the name of any\n** attached database, SQLITE_ERROR is returned to the caller.\n**\n** ^Unless it returns SQLITE_MISUSE,\n** the sqlite3_wal_checkpoint_v2() interface\n** sets the error information that is queried by\n** [sqlite3_errcode()] and [sqlite3_errmsg()].\n**\n** ^The [PRAGMA wal_checkpoint] command can be used to invoke this interface\n** from SQL.\n*/\n"
+    }
+  ]
+}

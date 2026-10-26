@@ -1,6 +1,6 @@
 # Siftpath 2.1.0 release notes
 
-Status: release candidate, not yet tagged or published. The package version does not establish npm publication. Formal Tag, GitHub Release and npm publication require explicit maintainer confirmation after final acceptance.
+Publication is gated on the final main commit passing CI, matching package artifacts, npm authentication and explicit maintainer confirmation. These notes and the package version do not establish publication.
 
 ## Search and reading
 
@@ -12,9 +12,9 @@ Status: release candidate, not yet tagged or published. The package version does
 
 - Exact mirrored text/structured output is emitted once; distinct evidence, original URLs, native notes and warnings remain. No fuzzy deduplication or local summarization.
 - Known Firecrawl responses preserve optional `creditsUsed`, `cacheState` and valid `cachedAt` metadata within the existing serialized output budget. Missing usage stays unknown; cache hits are not assumed free.
-- Focus support is checked against the actual binding before a business request; unsupported focus does not silently become a full-page read. Provider-side extraction downgrades can still occur.
+- Focus support is checked against the actual binding before a business request; unsupported focus does not silently become a full-page read. Provider-side extraction downgrades can still occur. Concise tool guidance distinguishes local clipping from completeness and asks for conditions, targeted follow-up or claim-specific uncertainty; it is not a model accuracy guarantee.
 - Cold connection initialization is aborted when its final waiting caller cancels or times out, without cancelling other waiters. Impossible calendar timestamps are rejected.
-- npm ships runtime files and Markdown documentation, not historical raw JSON reports, source/tests, credentials or development dependencies. Windows fixtures retain their original bytes.
+- npm ships runtime files and selected user documentation, not historical experiment/acceptance reports, raw fixtures, source/tests, credentials or development dependencies. Windows fixtures retain their original bytes.
 
 ## Compatibility
 
@@ -26,5 +26,5 @@ Node.js 22+ is required, unchanged from 2.0.1. Upgrade the package, then restart
 
 - The default **16,000-character serialized JSON budget** (not tokens) can clip long bodies and omit decisive evidence. Changing Reader does not solve this limit. `truncated` reports local clipping only, not upstream completeness.
 - Source indexes may include unfetched outgoing links. Focus mapping and successful calls do not prove complete or correct evidence.
-- Engineering acceptance, authenticated provider calls, Pi Agent workflow and npm package verification are separate gates; see [testing](TESTING.md) for dated evidence. Four providers have prior authenticated business successes. The current authorized plain model probe passed, but the single Agent session failed before TLS because the temporary acceptance connector mishandled implicit HTTPS port 443. No Siftpath tool/business call or final answer occurred. This is an acceptance-harness defect, not evidence of a model/provider outage or Siftpath implementation failure; **the complete Agent workflow remains unverified**.
-- Further paid model/provider acceptance requires new explicit authorization; this round's one-session allowance is consumed and was not retried. Release preparation does not silently change models, use anonymous access or add fallback routes. Publication requires explicit acceptance of the remaining workflow gap and valid npm publishing authentication.
+- Authenticated business calls to Tavily, Exa, Jina and Firecrawl have succeeded. Real Pi sessions have demonstrated autonomous search, reading, explicit Reader selection and final answers. Historical transport/harness failures remain recorded but no longer describe the latest workflow evidence; see [testing and history](https://github.com/onedotmint/Siftpath/blob/main/docs/TESTING.md). Tool-chain success is not a guarantee of answer accuracy.
+- Upstream focus may omit exceptions; models can misread evidence that was returned intact or infer unsupported details. These are documented model/upstream limits, not a new research or fact-checking layer in Siftpath. This release preparation reuses existing live evidence and runs no paid model/provider acceptance. Formal publication still requires maintainer confirmation.

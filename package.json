@@ -28,9 +28,16 @@
   "files": [
     "dist",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
-    "docs/*.md",
+    "docs/ARCHITECTURE.md",
+    "docs/CONFIGURATION.md",
+    "docs/DIAGNOSTICS.md",
+    "docs/MIGRATION.md",
+    "docs/PROVIDERS.md",
+    "docs/RELEASE-2.1.0.md",
+    "docs/SECURITY.md",
     "examples",
     "extensions"
   ],
