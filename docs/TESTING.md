@@ -4,7 +4,7 @@
 
 当前发布候选版本为 **2.1.0**，尚未创建 Tag/Release 或发布 npm；变更与兼容性见 [Release Notes](RELEASE-2.1.0.md)。PR [#3](https://github.com/onedotmint/Siftpath/pull/3) 已按既有 merge-commit 策略合并至 `main`：`6af5846f3c4c43368978b51eb93c16701d4fce2b`，文件树与 RC `63d004ad44f233e103f2d83c482cb9703d0f20cb` 一致。[合并后 CI 40259123093](https://github.com/onedotmint/Siftpath/actions/runs/40259123093) 的 Linux/Windows × Node22/24 四格均通过。以下历史 RC 记录保留原样，不冒充最终 2.1.0 提交验收。
 
-历史 RC 本地 **223/223** 离线通过；本轮历史 `/tmp` 正文目录已不存在，正常套件应明确跳过该单项而不补抓网络。**自主 Agent 闭环仍未完成**：上轮唯一会话首次模型请求超时，供应商0/3、无工具调用/答案，未重试；四家认证已有业务成功记录，不混作闭环证明。本轮新付费验收尚未获授权，先完成离线发布准备；最终版本检查另见文末记录。
+历史 RC 本地 **223/223** 离线通过；本轮历史 `/tmp` 正文目录已不存在，正常套件明确跳过该单项而不补抓网络。四家认证已有业务成功记录，不混作闭环证明。**本轮模型短请求通过，自主 Agent 闭环仍未完成**：授权后的普通请求返回 OK；随后唯一真实 Pi 会话被临时验收 connector 的隐式 HTTPS 端口校验缺陷在 TLS 前阻断，0工具/0供应商业务/无答案，未补试。这不是外部模型超时或 Siftpath 实现故障的证据，详细计数和最终版本检查见文末。
 
 ## 当前命令
 
@@ -273,4 +273,16 @@ PR #3 已合并为 `6af5846f3c4c43368978b51eb93c16701d4fce2b`，无新增 review
 - `npm run pack:dry`、`npm run verify:package`：64个分发文件；实际tarball按lock离线仅安装生产依赖，CLI version/help/setup/doctor/status、SDK自导入与依赖隔离通过；开发依赖、历史原始JSON报告、源码、测试和凭据不入包。
 - 工作区及隔离包均由**真实 Pi 1.4.0** RPC 加载生产扩展与 builtin MCP，恰好发现/启用两个 direct 工具，验证 reader/focus/custom ID Schema 与 `/siftpath` 唯一注册；**0 prompt / 0模型推理 / 0真实供应商业务**，不是Agent闭环。
 
-上述结果先在发布候选工作树取得；最终提交还须重跑并核对远端四格CI、打包工作流产物和敏感信息检查，准确SHA与产物完整性以最终发布门禁报告为准。尚未执行本轮付费模型连通性或Agent任务：须先授权预算，模型通道失败则停止，不据此判定Siftpath实现失败。已知16k正文预算及历史模型超时限制不因工程检查通过而消失。
+上述结果先在发布候选工作树取得，并已在准备提交 `1ff330af9df256cefa31783ac63681580058474a` 重跑：[四格CI 40259661862](https://github.com/onedotmint/Siftpath/actions/runs/40259661862) 和 [打包CI 40259663684](https://github.com/onedotmint/Siftpath/actions/runs/40259663684) 全部通过，CI tarball 与本地逐字节一致。该段是付费验收前的工程快照；下节补记后最终文档提交仍须完整复验，准确SHA和最终产物完整性以发布门禁报告为准。已知16k预算不因工程检查通过而消失。
+
+### 本轮授权后的模型与唯一 Agent 验收：准确区分失败归属
+
+1. **模型连通性通过**：先单独授权普通请求，原配置 `deepseek/deepseek-flash` / `openai-responses` / `api.deepseek.com/responses`，仅输入 `Reply exactly OK.`；1次实际发送，258 bytes，HTTP200、stop/completed、正文 `OK`，总耗时1.381秒。input=34、output=2、total=36 token；实际reasoning=minimal，不宣称关闭推理。Pi缺省价格产生cost=0，不是免费或实际账单证明。0 Agent/0工具/0供应商业务；没有改API或重试。
+2. **Agent闭环未完成**：另获授权后，仅创建1个真实Pi1.4.0 AgentSession并提交1条原文SQLite WAL任务；不指定Provider、intent、Reader、URL或结论。限额为4次模型、每次8192输出token含推理/累计32768、请求体256KiB、共享3次供应商业务、90秒模型/60秒业务/600秒会话；实际传输预扣且失败不退款。
+3. 生产extension→builtin MCP→候选CLI本地initialize/tools/list通过，两个生产schema正常。19组实发前离线集成检查覆盖模型/跨子进程共享业务计数、第四业务/第五模型、重复/匿名/fallback和内部重发等；但MockAgent绕过了真实connector，**漏测隐式HTTPS端口**，不能把19组通过当完整live门禁可用性证明。
+4. 唯一会话首次模型尝试在dispatcher预扣后约4ms由临时验收connector拒绝：undici传入默认HTTPS端口为 `""`，临时校验错误地只接受 `"443"`，产生 `BACKEND_ENDPOINT`；Pi最后aborted/Request aborted、无HTTP响应。会话总耗时1.100秒，模型runtime约120ms。事后只用假TLS离线复现，相同错误且TLS调用0；推断发生于任何TLS/HTTP外发前，不把1次预扣说成远端收到1次请求。**这是本次验收代码缺陷，不是DeepSeek超时、协议不支持、供应商或Siftpath故障。**
+5. **实际调用序列为空、公开答案为空、来源为空**；供应商业务0/3、远程握手/发现0、无供应商usage/credits/cache响应。Pi错误默认token/cost=0不是有效计费报告，实际账单unknown。SQLite答案与搜索→阅读→回答链路均不可评分，未代写补全。唯一会话及锁已消费，失败后停止，无第二会话、追问、换模型或补试。
+
+模型与Agent脱敏完整证据分别保存在本机 `~/.cache/siftpath-release/2.1.0/model-connectivity/`、`agent-acceptance/`，含脚本hash、一次性锁、原始本地MCP、逐次事件/usage、离线postmortem与前后配置hash；不进入npm包。用户配置/凭据/路线未变，验收子进程均退出。公开npm依赖曾按原固定版本下载到隔离缓存，未运行安装脚本或用额外业务请求预试；不是生产依赖变更。
+
+发布评估：工程实现、既有四家认证和npm候选包证据独立保留；**不能宣布完整Agent验收通过**。在明确披露验收脚本失败及未验证闭环的前提下，可以由维护者决定是否接受剩余风险发布轻量工具；本轮不无限重试。正式门禁还包括用户明确确认准确最终提交、恢复当前返回E401的npm发布认证、再查版本未发布。没有创建Tag/Release或执行publish。
