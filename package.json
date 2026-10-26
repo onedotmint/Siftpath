@@ -1,6 +1,6 @@
 {
   "name": "@onedotmint/siftpath",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Lightweight official MCP web search and reader router for AI agents.",
   "keywords": [
     "pi-package",

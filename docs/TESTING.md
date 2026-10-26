@@ -2,7 +2,9 @@
 
 ## 当前验收状态
 
-当前RC工程检查为本地 **223/223** 离线通过；PR #3 的 Linux/Windows × Node22/24 四格CI已在修复原文fixture CRLF问题后通过（见末节实际run链接），包含真实Pi无推理加载和tarball隔离验证。**自主Agent闭环仍为证据不足**：上轮独立预算唯一会话首次模型请求超时，供应商0/3、无工具调用/答案，未重试；更早四家认证共6次成功不混作闭环证明。本RC不运行新付费验收。
+当前发布候选版本为 **2.1.0**，尚未创建 Tag/Release 或发布 npm；变更与兼容性见 [Release Notes](RELEASE-2.1.0.md)。PR [#3](https://github.com/onedotmint/Siftpath/pull/3) 已按既有 merge-commit 策略合并至 `main`：`6af5846f3c4c43368978b51eb93c16701d4fce2b`，文件树与 RC `63d004ad44f233e103f2d83c482cb9703d0f20cb` 一致。[合并后 CI 40259123093](https://github.com/onedotmint/Siftpath/actions/runs/40259123093) 的 Linux/Windows × Node22/24 四格均通过。以下历史 RC 记录保留原样，不冒充最终 2.1.0 提交验收。
+
+历史 RC 本地 **223/223** 离线通过；本轮历史 `/tmp` 正文目录已不存在，正常套件应明确跳过该单项而不补抓网络。**自主 Agent 闭环仍未完成**：上轮唯一会话首次模型请求超时，供应商0/3、无工具调用/答案，未重试；四家认证已有业务成功记录，不混作闭环证明。本轮新付费验收尚未获授权，先完成离线发布准备；最终版本检查另见文末记录。
 
 ## 当前命令
 
@@ -255,3 +257,20 @@ PR [#3](https://github.com/onedotmint/Siftpath/pull/3)，初始RC提交 `9b5d137
 四格均：完整普通离线套件222通过/1仅限历史临时正文目录的明确skip、0失败；真实Pi1.4.0工作区加载通过；63文件tarball仅生产依赖离线隔离安装、CLI/SDK和实际Pi加载通过（Pi检查本身0 skip）；16 live全部关闭并skip。Linux PTY两版通过，Windows不运行Linux PTY脚本，但Pi原生菜单/遮罩与非PTY配置测试仍在全套中。CI没有生产Key，没有供应商业务或模型prompt。
 
 GitHub仍有checkout/setup-node v4自身Node20动作运行时弃用提示（runner强制Node24执行动作），非项目Node22/24测试失败；上游SDK Server弃用提示同样未改造。建议合并作为工程RC供评审，但正式npm发布仍应先完成另行授权的Agent闭环验收并明确发布版本；本轮未合并、创建Tag/Release或发布npm。
+
+## 2026-10-26：2.1.0 发布准备（未经正式发布授权）
+
+PR #3 已合并为 `6af5846f3c4c43368978b51eb93c16701d4fce2b`，无新增 review/冲突阻塞；merge tree 与指定 RC 完全相同。[main CI 40259123093](https://github.com/onedotmint/Siftpath/actions/runs/40259123093) 四格均成功。远端尚无 Git Tag/GitHub Release；npm `latest=2.0.1`，已发布列表中无 `2.1.0`。这些是本轮准备时的快照，正式发布前须再查。
+
+发布准备仅更新 package/lock 的版本身份及 README、MIGRATION、本文和 [Release Notes](RELEASE-2.1.0.md)，不更改生产源码、路由、依赖或私有配置。2.1.0 相对于已发布 2.0.1 为向后兼容扩展，不把此前轻量重建的旧引擎移除记成本次破坏性变更。
+
+本机 Linux / Node v24.22.1 / npm 11.19.1 / Pi 1.4.0 已执行：
+
+- `npm ci --ignore-scripts --no-audit --no-fund`、`npm run check`：typecheck/build 通过；**222 passed / 1 skipped / 0 failed**，共223项。唯一跳过项是历史临时完整正文回放，原目录已不存在；没有补抓网页或弱化断言。保存在 Git 的 CSS 原文/哈希与其他回归正常执行。
+- `npm run test:setup`：真实 Linux Clack PTY 操作、Key 遮罩、取消与显式诊断边界通过。
+- `npm run verify:source`：85文件通过；package/lock/入口一致。`git diff --check` 通过。
+- `npm run test:live`：全部9个 live/contract 专项环境开关显式设为0，**16/16明确跳过**；不是认证或模型成功证明。
+- `npm run pack:dry`、`npm run verify:package`：64个分发文件；实际tarball按lock离线仅安装生产依赖，CLI version/help/setup/doctor/status、SDK自导入与依赖隔离通过；开发依赖、历史原始JSON报告、源码、测试和凭据不入包。
+- 工作区及隔离包均由**真实 Pi 1.4.0** RPC 加载生产扩展与 builtin MCP，恰好发现/启用两个 direct 工具，验证 reader/focus/custom ID Schema 与 `/siftpath` 唯一注册；**0 prompt / 0模型推理 / 0真实供应商业务**，不是Agent闭环。
+
+上述结果先在发布候选工作树取得；最终提交还须重跑并核对远端四格CI、打包工作流产物和敏感信息检查，准确SHA与产物完整性以最终发布门禁报告为准。尚未执行本轮付费模型连通性或Agent任务：须先授权预算，模型通道失败则停止，不据此判定Siftpath实现失败。已知16k正文预算及历史模型超时限制不因工程检查通过而消失。

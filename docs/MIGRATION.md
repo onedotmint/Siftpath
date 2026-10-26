@@ -1,6 +1,6 @@
 # Migration
 
-当前源码包版本为 2.0.1；版本号不代表已发布。轻量重建移除了 EvidenceEngine/createEngine、EvidencePack、Gather、web_fetch/web_gather、旧引擎选项、HTTP serving/adapters、rerank/充分性服务、缓存 ID、用量账本及生成插件。历史代码在 Git 中，旧测试/基准不算当前覆盖。
+当前源码包版本为 2.1.0；版本号不代表已发布。[2.1.0](RELEASE-2.1.0.md) 在 2.0.1 的轻量接口上向后兼容地扩展搜索与 Reader；以下旧引擎移除属于此前的轻量重建，不是本次新增破坏性变更。轻量重建移除了 EvidenceEngine/createEngine、EvidencePack、Gather、web_fetch/web_gather、旧引擎选项、HTTP serving/adapters、rerank/充分性服务、缓存 ID、用量账本及生成插件。历史代码在 Git 中，旧测试/基准不算当前覆盖。
 
 ## 现有工具与 Pi
 
