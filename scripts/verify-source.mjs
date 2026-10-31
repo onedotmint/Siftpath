@@ -7,7 +7,8 @@ const root = resolve(process.argv[2] ?? fileURLToPath(new URL('..', import.meta.
 const required = ['README.md', 'CHANGELOG.md', 'docs/RELEASE-2.1.0.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'package.json', 'package-lock.json', 'tsconfig.json',
   'extensions/siftpath.mjs', 'src/diagnostics.ts', 'src/index.ts', 'src/router.ts', 'src/client.ts', 'src/config.ts', 'src/defaults.ts', 'src/cli.ts', 'src/mcp/stdio.ts',
   'src/setup.ts', 'src/setup-ui.ts', 'src/setup-plan.ts', 'src/errors.ts', 'src/inputs.ts', 'src/output.ts', 'src/tools.ts',
-  'docs/ARCHITECTURE.md', 'docs/PROVIDERS.md', 'docs/CONFIGURATION.md', 'docs/TESTING.md', 'docs/MIGRATION.md', 'docs/DIAGNOSTICS.md'];
+  'scripts/lib/pack-report.mjs', 'scripts/lib/audit-gate.mjs', 'scripts/verify-audit.mjs', 'scripts/verify-package.mjs', '.github/dependabot.yml',
+  'docs/ARCHITECTURE.md', 'docs/DEPENDENCIES.md', 'docs/PROVIDERS.md', 'docs/CONFIGURATION.md', 'docs/TESTING.md', 'docs/MIGRATION.md', 'docs/DIAGNOSTICS.md'];
 for (const path of required) if (!(await lstat(join(root, path))).isFile()) throw new Error(`Missing source file: ${path}`);
 const pkg0 = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 if (!(pkg0.keywords ?? []).includes('pi-package')) throw new Error('The pi-package keyword is required for Pi package discovery.');
@@ -18,6 +19,12 @@ for (const path of ['src/core/engine.ts', 'src/providers', 'src/mcp/http.ts', 's
 }
 const pkg = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
 if (Object.keys(pkg.dependencies ?? {}).sort().join(',') !== '@modelcontextprotocol/sdk,zod') throw new Error('Unexpected runtime dependency.');
+if (Object.keys(pkg.peerDependencies ?? {}).join(',') !== '@earendil-works/pi-tui') throw new Error('Only the Pi TUI host may be a peer dependency.');
+if (pkg.peerDependenciesMeta?.['@earendil-works/pi-tui']?.optional !== true) throw new Error('The Pi TUI peer must stay optional so consumers are not forced to install it.');
+for (const name of Object.keys(pkg.peerDependencies ?? {})) if (pkg.dependencies?.[name]) throw new Error(`Peer ${name} must not also be a runtime dependency.`);
+const dependabot = await readFile(join(root, '.github/dependabot.yml'), 'utf8');
+if (!/package-ecosystem: npm/.test(dependabot) || !/package-ecosystem: github-actions/.test(dependabot) || !/interval: weekly/.test(dependabot)) throw new Error('Dependabot must check npm and Actions weekly.');
+if (/auto-merge|gh pr merge/.test(dependabot)) throw new Error('Dependabot must not auto-merge.');
 const lock = JSON.parse(await readFile(join(root, 'package-lock.json'), 'utf8'));
 if (lock.version !== pkg.version || lock.name !== pkg.name || lock.packages[''].name !== pkg.name || lock.packages[''].version !== pkg.version) throw new Error('Package/lock identity mismatch.');
 if (JSON.stringify(lock.packages[''].bin) !== JSON.stringify(pkg.bin)) throw new Error('Package/lock executable mismatch.');

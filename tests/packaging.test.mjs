@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFile, readdir } from 'node:fs/promises';
 import { parseConfiguration, toolDefinitions } from '../dist/index.js';
+import { packReports } from '../scripts/lib/pack-report.mjs';
 
 test('npm tarball includes only current runtime/docs/examples and resolves both exposed tools', async () => {
   const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
   const output = execFileSync(npm, ['pack', '--dry-run', '--ignore-scripts', '--json'], { encoding: 'utf8', shell: process.platform === 'win32' });
-  const pack = JSON.parse(output)[0], paths = pack.files.map(file => file.path);
+  const pack = packReports(output), paths = pack.files.map(file => file.path);
   assert.ok(paths.includes('dist/cli.js')); assert.ok(paths.includes('dist/router.js'));
   assert.ok(paths.includes('extensions/siftpath.mjs')); assert.ok(paths.includes('dist/index.d.ts')); assert.ok(paths.includes('examples/anonymous.json'));
   assert.ok(!paths.some(path => /^(src|tests|node_modules|integrations|skills|benchmarks)\//.test(path)));

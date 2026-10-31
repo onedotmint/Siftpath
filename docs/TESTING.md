@@ -18,7 +18,13 @@ npm run check                  # typecheck + build + tests/*.test.mjs
 npm run test:setup             # Linux PTY setup smoke，需 Python 3
 npm run verify:source          # 分发与 lock/入口一致性
 npm run pack:dry               # 构建并检查 tarball 内容
+npm run verify:audit           # 生产=门禁，完整树=记录
+npm run verify:package         # 锁定树 + 干净消费者安装双重校验
 ```
+
+`verify:package` 分两个阶段：先用仓库锁文件 `npm ci --omit=dev` 校验已审计的生产树；再 `npm pack` 出真实 tarball，在**不复制仓库 lock** 的干净目录里普通 `npm install --omit=dev`，检查实际解析出的依赖树、CLI、MCP stdio 服务、SDK 导出与 Pi Extension 注册。任何开发工具或 Pi 宿主若进入消费者树即失败。全过程离线、0 供应商/0 模型。
+
+`verify:audit` 把生产 High/Critical 作为发布门禁；完整树单独记录。审计不可运行或输出无法解析视为失败，不当成通过。`npm pack --json` 在 npm 11 返回数组、npm 12 返回按包名索引的对象，`scripts/lib/pack-report.mjs` 统一处理，无法识别的结构直接报错而不是当成空文件列表。
 
 `npm run test:live` 会构建并运行 opt-in 测试；没有设置任何 live 开关时应跳过网络/模型测试。运行前检查继承环境，不能把“默认跳过”当成真实能力验收。以下仅列当前入口，不是本轮已执行记录：
 

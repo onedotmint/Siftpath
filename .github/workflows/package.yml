@@ -32,6 +32,7 @@ jobs:
           node --input-type=module -e 'import {readFileSync,appendFileSync} from "node:fs"; import {join} from "node:path"; const root=join(process.env.RUNNER_TEMP,"siftpath-pi","node_modules","@earendil-works","pi-coding-agent"); const pkg=JSON.parse(readFileSync(join(root,"package.json"),"utf8")); appendFileSync(process.env.GITHUB_ENV,`SIFTPATH_PI_BIN=${join(root,pkg.bin.pi)}\n`);'
       - run: npm run check
       - run: npm run verify:source
+      - run: npm run verify:audit
       - run: npm run verify:package
       - run: npm pack --ignore-scripts
       - uses: actions/upload-artifact@v4

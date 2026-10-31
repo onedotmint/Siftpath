@@ -1,0 +1,31 @@
+version: 2
+updates:
+  # One npm entry. Only low-risk development bumps are grouped; every runtime
+  # dependency (`@modelcontextprotocol/sdk`, `zod`) keeps its own PR and review,
+  # because versions here change transport, cancellation or input validation.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    groups:
+      development-minor-patch:
+        applies-to: version-updates
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    groups:
+      actions-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+# No merge and no publish step: Dependabot only opens PRs, and the existing
+# workflows still gate every one of them on tests, audits and the tarball checks.
