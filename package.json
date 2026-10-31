@@ -32,6 +32,7 @@
     "LICENSE",
     "THIRD_PARTY_NOTICES.md",
     "docs/ARCHITECTURE.md",
+    "docs/DEPENDENCIES.md",
     "docs/CONFIGURATION.md",
     "docs/DIAGNOSTICS.md",
     "docs/MIGRATION.md",
@@ -52,7 +53,8 @@
     "pack:dry": "npm run build && npm pack --dry-run --ignore-scripts",
     "prepack": "npm run build",
     "verify:source": "node scripts/verify-source.mjs",
-    "verify:package": "node scripts/verify-package.mjs"
+    "verify:package": "node scripts/verify-package.mjs",
+    "verify:audit": "node scripts/verify-audit.mjs"
   },
   "repository": {
     "type": "git",
