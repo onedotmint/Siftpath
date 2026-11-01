@@ -19,6 +19,7 @@ const reasons = {
   DISCOVERY_FAILED: 'Cannot list official MCP tools.', TOOL_NOT_FOUND: 'A configured tool was not found in tools/list.',
   INVALID_UPSTREAM_ARGUMENTS: 'Official MCP rejected the mapped test arguments; check its current schema.',
   UPSTREAM_ERROR: 'Official MCP tool failed. Check account permissions/quota and tool configuration.',
+  UPSTREAM_FORBIDDEN: 'The provider refused this request for this account. The exact reason is upstream (permission, plan, entitlement or suspended access); this is not a Siftpath configuration error.',
   INVALID_UPSTREAM_RESPONSE: 'Official MCP result violates its declared output schema.', TASK_REQUIRED: 'Configured tool requires task execution, not a synchronous search/read call.',
   OUTPUT_LIMIT: 'Source metadata exceeded maxOutputChars.', EMPTY_RESPONSE: 'Official MCP returned no readable text.', NO_SOURCES: 'Official MCP returned no traceable public source.',
   UNSUPPORTED_OPERATION: 'No search or read binding is configured.', PROVIDER_TIMEOUT: 'Provider test deadline exceeded.', ABORTED: 'Test cancelled.',
@@ -32,14 +33,23 @@ const testSchema = z.strictObject({
   operations: z.array(z.strictObject({ operation: z.enum(['search', 'read']), state: stage, durationMs: z.number().nonnegative(), code: codeSchema.optional() })).max(2),
 });
 export type ProviderTest = z.infer<typeof testSchema>;
-const historySchema = z.strictObject({ version: z.literal(1), tests: z.record(z.string(), z.strictObject({ fingerprint: z.string().regex(/^[a-f0-9]{64}$/), result: testSchema })) });
+/** A tool-level refusal carries the provider's own error envelope; keep its status, never the message. */
+export function upstreamStatus(raw: unknown): number | undefined {
+  const error = (raw as { structuredContent?: { error?: { status?: unknown } } })?.structuredContent?.error;
+  const status = error?.status;
+  return typeof status === 'number' && Number.isInteger(status) && status >= 400 && status < 600 ? status : undefined;
+}
+const historySchema = z.strictObject({ version: z.literal(1), tests: z.record(z.string(), z.strictObject({
+  fingerprint: z.string().regex(/^[a-f0-9]{64}$/), configHash: z.string().regex(/^[a-f0-9]{64}$/).optional(), result: testSchema })) });
 type History = z.infer<typeof historySchema>;
 const maxHistoryBytes = 1048576;
 export function testHistoryPath(path = configPath()): string { return join(dirname(path), '.' + basename(path) + '.siftpath-tests.json'); }
-function fingerprint(id: string, config: Configuration, env: NodeJS.ProcessEnv): string {
+function fingerprint(id: string, config: Configuration, env: NodeJS.ProcessEnv): { hash: string; configHash: string } {
   const provider = Object.hasOwn(config.providers, id) ? config.providers[id] : undefined;
-  return createHash('sha256').update(packageVersion).update(JSON.stringify(provider ?? null))
-    .update(JSON.stringify({ timeoutMs: Math.min(config.timeoutMs, provider?.timeoutMs ?? config.providerTimeoutMs), maxOutputChars: config.maxOutputChars })).update(provider ? resolveSecret(JSON.stringify(provider.connection), config, env) : '').digest('hex');
+  const limits = { timeoutMs: Math.min(config.timeoutMs, provider?.timeoutMs ?? config.providerTimeoutMs), maxOutputChars: config.maxOutputChars };
+  const configHash = createHash('sha256').update(JSON.stringify(provider ?? null)).update(JSON.stringify(limits))
+    .update(provider ? resolveSecret(JSON.stringify(provider.connection), config, env) : '').digest('hex');
+  return { hash: createHash('sha256').update(packageVersion).update(configHash).digest('hex'), configHash };
 }
 async function readHistory(path: string): Promise<{ data: History; warning?: string }> {
   try {
@@ -111,8 +121,14 @@ export async function statusReport(config: Configuration, path = configPath(), e
   const local = diagnostics(config, env);
   const providers = local.providers.map(provider => {
     const saved = Object.hasOwn(history.data.tests, provider.provider) ? history.data.tests[provider.provider] : undefined;
+    const current = fingerprint(provider.provider, config, env);
+    // Name the cause instead of a blanket CONFIG_CHANGED: a package upgrade is not a
+    // credential or route edit, and older history files have no configHash to compare.
+    const staleReason = !saved || saved.fingerprint === current.hash ? undefined
+      : saved.configHash === undefined ? 'unknown' : saved.configHash === current.configHash ? 'version' : 'configuration';
     return { ...provider, configured: Object.hasOwn(config.providers, provider.provider), lastTest: saved?.result ?? null,
-      lastTestStale: saved ? saved.fingerprint !== fingerprint(provider.provider, config, env) : false };
+      lastTestStale: saved ? saved.fingerprint !== current.hash : false,
+      ...(staleReason ? { lastTestStaleReason: staleReason as 'version' | 'configuration' | 'unknown' } : {}) };
   });
   // READY is configuration only; the next step follows from what is configured and what was actually tested.
   const ready = providers.filter(provider => provider.code === 'READY');
@@ -134,7 +150,7 @@ export async function testReport(config: Configuration, target: string, path = c
     const history = await readHistory(testHistoryPath(path));
     if (history.warning) { warnings.add(history.warning); continue; }
     // shortcut: concurrent CLI writers are last-writer-wins; add locking only if concurrent diagnostics become a real workflow.
-    history.data.tests[id] = { fingerprint: fingerprint(id, config, env), result };
+    history.data.tests[id] = { fingerprint: fingerprint(id, config, env).hash, configHash: fingerprint(id, config, env).configHash, result };
     const oldest = Object.keys(history.data.tests).filter(key => key !== id).sort((a, b) => history.data.tests[a]!.result.testedAt.localeCompare(history.data.tests[b]!.result.testedAt));
     for (const key of oldest) {
       if (Buffer.byteLength(JSON.stringify(history.data, null, 2) + '\n') <= maxHistoryBytes) break;
@@ -146,6 +162,13 @@ export async function testReport(config: Configuration, target: string, path = c
   return { version: packageVersion, ok: counts.passed > 0 && counts.failed === 0 && !signal?.aborted, counts,
     networkChecked: results.some(result => result.stages.connection !== 'not_tested'),
     results: results.map(result => ({ ...result, configuration: providerStatus(result.provider, config, env).code })), warnings: [...warnings] };
+}
+/** Why a past test no longer describes the current setup, in the words a user can act on. */
+function staleLabel(reason: 'version' | 'configuration' | 'unknown' | undefined): string {
+  if (reason === 'version') return 'PACKAGE_UPGRADED; ';
+  if (reason === 'configuration') return 'CONFIG_CHANGED; ';
+  if (reason === 'unknown') return 'STALE; ';
+  return '';
 }
 /** Disabled providers are skipped, not failures; nothing testable is never a success. */
 function tally(results: ProviderTest[]) {
@@ -164,8 +187,8 @@ export function formatStatus(report: Awaited<ReturnType<typeof statusReport>>): 
     `Intent: default=${route.defaultIntent}${Object.entries(route.intents).map(([intent, id]) => `, ${intent}=${id}`).join('')}`,
     'Providers:', ...report.providers.map(provider => {
       const recent = provider.lastTest;
-      return `  ${provider.provider}: ${provider.code}${provider.needs?.length ? ' (' + provider.needs.join(', ') + ')' : ''} · ${provider.operations.join('/') || 'no tools'} · ` +
-        (recent ? `${provider.lastTestStale ? 'CONFIG_CHANGED; ' : ''}last test ${recent.outcome} ${recent.testedAt}${recent.code ? ' — ' + recent.code : ''}` : 'NOT_TESTED');
+      return `  ${provider.provider}: ${provider.code}${provider.needs?.length ? ' (' + provider.needs.join(', ') + ')' : ''} · ${provider.operations.join('/') || 'no tools'}${provider.focus ? ', focus' : ''} · ` +
+        (recent ? `${staleLabel(provider.lastTestStaleReason)}last test ${recent.outcome} ${recent.testedAt}${recent.code ? ' — ' + recent.code : ''}` : 'NOT_TESTED');
     }), ...(report.warnings.length ? ['Warnings: ' + report.warnings.join(', ')] : []), `Next: ${report.nextStep}`,
     'READY means configuration/credentials only, not verified availability. Test explicitly: /siftpath test <provider|all> (may use API quota).'].join('\n');
 }

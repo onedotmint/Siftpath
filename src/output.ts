@@ -2,6 +2,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { SiftpathError } from './errors.js';
+import { upstreamStatus } from './diagnostics.js';
 import { publicUrl } from './inputs.js';
 export interface Source { url: string; title?: string }
 export interface WebResult {
@@ -25,7 +26,15 @@ function firecrawlMetadata(value: unknown): WebResult['metadata'] {
 }
 /** Preserve the official tool's text/order. Only collect citation URLs, never score or extract passages. */
 export function normalize(result: CallToolResult, provider: string, tool: string, limit: number, url?: string, warnings: WebResult['warnings'] = []): WebResult {
-  if (result.isError) throw new SiftpathError('UPSTREAM_ERROR', 'Official MCP tool reported an error.');
+  if (result.isError) {
+    // A 403 means the provider refused this account or target, which is upstream, but the
+    // specific reason (banned, plan, entitlement) is known only to the provider. Never guess
+    // it locally, and never fall back to an anonymous mode to work around it.
+    const status = upstreamStatus(result);
+    if (status === 401) throw new SiftpathError('AUTH_FAILED', 'Official MCP rejected the credential.');
+    if (status === 403) throw new SiftpathError('UPSTREAM_FORBIDDEN', 'Official MCP refused this request for this account.');
+    throw new SiftpathError('UPSTREAM_ERROR', 'Official MCP tool reported an error.');
+  }
   const parts = result.content.flatMap(block => block.type === 'text' ? [block.text] :
     block.type === 'resource_link' ? [block.uri] : block.type === 'resource' && 'text' in block.resource ? [block.resource.text] : []);
   const structured = result.structuredContent ? JSON.stringify(result.structuredContent) : '';

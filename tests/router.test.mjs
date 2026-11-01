@@ -68,6 +68,33 @@ test('all-provider failure reports stable diagnostics, never upstream error bodi
   const r = await router(t, config({ brave: provider('secret') }, { routes: { search: 'brave', read: 'brave', searchFallback: [] } }));
   await assert.rejects(r.search({ query: 'x' }), e => e.code === 'NO_PROVIDER_SUCCEEDED' && !JSON.stringify(e).includes('PRIVATE_KEY'));
 });
+test('a provider refusal is reported as upstream, not as a Siftpath misconfiguration', async t => {
+  const forbidden = { ...provider(), read: { name: 'forbidden', arguments: { url: '$url' } } };
+  const r = await router(t, config({ brave: forbidden }, { routes: { search: 'brave', read: 'brave', searchFallback: [] } }));
+  // Explicit reader: one provider, one cause, and the message must name that cause.
+  await assert.rejects(r.read({ url: 'https://example.com', reader: 'brave' }), error => {
+    assert.equal(error.code, 'UPSTREAM_FORBIDDEN');
+    assert.match(error.message, /refused this request/i);
+    // Only the upstream status is known: do not claim a ban, a plan limit or an entitlement.
+    assert.doesNotMatch(JSON.stringify(error), /ban|suspend|quota|plan limit/i);
+    assert.ok(!JSON.stringify(error).includes('PRIVATE_KEY'));
+    return true;
+  });
+});
+test('a single explicit provider failure names its own cause instead of repeating the generic message', async t => {
+  // Jina here has no read binding at all, so the single provider's cause is structural.
+  const r = await router(t, config({ jina: { ...provider(), read: undefined } }, { routes: { search: 'jina', read: 'jina', searchFallback: [] } }));
+  await assert.rejects(r.read({ url: 'https://example.com', reader: 'nosuch' }), error => {
+    assert.equal(error.code, 'NOT_CONFIGURED');
+    assert.match(error.message, /nosuch: no such configured provider/i);
+    return true;
+  });
+  await assert.rejects(r.read({ url: 'https://example.com', reader: 'jina' }), error => {
+    assert.equal(error.code, 'UNSUPPORTED_OPERATION');
+    assert.match(error.message, /jina: this provider has no binding for this operation/i);
+    return true;
+  });
+});
 test('per-operation cancellation does not fall back or poison a reusable connection', async t => {
   const r = await router(t, config({ brave: provider('slow'), exa: provider() }));
   const controller = new AbortController(); const work = r.search({ query: 'x' }, { signal: controller.signal });
