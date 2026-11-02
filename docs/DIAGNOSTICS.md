@@ -63,7 +63,7 @@ node dist/cli.js test all --json
 
 失败只输出固定脱敏分类，并附带一条可操作提示（`hint`），例如 AUTH_FAILED、RATE_LIMITED、CONNECTION_FAILED、TOOL_NOT_FOUND、DISCOVERY_FAILED、INVALID_UPSTREAM_ARGUMENTS、UPSTREAM_ERROR、UPSTREAM_FORBIDDEN、PROVIDER_TIMEOUT。不会输出上游错误正文、网页内容、请求头或 Key。
 
-`UPSTREAM_FORBIDDEN` 用于供应商在工具层拒绝了这次请求，与凭据错误（`AUTH_FAILED`）和 Siftpath 配置错误分开。Siftpath 只上报可观测到的上游状态码，**不推断具体是封禁、套餐还是端点权限**；也不以匿名模式重试来绕过认证拒绝。显式指定单一 `reader` 或只有一个候选时，错误消息会写明是哪一家、什么原因，而不是重复通用的 “No configured provider could serve this request”。
+`UPSTREAM_FORBIDDEN` 用于供应商在工具层拒绝了这次请求，与凭据错误（`AUTH_FAILED`）和 Siftpath 配置错误分开。Siftpath 只上报可观测到的上游状态码，**不推断具体是封禁、套餐还是端点权限**；也不以匿名模式重试来绕过认证拒绝。显式指定 `reader` 且只有一个诊断原因，或唯一诊断原因为 `FOCUS_UNSUPPORTED` 时，错误消息会写明是哪一家、什么原因。普通默认路线失败仍可返回 `NO_PROVIDER_SUCCEEDED`，具体原因保留在 diagnostics 中。
 
 ## 最近测试记录
 

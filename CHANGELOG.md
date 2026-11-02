@@ -1,8 +1,19 @@
 # Changelog
 
-## 2.1.0
+## 2.1.1
 
-Backward-compatible update from 2.0.1; publication requires maintainer confirmation.
+Maintenance update from 2.1.0. Publication is confirmed by the npm registry and Git release, not this source version.
+
+- Distinguish credential rejection from observable upstream tool refusals without exposing raw errors or guessing the provider's reason; make explicit Reader failure messages actionable.
+- Show binding-level focus support offline and distinguish package upgrades, configuration changes and unknown causes when historical tests become stale.
+- Update the locked dependency tree for the body-parser advisory; gate releases on production High/Critical findings and record the full development-tree audit separately.
+- Verify both locked production installs and clean consumer tarball installs, including dependency isolation, CLI/SDK/MCP and real Pi registration without inference.
+- Cover Linux/Windows × Node 22/24/26 and npm 11/12; update build tooling while retaining Node 22 as the minimum runtime.
+- Keep the two-tool API, saved routes/credentials, default Reader and 16,000-character output budget unchanged. See [release notes](docs/RELEASE-2.1.1.md) for compatibility and known limits.
+
+## 2.1.0 — 2026-10-27
+
+Published backward-compatible update from 2.0.1.
 
 - Keep the two-tool API: `web_search` and `web_read`.
 - Recommend Tavily for general/research search and Exa for semantic discovery; retain Jina as the default Reader and support an explicit configured `reader`, including Firecrawl, without fallback.

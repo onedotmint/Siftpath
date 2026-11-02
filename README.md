@@ -31,7 +31,7 @@ siftpath status                 # offline, not an availability test
 siftpath mcp                    # stdio server: only web_search and web_read
 ```
 
-A client may instead launch `node /absolute/path/to/package/dist/cli.js mcp`. For this checkout, install dependencies with `npm ci` before `pi install /absolute/path/to/Siftpath`. Pi directory installs need the directory's runtime dependencies; a bare tarball path is not a Pi package source—npm-install or unpack it first. Package version is `2.1.0`; source version does not establish registry publication. See the [changelog](CHANGELOG.md) and [2.1.0 release notes](docs/RELEASE-2.1.0.md) for changes and known limits.
+A client may instead launch `node /absolute/path/to/package/dist/cli.js mcp`. For this checkout, install dependencies with `npm ci` before `pi install /absolute/path/to/Siftpath`. Pi directory installs need the directory's runtime dependencies; a bare tarball path is not a Pi package source—npm-install or unpack it first. Package/source version is `2.1.1`; a source version does not establish registry publication. See the [changelog](CHANGELOG.md) and [2.1.1 release notes](docs/RELEASE-2.1.1.md) for the maintenance update and known limits.
 
 ## Use
 
@@ -68,12 +68,13 @@ npm ci
 npm run check                  # typecheck + build + offline tests
 npm run test:setup             # Linux PTY setup smoke
 npm run verify:source
+npm run verify:audit            # production High/Critical gate + full-tree report
 npm run pack:dry
 npm run verify:package         # actual tarball, prod-only install, CLI/SDK/Pi loading; no inference
 ```
 
 `AUTH_FAILED` / `MISSING_CREDENTIALS`: fix the Key or explicitly change access mode. `UPSTREAM_FORBIDDEN`: the provider itself refused this account or target; Siftpath reports the upstream status only and never guesses whether that means a ban, a plan limit or an entitlement, and never switches to anonymous access to work around it. `FOCUS_UNSUPPORTED`: choose a capable binding/reader or explicitly omit focus if a broader read is appropriate. `TOOL_NOT_FOUND`: review the binding against the provider's schema. Cold `npx` downloads can consume the provider deadline. Windows and WSL use separate homes/configurations.
 
-Historical experiment/acceptance reports and raw fixtures stay in the Git repository, not the npm runtime tarball. Authenticated calls to all four recommended providers and real Pi autonomous search/read/tool workflows have succeeded; this does not guarantee complete upstream evidence or accurate model answers. Documentation links to those reports open GitHub. `verify:package` uses cached locked dependencies offline; install dependencies first. Its Pi loading check explicitly skips when Pi is absent; CI installs pinned Pi 1.4.0 to exercise it.
+Historical experiment/acceptance reports and raw fixtures stay in the Git repository, not the npm runtime tarball. Authenticated calls to all four recommended providers and real Pi autonomous search/read/tool workflows have succeeded; this does not guarantee complete upstream evidence or accurate model answers. Documentation links to those reports open GitHub. `verify:package` first installs cached locked dependencies offline, then tests a clean consumer install and audit using the npm registry; neither stage calls a provider or model. Install dependencies first. Its Pi loading check explicitly skips when Pi is absent; CI installs pinned Pi 1.4.0 to exercise it.
 
 [Configuration](docs/CONFIGURATION.md) · [Providers and pinned sources](docs/PROVIDERS.md) · [Architecture](docs/ARCHITECTURE.md) · [Diagnostics](docs/DIAGNOSTICS.md) · [Security](docs/SECURITY.md) · [Testing and historical evidence](https://github.com/onedotmint/Siftpath/blob/main/docs/TESTING.md) · [Selective reading](https://github.com/onedotmint/Siftpath/blob/main/docs/SELECTIVE-READING.md) · [Model-experience limits](https://github.com/onedotmint/Siftpath/blob/main/docs/MODEL-EXPERIENCE.md)
