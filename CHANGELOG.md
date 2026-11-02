@@ -1,8 +1,8 @@
 # Changelog
 
-## 2.1.1 (Unreleased)
+## 2.1.1
 
-Maintenance update from 2.1.0; publication requires final candidate verification and maintainer confirmation.
+Maintenance update from 2.1.0. Publication is confirmed by the npm registry and Git release, not this source version.
 
 - Distinguish credential rejection from observable upstream tool refusals without exposing raw errors or guessing the provider's reason; make explicit Reader failure messages actionable.
 - Show binding-level focus support offline and distinguish package upgrades, configuration changes and unknown causes when historical tests become stale.

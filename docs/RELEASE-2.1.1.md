@@ -1,6 +1,6 @@
 # Siftpath 2.1.1 release notes
 
-Maintenance candidate after 2.1.0. This source version is not proof of publication: final candidate CI, package artifact/hash checks, npm authentication and explicit maintainer confirmation remain release gates.
+Maintenance update from 2.1.0. Publication is confirmed by the npm registry and Git release, not this source version. Releases require final candidate CI, package artifact/hash checks, npm authentication and explicit maintainer confirmation.
 
 ## Fixes and diagnostics
 

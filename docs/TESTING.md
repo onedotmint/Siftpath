@@ -17,9 +17,11 @@
 - `verify:audit` 的生产树与完整树均 **0漏洞**。
 - `verify:package` 通过：真实 tarball **64文件 / 405,302 bytes 解包**，锁定生产安装和无仓库 lock 的消费者安装均完成 CLI/SDK/MCP 验证；两次真实 Pi 1.4.0 RPC 加载都通过、0 skip。消费者解析 MCP SDK 1.32.2、Zod 4.6.7、body-parser 2.4.0，无开发工具/Pi宿主依赖，生产审计0漏洞。
 - 所有 live 开关显式设为0，当前 **17/17** live 测试明确跳过；0供应商业务、0模型推理，不把 skip 当真实能力验收。
-- npm 查询确认 `latest=2.1.0` 且无 `2.1.1`；`npm whoami` 返回 **E401**，当前发布认证不可用，是正式发布阻塞，不是构建或消费者安装失败。
+- npm 查询确认 `latest=2.1.0` 且无 `2.1.1`。首次认证检查为 E401；维护者重新登录后已复查账号 `onedotmint` 对本包具有 `read-write` 权限，认证阻塞已解除。实际发布仍可能要求 npm 二次认证。
 
-以上结果属于以 `5561788` 为基线的本地未提交候选，不是该基线提交的已发布产物。最终候选提交 CI、独立 Package artifact、本地/CI tarball 哈希比对、恢复发布认证与维护者确认仍待完成。本轮不调用付费模型或供应商业务。
+首个候选提交为 `5f7968e`（基线 `5561788`）：[PR CI 41420929484](https://github.com/onedotmint/Siftpath/actions/runs/41420929484) 的六格功能矩阵、审计与 npm 11/12 检查，以及 [Package CI 41420970624](https://github.com/onedotmint/Siftpath/actions/runs/41420970624) 均已通过；下载的 CI tarball 与本地包逐字节一致，SHA-1 为 `a7c6442904b96e7b1439d484441777f5faeb5339`。
+
+认证恢复后，最终发布文案移除准备态措辞，但不提前宣称发布。已重新执行 typecheck/build、离线套件（233通过/1历史skip/0失败）、源码检查、生产及全树审计（均0漏洞）与双阶段隔离安装/Pi加载；新包64文件、405,298 bytes解包，SHA-1 为 `c8512f546c8cadd9d7ba56d7a72e2f1a5faa3573`。新包不能沿用首个候选的哈希与 CI 证据；最新候选提交与远端 CI/包哈希比对统一记录在 [PR #14](https://github.com/onedotmint/Siftpath/pull/14)。合并、Tag/GitHub Release 和 npm 发布仍需维护者明确确认。本轮不调用付费模型或供应商业务。
 
 最低运行要求保持 Node.js 22+，`@types/node` 跟随 22 系列更新，Dependabot 忽略该依赖的跨大版本升级。
 

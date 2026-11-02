@@ -31,7 +31,7 @@ siftpath status                 # offline, not an availability test
 siftpath mcp                    # stdio server: only web_search and web_read
 ```
 
-A client may instead launch `node /absolute/path/to/package/dist/cli.js mcp`. For this checkout, install dependencies with `npm ci` before `pi install /absolute/path/to/Siftpath`. Pi directory installs need the directory's runtime dependencies; a bare tarball path is not a Pi package source—npm-install or unpack it first. This checkout is preparing `2.1.1`; the last confirmed npm release is `2.1.0`. A source version does not establish registry publication. See the [changelog](CHANGELOG.md) and [2.1.1 release notes](docs/RELEASE-2.1.1.md) for the maintenance update and known limits.
+A client may instead launch `node /absolute/path/to/package/dist/cli.js mcp`. For this checkout, install dependencies with `npm ci` before `pi install /absolute/path/to/Siftpath`. Pi directory installs need the directory's runtime dependencies; a bare tarball path is not a Pi package source—npm-install or unpack it first. Package/source version is `2.1.1`; a source version does not establish registry publication. See the [changelog](CHANGELOG.md) and [2.1.1 release notes](docs/RELEASE-2.1.1.md) for the maintenance update and known limits.
 
 ## Use
 
