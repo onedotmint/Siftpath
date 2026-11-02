@@ -2,17 +2,31 @@
 
 ## 当前验收状态
 
-版本 **2.1.0** 已于 2026-10-27 发布（npm `latest` 与 Git Tag/GitHub Release 一致）。之后 `main` 上的依赖安全治理与体验修复**不在**该已发布 artifact 内；再次发包需重新走 CI、Pack artifact、隔离安装与包哈希比对。本文件是仅在 Git 保存的测试与历史验收索引，不进入 npm 包。
+版本 **2.1.1** 正在准备，尚未发布；本轮只更新版本身份、发布文档和必要分发检查，不新增运行时功能。最近确认的 npm `latest` 仍为 **2.1.0**（2026-10-27 发布）。2.1.0 之后的依赖安全治理、诊断与体验修复将随 2.1.1 交付，详见 [发布说明](RELEASE-2.1.1.md) 和 [Changelog](../CHANGELOG.md)。本文件是仅在 Git 保存的测试与历史验收索引，不进入 npm 包。
 
-已有四家认证业务成功证据，也有真实 Pi 自主搜索 → 原始来源阅读、显式 Reader 选择和最终答复记录。固定三场景真实体验验收（搜索发现官方资料 / 读已知 API 文档 / 长规范例外条件）已执行并通过，记录见 [experience-scenarios.json](../tests/fixtures/experience-scenarios.json)；归属用 `vendor_missing` / `siftpath_clipped` / `model_misread` / `unverified` 分开，不把三者的责任混为一谈。答案文本中的误读、上游缺证据与长文裁剪仍保留为已知边界，不将答案全面准确作为适配层承诺。最新原始对照保存在 [公开响应/答案记录](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/evidence-quality-followup.json) 与 [逐项历史诊断](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/wal-agent-diagnosis.md)。历史 `/tmp` 正文目录已不存在时，正常套件明确跳过该单项，不自动补抓网络。
+已有四家认证业务成功证据，也有真实 Pi 自主搜索 → 原始来源阅读、显式 Reader 选择和最终答复记录。固定三场景真实体验验收（搜索发现官方资料 / 读已知 API 文档 / 长规范例外条件）已执行并通过，记录见 [experience-scenarios.json](../tests/fixtures/experience-scenarios.json)；这些是历史证据，不是本轮重新执行。归属用 `vendor_missing` / `siftpath_clipped` / `model_misread` / `unverified` 分开，不把模型误读、上游缺证据与本地裁剪混为一谈。原始对照保存在 [公开响应/答案记录](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/evidence-quality-followup.json) 与 [逐项历史诊断](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/wal-agent-diagnosis.md)。历史临时完整正文目录缺失时，正常套件明确跳过该单项，不自动补抓网络。
 
-## 本轮发布准备的本地工程检查
+## 2.1.1 发布候选检查
 
-在本轮发布分支上已实际执行：锁定依赖离线安装、typecheck/build、完整离线套件 **226 passed / 1 skipped / 0 failed**（共227项；唯一 skip 为历史临时完整正文目录缺失）、Linux Clack PTY、源码校验91文件、npm pack、仅生产依赖的隔离安装及 CLI/SDK/真实 Pi 1.4.0 RPC 加载。隔离包62文件，不含历史报告/fixtures；工作区和包加载均0推理/0供应商业务。16项 live 测试显式关闭并全部 skip，不把它们当真实能力验收。最终 main 的四格 CI、Package artifact 和本地/CI tarball 哈希另作发布门禁，本段不提前宣称其通过。
+候选准备起点为 `5561788`。该提交的 [main CI 41381893589](https://github.com/onedotmint/Siftpath/actions/runs/41381893589) 已通过 Linux/Windows × Node 22/24/26 六格功能检查、生产审计及 npm 11/12 兼容任务；这不替代版本和文档更新后的最终候选提交验证。
 
-发布后的 `main`（依赖安全治理 + 本轮体验修复）本地实测：`npm run check` **233 passed / 1 skipped / 0 failed**（共234项）、`verify:source` 97 文件、`verify:audit` 生产树 0 漏洞、main 四格 CI 成功；`npm audit` 生产依赖 0 vulnerabilities。真实三场景验收已执行（见上文）。
+本轮 Linux / Node v24.22.1 / npm 11.19.1 本地候选检查已执行：
 
-最低运行要求保持 Node.js 22+，`@types/node` 跟随 22 系列更新，Dependabot 忽略该依赖的跨大版本升级。当前功能 CI 覆盖 Linux/Windows × Node 22/24/26，npm 11/12 的独立兼容检查保持不变。
+- `npm ci --ignore-scripts --no-audit --no-fund`、typecheck/build 通过；离线套件 **233 passed / 1 skipped / 0 failed**（共234项），唯一跳过项依赖历史临时完整正文目录，未补抓网络。
+- Linux Clack PTY、`verify:source` **102文件**及 `git diff --check` 通过。
+- `verify:audit` 的生产树与完整树均 **0漏洞**。
+- `verify:package` 通过：真实 tarball **64文件 / 405,302 bytes 解包**，锁定生产安装和无仓库 lock 的消费者安装均完成 CLI/SDK/MCP 验证；两次真实 Pi 1.4.0 RPC 加载都通过、0 skip。消费者解析 MCP SDK 1.32.2、Zod 4.6.7、body-parser 2.4.0，无开发工具/Pi宿主依赖，生产审计0漏洞。
+- 所有 live 开关显式设为0，当前 **17/17** live 测试明确跳过；0供应商业务、0模型推理，不把 skip 当真实能力验收。
+- npm 查询确认 `latest=2.1.0` 且无 `2.1.1`；`npm whoami` 返回 **E401**，当前发布认证不可用，是正式发布阻塞，不是构建或消费者安装失败。
+
+以上结果属于以 `5561788` 为基线的本地未提交候选，不是该基线提交的已发布产物。最终候选提交 CI、独立 Package artifact、本地/CI tarball 哈希比对、恢复发布认证与维护者确认仍待完成。本轮不调用付费模型或供应商业务。
+
+最低运行要求保持 Node.js 22+，`@types/node` 跟随 22 系列更新，Dependabot 忽略该依赖的跨大版本升级。
+
+### 此前工程快照（历史，非 2.1.1 候选门禁）
+
+- 此前发布分支：离线套件 **226 passed / 1 skipped / 0 failed**、Linux Clack PTY、源码校验91文件、npm pack、仅生产依赖隔离安装及 CLI/SDK/真实 Pi 1.4.0 RPC 加载通过；隔离包62文件。16项 live 测试显式关闭并跳过，不是业务能力验收。
+- 发布后的早期 `main`：离线套件 **233 passed / 1 skipped / 0 failed**、`verify:source` 97 文件、生产审计0漏洞及当时四格 CI 成功。数字与矩阵是当时快照，不作为当前候选结果。
 
 ## 当前命令
 
@@ -26,7 +40,7 @@ npm run verify:audit           # 生产=门禁，完整树=记录
 npm run verify:package         # 锁定树 + 干净消费者安装双重校验
 ```
 
-`verify:package` 分两个阶段：先用仓库锁文件 `npm ci --omit=dev` 校验已审计的生产树；再 `npm pack` 出真实 tarball，在**不复制仓库 lock** 的干净目录里普通 `npm install --omit=dev`，检查实际解析出的依赖树、CLI、MCP stdio 服务、SDK 导出与 Pi Extension 注册。任何开发工具或 Pi 宿主若进入消费者树即失败。全过程离线、0 供应商/0 模型。
+`verify:package` 分两个阶段：先用仓库锁文件 `npm ci --omit=dev --offline` 从本地缓存校验生产树；再对真实 tarball 在**不复制仓库 lock** 的干净目录里普通 `npm install --omit=dev`，检查实际解析出的依赖树、CLI、MCP stdio 服务、SDK 导出与 Pi Extension 注册，并审计消费者生产依赖。任何开发工具或 Pi 宿主若进入消费者树即失败。消费者安装与审计可访问 npm registry；运行时 smoke 使用本地 fixtures 并阻断外网，全程0供应商业务/0模型推理。
 
 `verify:audit` 把生产 High/Critical 作为发布门禁；完整树单独记录。审计不可运行或输出无法解析视为失败，不当成通过。`npm pack --json` 在 npm 11 返回数组、npm 12 返回按包名索引的对象，`scripts/lib/pack-report.mjs` 统一处理，无法识别的结构直接报错而不是当成空文件列表。
 

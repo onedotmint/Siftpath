@@ -1,6 +1,8 @@
 # Migration
 
-当前源码包版本为 2.1.0；版本号不代表已发布。[2.1.0](RELEASE-2.1.0.md) 在 2.0.1 的轻量接口上向后兼容地扩展搜索与 Reader；以下旧引擎移除属于此前的轻量重建，不是本次新增破坏性变更。轻量重建移除了 EvidenceEngine/createEngine、EvidencePack、Gather、web_fetch/web_gather、旧引擎选项、HTTP serving/adapters、rerank/充分性服务、缓存 ID、用量账本及生成插件。历史代码在 Git 中，旧测试/基准不算当前覆盖。
+当前源码准备版本为 **2.1.1**，最近确认的 npm 发布为 **2.1.0**；版本号不代表已发布。2.1.1 是维护更新，不要求重建配置：保存的 Key、自定义 binding、路线与显式 fallback 均保留，升级后重启 Pi 或 `/reload`。状态会新增 focus 能力与历史测试过期原因；可观测的上游工具 401/403 分别归类为 `AUTH_FAILED` / `UPSTREAM_FORBIDDEN`，依赖错误分类的调用方应处理这些分类，而不是只匹配旧的通用 `UPSTREAM_ERROR`。旧测试记录仍可读，但缺少新配置指纹时只标为原因未知的过期记录，不要求重填凭据。详见 [2.1.1 发布说明](RELEASE-2.1.1.md)。
+
+[2.1.0](RELEASE-2.1.0.md) 在 2.0.1 的轻量接口上向后兼容地扩展搜索与 Reader；以下旧引擎移除属于此前的轻量重建，不是本次新增破坏性变更。轻量重建移除了 EvidenceEngine/createEngine、EvidencePack、Gather、web_fetch/web_gather、旧引擎选项、HTTP serving/adapters、rerank/充分性服务、缓存 ID、用量账本及生成插件。历史代码在 Git 中，旧测试/基准不算当前覆盖。
 
 ## 现有工具与 Pi
 
