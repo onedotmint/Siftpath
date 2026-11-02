@@ -8,6 +8,9 @@ import { CancellableLoader, decodeKittyPrintable, isKeyRelease, matchesKey, trun
  * passed on a command line, or stored in Pi's transcript.
  */
 const SERVER = 'siftpath';
+/** Same distinction the CLI makes: an upgrade is not a configuration edit. */
+const staleText = reason => reason === 'version' ? '包已升级 · ' : reason === 'configuration' ? '配置已变更 · '
+  : reason === 'unknown' ? '结论可能过期 · ' : '';
 export function validateSecret(value) {
   if (/[\x00-\x1f\x7f-\x9f]/.test(value) || value.length > 4096) return 'Key 格式无效（不能包含换行或控制字符）。';
   return undefined;
@@ -140,7 +143,8 @@ export default function (pi) {
       '阅读用法: web_read({ url, reader: "firecrawl" })；reader 可用任意已配置服务 ID，显式指定不使用后备。',
       '服务:',
       ...data.providers.map(provider => `  ${provider.provider}: ${provider.code}${provider.needs?.length ? ` · 缺少 ${provider.needs.join(', ')}` : ''}`
-        + ` · ${provider.operations.join('/') || '无工具'} · ${provider.lastTest ? `${provider.lastTestStale ? '配置已变更 · ' : ''}最近测试 ${provider.lastTest.outcome}` : '未测试'}`),
+        + ` · ${provider.operations.join('/') || '无工具'}${provider.focus ? ' · 支持 focus' : ''}`
+        + ` · ${provider.lastTest ? `${staleText(provider.lastTestStaleReason)}最近测试 ${provider.lastTest.outcome}` : '未测试'}`),
       '',
       'READY 只表示配置可用，不代表已验证可用。',
       `下一步: ${data.nextStep}`,

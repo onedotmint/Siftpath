@@ -89,7 +89,25 @@ test('timeouts bound the whole probe and history marks changed credentials/confi
   assert.equal((await statusReport(s.config, s.path, { TEST_KEY: 'first-secret-value' })).providers.find(p => p.provider === 'exa').lastTestStale, false);
   const changed = await statusReport(s.config, s.path, { TEST_KEY: 'second-secret-value' });
   assert.equal(changed.providers.find(p => p.provider === 'exa').lastTestStale, true);
+  assert.equal(changed.providers.find(p => p.provider === 'exa').lastTestStaleReason, 'configuration');
   assert.ok(!JSON.stringify(changed).includes('secret-value'));
+});
+test('a package upgrade is not reported as a configuration change, and focus support is visible offline', async t => {
+  const s = await setup(t, { exa: provider(), jina: { ...provider(), read: { name: 'read', arguments: { url: '$url', question: '$focus' } } } });
+  await testReport(s.config, 'all', s.path, {});
+  // Simulate the stored result coming from an older package version: same configuration,
+  // different fingerprint. The cause must name the upgrade, not the settings.
+  const history = JSON.parse(await readFile(testHistoryPath(s.path), 'utf8'));
+  history.tests.exa.fingerprint = 'f'.repeat(64);
+  await writeFile(testHistoryPath(s.path), JSON.stringify(history));
+  const report = await statusReport(s.config, s.path, {});
+  const exa = report.providers.find(p => p.provider === 'exa');
+  assert.equal(exa.lastTestStale, true);
+  assert.equal(exa.lastTestStaleReason, 'version');
+  assert.match(formatStatus(report), /PACKAGE_UPGRADED/);
+  assert.doesNotMatch(formatStatus(report), /CONFIG_CHANGED/);
+  assert.equal(report.providers.find(p => p.provider === 'jina').focus, true);
+  assert.equal(report.providers.find(p => p.provider === 'exa').focus, false);
 });
 test('unreadable history does not falsify status or overwrite an unsafe file', async t => {
   const s = await setup(t, { exa: provider() }); await writeFile(testHistoryPath(s.path), 'not JSON');

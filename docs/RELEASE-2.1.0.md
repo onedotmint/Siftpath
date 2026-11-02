@@ -1,6 +1,6 @@
 # Siftpath 2.1.0 release notes
 
-Publication is gated on the final main commit passing CI, matching package artifacts, npm authentication and explicit maintainer confirmation. These notes and the package version do not establish publication.
+Version 2.1.0 was published to npm and tagged `v2.1.0` on 2026-10-27. The text below is the release's own scope note; later work on `main` (dependency-security governance, experience fixes) is not part of that published artifact.
 
 ## Search and reading
 

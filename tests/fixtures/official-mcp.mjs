@@ -12,7 +12,7 @@ export function mockServer() {
       return { tools: [{ name: 'search', inputSchema: { type: 'object' }, ...(process.env.MOCK_OUTPUT_SCHEMA ? { outputSchema: { type: 'object', properties: { verifiedField: { type: 'string' } }, required: ['verifiedField'] } } : { execution: { taskSupport: 'required' } }) }], nextCursor: 'second-page' };
     }
     if (process.env.MOCK_PAGINATED_TOOLS && !request.params?.cursor) return { tools: [], nextCursor: 'second-page' };
-    return { tools: ['search', 'read', 'fail', 'slow', 'empty', 'malformed', 'secret', 'large'].map(name => ({
+    return { tools: ['search', 'read', 'forbidden', 'fail', 'slow', 'empty', 'malformed', 'secret', 'large'].map(name => ({
       name, inputSchema: { type: 'object', properties: {}, additionalProperties: true },
     })) };
   });
@@ -26,6 +26,10 @@ export function mockServer() {
       });
     }
     if (name === 'fail') return { isError: true, content: [{ type: 'text', text: 'PRIVATE_KEY_ERROR_BODY' }] };
+    // The observed real shape of a provider refusal: text plus a status-carrying envelope.
+    if (name === 'forbidden') return { isError: true,
+      content: [{ type: 'text', text: 'Tool \'search\' execution failed: Unauthorized: private detail' }],
+      structuredContent: { success: false, error: { code: 'forbidden', status: 403, message: 'PRIVATE_KEY_ERROR_BODY' } } };
     if (name === 'secret') throw new Error('PRIVATE_KEY_ERROR_BODY');
     if (name === 'empty') return { content: [] };
     if (name === 'malformed') return { content: [{ type: 'text', text: 'No traceable results' }] };

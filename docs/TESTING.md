@@ -2,13 +2,15 @@
 
 ## 当前验收状态
 
-版本 **2.1.0** 进入正式发布准备，Tag/Release/npm 发布仍须维护者确认；变更与兼容性见 [Release Notes](RELEASE-2.1.0.md) 与 [Changelog](../CHANGELOG.md)。最终提交必须重新通过 Linux/Windows × Node22/24、Package artifact、隔离安装及包哈希比对；下方旧 RC 的 CI/哈希不能替代最终提交验证。本文件是仅在 Git 保存的测试与历史验收索引，不进入 npm 包。
+版本 **2.1.0** 已于 2026-10-27 发布（npm `latest` 与 Git Tag/GitHub Release 一致）。之后 `main` 上的依赖安全治理与体验修复**不在**该已发布 artifact 内；再次发包需重新走 CI、Pack artifact、隔离安装与包哈希比对。本文件是仅在 Git 保存的测试与历史验收索引，不进入 npm 包。
 
-已有四家认证业务成功证据，也有真实 Pi 自主搜索 → 原始来源阅读、显式 Reader 选择和最终答复记录。此前端口/SSE 验收问题不再代表最新链路状态。答案中的误读、缺少上游证据与 16k 长文裁剪仍明确保留，不将答案全面准确作为适配层承诺或继续扩展目标。最新原始对照保存在 [公开响应/答案记录](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/evidence-quality-followup.json) 与 [逐项历史诊断](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/wal-agent-diagnosis.md)。本轮只运行工程离线验证，不调用付费模型或供应商业务。历史 `/tmp` 正文目录已不存在时，正常套件明确跳过该单项，不自动补抓网络。
+已有四家认证业务成功证据，也有真实 Pi 自主搜索 → 原始来源阅读、显式 Reader 选择和最终答复记录。固定三场景真实体验验收（搜索发现官方资料 / 读已知 API 文档 / 长规范例外条件）已执行并通过，记录见 [experience-scenarios.json](../tests/fixtures/experience-scenarios.json)；归属用 `vendor_missing` / `siftpath_clipped` / `model_misread` / `unverified` 分开，不把三者的责任混为一谈。答案文本中的误读、上游缺证据与长文裁剪仍保留为已知边界，不将答案全面准确作为适配层承诺。最新原始对照保存在 [公开响应/答案记录](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/evidence-quality-followup.json) 与 [逐项历史诊断](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/wal-agent-diagnosis.md)。历史 `/tmp` 正文目录已不存在时，正常套件明确跳过该单项，不自动补抓网络。
 
 ## 本轮发布准备的本地工程检查
 
 在本轮发布分支上已实际执行：锁定依赖离线安装、typecheck/build、完整离线套件 **226 passed / 1 skipped / 0 failed**（共227项；唯一 skip 为历史临时完整正文目录缺失）、Linux Clack PTY、源码校验91文件、npm pack、仅生产依赖的隔离安装及 CLI/SDK/真实 Pi 1.4.0 RPC 加载。隔离包62文件，不含历史报告/fixtures；工作区和包加载均0推理/0供应商业务。16项 live 测试显式关闭并全部 skip，不把它们当真实能力验收。最终 main 的四格 CI、Package artifact 和本地/CI tarball 哈希另作发布门禁，本段不提前宣称其通过。
+
+发布后的 `main`（依赖安全治理 + 本轮体验修复）本地实测：`npm run check` **233 passed / 1 skipped / 0 failed**（共234项）、`verify:source` 97 文件、`verify:audit` 生产树 0 漏洞、main 四格 CI 成功；`npm audit` 生产依赖 0 vulnerabilities。真实三场景验收已执行（见上文）。
 
 ## 当前命令
 

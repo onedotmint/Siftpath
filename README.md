@@ -72,7 +72,7 @@ npm run pack:dry
 npm run verify:package         # actual tarball, prod-only install, CLI/SDK/Pi loading; no inference
 ```
 
-`AUTH_FAILED` / `MISSING_CREDENTIALS`: fix the Key or explicitly change access mode. `FOCUS_UNSUPPORTED`: choose a capable binding/reader or explicitly omit focus if a broader read is appropriate. `TOOL_NOT_FOUND`: review the binding against the provider's schema. Cold `npx` downloads can consume the provider deadline. Windows and WSL use separate homes/configurations.
+`AUTH_FAILED` / `MISSING_CREDENTIALS`: fix the Key or explicitly change access mode. `UPSTREAM_FORBIDDEN`: the provider itself refused this account or target; Siftpath reports the upstream status only and never guesses whether that means a ban, a plan limit or an entitlement, and never switches to anonymous access to work around it. `FOCUS_UNSUPPORTED`: choose a capable binding/reader or explicitly omit focus if a broader read is appropriate. `TOOL_NOT_FOUND`: review the binding against the provider's schema. Cold `npx` downloads can consume the provider deadline. Windows and WSL use separate homes/configurations.
 
 Historical experiment/acceptance reports and raw fixtures stay in the Git repository, not the npm runtime tarball. Authenticated calls to all four recommended providers and real Pi autonomous search/read/tool workflows have succeeded; this does not guarantee complete upstream evidence or accurate model answers. Documentation links to those reports open GitHub. `verify:package` uses cached locked dependencies offline; install dependencies first. Its Pi loading check explicitly skips when Pi is absent; CI installs pinned Pi 1.4.0 to exercise it.
 

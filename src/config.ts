@@ -121,5 +121,10 @@ export function providerStatus(id: string, config: Configuration, env: NodeJS.Pr
 export function diagnostics(config: Configuration, env: NodeJS.ProcessEnv = process.env) {
   const ids = new Set([...Object.keys(config.providers), config.routes.search, config.routes.read, ...Object.values(config.routes.intents),
     ...config.routes.searchFallback, ...config.routes.readFallback].filter((id): id is string => !!id));
-  return { runtime: process.version, networkChecked: false, providers: [...ids].map(id => ({ ...providerStatus(id, config, env), operations: ['search', 'read'].filter(kind => !!config.providers[id]?.[kind as 'search' | 'read']) })), routes: config.routes };
+  const mapsFocus = (value: unknown): boolean => value === '$focus'
+    || !!value && typeof value === 'object' && Object.values(value).some(mapsFocus);
+  return { runtime: process.version, networkChecked: false, providers: [...ids].map(id => ({ ...providerStatus(id, config, env), operations: ['search', 'read'].filter(kind => !!config.providers[id]?.[kind as 'search' | 'read']),
+    // Focus support is a property of the saved binding, so status can answer it without a
+    // paid call that would otherwise end in FOCUS_UNSUPPORTED.
+    focus: !!config.providers[id]?.read && mapsFocus(config.providers[id]!.read!.arguments) })), routes: config.routes };
 }
