@@ -46,7 +46,10 @@ test('live probes use the shipped anonymous config rather than duplicating hoste
 
 test('Clack is a build-only dependency and only the lazy setup module bundles its terminal code', async () => {
   const pkg = JSON.parse(await readFile('package.json', 'utf8'));
-  assert.equal(pkg.devDependencies['@clack/prompts'], '1.8.1'); assert.equal(pkg.devDependencies.esbuild, '0.25.12');
+  // The point is isolation, not a frozen version: pinning the exact number here made every
+  // Dependabot bump look like a packaging regression. The bundle check below is the real test.
+  assert.equal(pkg.devDependencies['@clack/prompts'], '1.8.1');
+  assert.match(pkg.devDependencies.esbuild, /^\d+\.\d+\.\d+$/);
   assert.equal(pkg.dependencies['@clack/prompts'], undefined); assert.equal(pkg.dependencies.esbuild, undefined);
   const setup = await readFile('dist/setup.js', 'utf8'), ui = await readFile('dist/setup-ui.js', 'utf8');
   assert.match(setup, /import\(['"]\.\/setup-ui\.js['"]\)/);
