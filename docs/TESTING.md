@@ -12,6 +12,8 @@
 
 发布后的 `main`（依赖安全治理 + 本轮体验修复）本地实测：`npm run check` **233 passed / 1 skipped / 0 failed**（共234项）、`verify:source` 97 文件、`verify:audit` 生产树 0 漏洞、main 四格 CI 成功；`npm audit` 生产依赖 0 vulnerabilities。真实三场景验收已执行（见上文）。
 
+最低运行要求保持 Node.js 22+，`@types/node` 跟随 22 系列更新，Dependabot 忽略该依赖的跨大版本升级。当前功能 CI 覆盖 Linux/Windows × Node 22/24/26，npm 11/12 的独立兼容检查保持不变。
+
 ## 当前命令
 
 ```bash
