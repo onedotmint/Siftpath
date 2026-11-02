@@ -2,11 +2,22 @@
 
 ## 当前验收状态
 
-版本 **2.1.1** 正在准备，尚未发布；本轮只更新版本身份、发布文档和必要分发检查，不新增运行时功能。最近确认的 npm `latest` 仍为 **2.1.0**（2026-10-27 发布）。2.1.0 之后的依赖安全治理、诊断与体验修复将随 2.1.1 交付，详见 [发布说明](RELEASE-2.1.1.md) 和 [Changelog](../CHANGELOG.md)。本文件是仅在 Git 保存的测试与历史验收索引，不进入 npm 包。
+版本 **2.1.1** 已于 **2026-11-02** 正式发布，npm `latest`、Git Tag 与 [GitHub Release](https://github.com/onedotmint/Siftpath/releases/tag/v2.1.1) 一致。2.1.0 之后的依赖安全治理、诊断与体验修复已随此版本交付，详见 [发布说明](RELEASE-2.1.1.md) 和 [Changelog](../CHANGELOG.md)。本轮发布准备不新增运行时功能；本文件仅在 Git 保存，不进入 npm 包。
 
 已有四家认证业务成功证据，也有真实 Pi 自主搜索 → 原始来源阅读、显式 Reader 选择和最终答复记录。固定三场景真实体验验收（搜索发现官方资料 / 读已知 API 文档 / 长规范例外条件）已执行并通过，记录见 [experience-scenarios.json](../tests/fixtures/experience-scenarios.json)；这些是历史证据，不是本轮重新执行。归属用 `vendor_missing` / `siftpath_clipped` / `model_misread` / `unverified` 分开，不把模型误读、上游缺证据与本地裁剪混为一谈。原始对照保存在 [公开响应/答案记录](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/evidence-quality-followup.json) 与 [逐项历史诊断](https://github.com/onedotmint/Siftpath/blob/main/tests/fixtures/wal-agent-diagnosis.md)。历史临时完整正文目录缺失时，正常套件明确跳过该单项，不自动补抓网络。
 
-## 2.1.1 发布候选检查
+## 2.1.1 发布验收
+
+### 正式发布结果
+
+- PR #14 合并为 `0428cd53c93f8878c1d92637c1d3595c8dc2b890`，`v2.1.1` 指向该提交；合并树与获批候选 `5e1293d` 完全一致。
+- [main CI 41433461022](https://github.com/onedotmint/Siftpath/actions/runs/41433461022) 的 Linux/Windows × Node 22/24/26、审计及 npm 11/12 检查全部通过；[main Package CI 41433465930](https://github.com/onedotmint/Siftpath/actions/runs/41433465930) 通过。
+- npm `2.1.1` 发布时间为 **2026-11-02T11:16:44.681Z**，`latest=2.1.1`；GitHub Release 已于 **11:18:37Z** 公开。
+- 实际下载的 npm registry tarball 与本地获批包、PR CI 和 main CI artifact 逐字节一致。包64文件、110,756 bytes压缩 / 405,298 bytes解包，SHA-1 为 `c8512f546c8cadd9d7ba56d7a72e2f1a5faa3573`，SHA-512 integrity 也与获批包一致。
+- 浏览器二次认证后，npm 最初返回 HTTP 202 Accepted，公共元数据和 tarball 短暂不可见；等待实际可见并于 **11:17:27Z** 核验真实包后才公开 GitHub Release，没有因退出码0而提前宣布成功或重复发布。
+- 本轮0供应商业务、0模型推理；下方 live/Agent 记录是历史证据，不是此次重新执行。
+
+### 候选准备阶段记录（历史）
 
 候选准备起点为 `5561788`。该提交的 [main CI 41381893589](https://github.com/onedotmint/Siftpath/actions/runs/41381893589) 已通过 Linux/Windows × Node 22/24/26 六格功能检查、生产审计及 npm 11/12 兼容任务；这不替代版本和文档更新后的最终候选提交验证。
 
@@ -21,7 +32,7 @@
 
 首个候选提交为 `5f7968e`（基线 `5561788`）：[PR CI 41420929484](https://github.com/onedotmint/Siftpath/actions/runs/41420929484) 的六格功能矩阵、审计与 npm 11/12 检查，以及 [Package CI 41420970624](https://github.com/onedotmint/Siftpath/actions/runs/41420970624) 均已通过；下载的 CI tarball 与本地包逐字节一致，SHA-1 为 `a7c6442904b96e7b1439d484441777f5faeb5339`。
 
-认证恢复后，最终发布文案移除准备态措辞，但不提前宣称发布。已重新执行 typecheck/build、离线套件（233通过/1历史skip/0失败）、源码检查、生产及全树审计（均0漏洞）与双阶段隔离安装/Pi加载；新包64文件、405,298 bytes解包，SHA-1 为 `c8512f546c8cadd9d7ba56d7a72e2f1a5faa3573`。新包不能沿用首个候选的哈希与 CI 证据；最新候选提交与远端 CI/包哈希比对统一记录在 [PR #14](https://github.com/onedotmint/Siftpath/pull/14)。合并、Tag/GitHub Release 和 npm 发布仍需维护者明确确认。本轮不调用付费模型或供应商业务。
+认证恢复后，最终发布文案移除准备态措辞，但不提前宣称发布。已重新执行 typecheck/build、离线套件（233通过/1历史skip/0失败）、源码检查、生产及全树审计（均0漏洞）与双阶段隔离安装/Pi加载；新包64文件、405,298 bytes解包，SHA-1 为 `c8512f546c8cadd9d7ba56d7a72e2f1a5faa3573`。新包不能沿用首个候选的哈希与 CI 证据；最新候选提交与远端 CI/包哈希比对统一记录在 [PR #14](https://github.com/onedotmint/Siftpath/pull/14)。后续合并、Tag/GitHub Release 和 npm 发布已按维护者明确授权执行，正式结果见上文。本轮不调用付费模型或供应商业务。
 
 最低运行要求保持 Node.js 22+，`@types/node` 跟随 22 系列更新，Dependabot 忽略该依赖的跨大版本升级。
 
