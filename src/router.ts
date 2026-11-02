@@ -17,6 +17,18 @@ export function mapArguments(template: Binding['arguments'], input: Record<strin
 function mapsFocus(value: unknown): boolean {
   return value === '$focus' || !!value && typeof value === 'object' && Object.values(value).some(mapsFocus);
 }
+const SINGLE_CAUSE: Record<string, string> = {
+  NOT_CONFIGURED: 'no such configured provider. Check the ID (siftpath status lists them).',
+  DISABLED: 'this provider is disabled. Enable it with /siftpath or `siftpath setup`.',
+  MISSING_CREDENTIALS: 'the configured Key is missing. Add it with /siftpath or export the environment variable.',
+  UNSUPPORTED_OPERATION: 'this provider has no binding for this operation.',
+  FOCUS_UNSUPPORTED: 'this Reader has no native focus binding. Omit focus, or choose a focus-capable Reader.',
+  AUTH_FAILED: 'the provider rejected the credential. Replace the Key.',
+  UPSTREAM_FORBIDDEN: 'the provider refused this request for this account; the exact reason is upstream.',
+  UPSTREAM_ERROR: 'the provider tool failed upstream. Run `siftpath test <provider>` for the failing stage.',
+  PROVIDER_TIMEOUT: 'the provider did not answer within its timeout.',
+  RATE_LIMITED: 'the provider rate or quota limit was reached.',
+};
 export class Siftpath {
   readonly configuration: Configuration;
   private clients: McpClients;
@@ -84,7 +96,13 @@ export class Siftpath {
       }
     }
     cancelled();
-    const code = diagnostics.length === 1 && (explicit || diagnostics[0]!.code === 'FOCUS_UNSUPPORTED') ? diagnostics[0]!.code : 'NO_PROVIDER_SUCCEEDED';
+    // One provider, one cause: repeating the generic message made users re-check everything
+    // when the answer was already known (wrong reader ID, unsupported capability).
+    if (diagnostics.length === 1 && (explicit || diagnostics[0]!.code === 'FOCUS_UNSUPPORTED')) {
+      const { provider, code } = diagnostics[0]!;
+      throw new SiftpathError(code, `${provider}: ${SINGLE_CAUSE[code] ?? 'the requested operation could not run.'}`, diagnostics);
+    }
+    const code = 'NO_PROVIDER_SUCCEEDED';
     throw new SiftpathError(code, 'No configured provider could serve this request. Check status, credentials and the requested capability.', diagnostics);
   }
 }

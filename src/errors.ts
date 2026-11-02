@@ -17,6 +17,8 @@ const hints: Record<string, string> = {
   CONNECTION_FAILED: 'Check network access, the configured MCP command/URL and any proxy settings.',
   TOOL_NOT_FOUND: 'The official tool name changed upstream: run `siftpath test <provider>` and update the binding or Siftpath.',
   INVALID_UPSTREAM_ARGUMENTS: 'The official server rejected the mapped arguments; its schema changed. Update the binding or Siftpath.',
+  UPSTREAM_ERROR: 'The provider tool failed upstream; run `siftpath test <provider>` for the failing stage.',
+  UPSTREAM_FORBIDDEN: 'The provider refused this request for this account. The reason is upstream (permission, plan, entitlement or suspended access); changing local configuration will not help.',
   NO_PROVIDER_SUCCEEDED: 'Nothing could serve this request: run /siftpath or `siftpath status` to see what is READY.',
   INVALID_CONFIG: 'Fix the configuration file JSON/schema manually before re-running /siftpath or `siftpath setup`; keep private backups secure.',
   CONFIG_READ_FAILED: 'Check the configuration file JSON syntax and permissions; the setup menu cannot repair unreadable JSON.',

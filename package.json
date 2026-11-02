@@ -80,8 +80,8 @@
     "@earendil-works/pi-tui": "1.4.0",
     "@clack/prompts": "1.8.1",
     "@types/node": "22.19.7",
-    "esbuild": "0.25.12",
-    "typescript": "5.8.3"
+    "esbuild": "0.28.2",
+    "typescript": "7.0.2"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",

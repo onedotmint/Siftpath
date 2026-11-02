@@ -49,7 +49,11 @@ node dist/cli.js test all --json
 | `stages.request` | 实际请求通过现有原生结果校验 |
 | `passed` / `failed` / `not_tested` | 各阶段成功 / 失败 / 没有执行 |
 | `outcome: skipped` | 缺 Key、禁用、未配置或没有 Search/Read binding，未测试 |
-| `lastTestStale: true` / `CONFIG_CHANGED` | 供应商连接、参数、凭据、生效期限、输出限制或包版本已变化，历史结论不代表当前配置 |
+| `lastTestStale: true` | 历史结论不代表当前配置；用 `lastTestStaleReason` 区分原因（见下） |
+| `lastTestStaleReason: 'version'` / `PACKAGE_UPGRADED` | 只是 Siftpath 包版本变了，配置本身未变：不必重查凭据和路线 |
+| `lastTestStaleReason: 'configuration'` / `CONFIG_CHANGED` | 供应商连接、参数、凭据、生效期限或输出限制变了 |
+| `lastTestStaleReason: 'unknown'` / `STALE` | 旧记录没有配置指纹，无法区分，建议重测 |
+| `focus` | 该 Provider 的 read binding 是否映射 `$focus`；离线可查，不必花一次调用去撞 `FOCUS_UNSUPPORTED` |
 | `configPath` | 本次生效的配置文件；`SIFTPATH_CONFIG` 可覆盖 |
 | `nextStep` | 基于“已就绪 / 已测试 / 待配置”给出的下一步 |
 
@@ -57,7 +61,9 @@ node dist/cli.js test all --json
 
 **诊断与正常调用的判定不同：**诊断还要求配置工具能被发现、支持同步调用、声明的输出 Schema 合法匹配；普通业务路径要求 MCP 响应成功、可读内容与来源可封装并满足预算，不额外发 tools/list，也不校验未发现的供应商输出 Schema。因而诊断可能拒绝普通请求可使用的文本响应；诊断通过不代表意图选路、显式 reader、后备或 focus 已被验证；正常读取会在业务前检查 binding 是否映射 `$focus`，不支持则不调用。对照回归明确保留这一区别，避免把探针等同于 Router 验收。
 
-失败只输出固定脱敏分类，并附带一条可操作提示（`hint`），例如 AUTH_FAILED、RATE_LIMITED、CONNECTION_FAILED、TOOL_NOT_FOUND、DISCOVERY_FAILED、INVALID_UPSTREAM_ARGUMENTS、UPSTREAM_ERROR、PROVIDER_TIMEOUT。不会输出上游错误正文、网页内容、请求头或 Key。
+失败只输出固定脱敏分类，并附带一条可操作提示（`hint`），例如 AUTH_FAILED、RATE_LIMITED、CONNECTION_FAILED、TOOL_NOT_FOUND、DISCOVERY_FAILED、INVALID_UPSTREAM_ARGUMENTS、UPSTREAM_ERROR、UPSTREAM_FORBIDDEN、PROVIDER_TIMEOUT。不会输出上游错误正文、网页内容、请求头或 Key。
+
+`UPSTREAM_FORBIDDEN` 用于供应商在工具层拒绝了这次请求，与凭据错误（`AUTH_FAILED`）和 Siftpath 配置错误分开。Siftpath 只上报可观测到的上游状态码，**不推断具体是封禁、套餐还是端点权限**；也不以匿名模式重试来绕过认证拒绝。显式指定单一 `reader` 或只有一个候选时，错误消息会写明是哪一家、什么原因，而不是重复通用的 “No configured provider could serve this request”。
 
 ## 最近测试记录
 
