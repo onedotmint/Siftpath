@@ -1,6 +1,6 @@
-# 官方 MCP 接入
+# 官方服务接入
 
-只经官方 MCP 转发；以下固定源码、发布包发现及历史实测不是对未来托管部署、账户权限或计费的保证。本次文档整理没有联网、模型或业务调用。
+已有服务经官方 MCP 转发；可选 DeepSeek 搜索直接调用官方 Search API，不经过额外模型或自建 MCP 桥。下列历史 MCP 核验记录不覆盖新 DeepSeek API 的账户可用性、效果或账单。
 
 ## 推荐与连接
 
@@ -37,3 +37,11 @@
 参考项目仅借鉴边界：[web-search-plus-mcp](https://github.com/robbyczgw-cla/web-search-plus-mcp/tree/7a8bd5709c93a882a502201d203895bbd4683e10) 的职责分离/显式后备；[agntn/web](https://github.com/agntn/web/tree/255a2e4d5b087e4266a2e12ca60577f16808f200) 的统一封套/失败记录。不迁移它们的缓存、HTTP adapters、融合或研究编排。
 
 历史业务、Schema 快照、模型失败样本分别索引于 [TESTING.md](https://github.com/onedotmint/Siftpath/blob/main/docs/TESTING.md)。不能把 discovery、匿名普通读取、源码规则和账户聚焦/收费验证混为一谈。
+
+## DeepSeek Search API（可选，未发布候选）
+
+`deepseek` 是唯一直接 HTTP API 例外；`http` transport 的含义仍是 Streamable HTTP MCP。固定端点为 `https://api.deepseek.com/v1/tools/search`，Bearer Key 通过 `${DEEPSEEK_API_KEY}` 解析。默认 disabled，不重写已有 provider 表或 intent 路线。
+
+接口请求与响应按[官方 Search & Fetch 指南](https://api-docs.deepseek.com/guides/search)核对：query 1–128 Unicode 码点，count 原生 1–50；公共工具仍限制最多20。默认不请求正文、不发送 ori_question/localization，也不发起模型请求。成功 JSON 原文及顺序保留，只有验证过的空 results 数组允许无来源成功。401/403/429及畸形响应使用脱敏稳定错误，不读取或转发上游错误正文；不跟随重定向、不自动重试，响应读取上限4 MiB，取消同时约束 fetch 与 body 等待。
+
+离线用例不证明真实账户授权、检索效果、可用性或费用；请以[官方计费页](https://api-docs.deepseek.com/quick_start/pricing)为准。DSH 原生插件另见 [DSH.md](DSH.md)。

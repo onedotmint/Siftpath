@@ -1,4 +1,5 @@
 import { McpClients } from './client.js';
+import { deepseekSearch } from './deepseek.js';
 import { parseConfiguration, providerStatus, type Binding, type Configuration } from './config.js';
 import { SiftpathError, type Diagnostic } from './errors.js';
 import { parseInput, publicUrl, readSchema, searchSchema, type ReadInput, type SearchInput } from './inputs.js';
@@ -82,17 +83,23 @@ export class Siftpath {
         const effective = { ...input };
         const raised = kind === 'search' && !!binding.minResults && Number(effective.maxResults) < binding.minResults;
         if (raised) effective.maxResults = binding.minResults;
-        const raw = await this.clients.call(id, binding.name, mapArguments(binding.arguments, effective), AbortSignal.any([signal, attempt]));
+        const args = mapArguments(binding.arguments, effective), operationSignal = AbortSignal.any([signal, attempt]);
+        const direct = provider!.connection.transport === 'deepseek';
+        const raw = direct ? await deepseekSearch(id, binding.name, args, c, this.env, operationSignal)
+          : await this.clients.call(id, binding.name, args, operationSignal);
         cancelled();
         const warnings: WebResult['warnings'] = [];
         if (raised) warnings.push({ provider: id, code: 'MAX_RESULTS_RAISED' });
         if (kind === 'read' && input.focus) warnings.push({ provider: id, code: 'FOCUS_MAY_OMIT_CONTENT' });
         warnings.push(...diagnostics.map(({ provider, code }) => ({ provider, code })));
-        return normalize(raw, id, binding.name, c.maxOutputChars, kind === 'read' ? String(input.url) : undefined, warnings);
+        return normalize(raw, id, binding.name, c.maxOutputChars, kind === 'read' ? String(input.url) : undefined, warnings, direct ? 'deepseek' : undefined);
       } catch (error) {
         cancelled();
         const code = attempt.aborted ? 'PROVIDER_TIMEOUT' : error instanceof SiftpathError ? error.code : 'UPSTREAM_ERROR';
         diagnostics.push({ provider: id, code });
+        // Provider input limits must not silently send a different provider the query instead.
+        if (provider!.connection.transport === 'deepseek' && code === 'INVALID_UPSTREAM_ARGUMENTS')
+          throw new SiftpathError(code, 'DeepSeek requires a query of 1–128 Unicode characters and a count of 1–50; the query was not rewritten or sent to a fallback.', diagnostics);
       }
     }
     cancelled();

@@ -25,7 +25,7 @@ function firecrawlMetadata(value: unknown): WebResult['metadata'] {
   return Object.keys(metadata).length ? metadata : undefined;
 }
 /** Preserve the official tool's text/order. Only collect citation URLs, never score or extract passages. */
-export function normalize(result: CallToolResult, provider: string, tool: string, limit: number, url?: string, warnings: WebResult['warnings'] = []): WebResult {
+export function normalize(result: CallToolResult, provider: string, tool: string, limit: number, url?: string, warnings: WebResult['warnings'] = [], searchProtocol?: 'deepseek'): WebResult {
   if (result.isError) {
     // A 403 means the provider refused this account or target, which is upstream, but the
     // specific reason (banned, plan, entitlement) is known only to the provider. Never guess
@@ -91,7 +91,12 @@ export function normalize(result: CallToolResult, provider: string, tool: string
       add(candidate);
     }
   }
-  if (!sources.size) throw new SiftpathError('NO_SOURCES', 'Official MCP returned no traceable public source URL.');
+  // Only the explicitly dispatched, validated Search API envelope can represent a source-less success.
+  const emptySearch = searchProtocol === 'deepseek' && tool === 'deepseek_search' && !url &&
+    result.structuredContent && !Object.hasOwn(result.structuredContent, 'error') &&
+    Array.isArray(result.structuredContent.results) && result.structuredContent.results.length === 0 &&
+    parts.length === 1 && (() => { try { return isDeepStrictEqual(JSON.parse(parts[0]!), result.structuredContent); } catch { return false; } })();
+  if (!sources.size && !emptySearch) throw new SiftpathError('NO_SOURCES', 'Official MCP returned no traceable public source URL.');
   const output: WebResult = { provider, tool, retrievedAt: new Date().toISOString(), ...(url ? { url } : {}),
     content, sources: [...sources.values()], truncated: false, sourcesTruncated,
     warnings: [{ code: 'UNTRUSTED_WEB_CONTENT' }, ...warnings], ...(metadata ? { metadata } : {}) };

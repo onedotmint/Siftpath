@@ -10,7 +10,7 @@ import { fileRouter, serveStdio } from './mcp/stdio.js';
 import { setup } from './setup.js';
 import { packageVersion } from './version.js';
 import { invokeTool } from './tools.js';
-const help = `Siftpath — lightweight official MCP router (Node.js 22+)
+const help = `Siftpath — lightweight official-provider router (Node.js 22+)
   siftpath setup                        # quick (recommended) or advanced wizard
   siftpath setup --quick | --advanced   # skip the mode question
   siftpath status [--json]              # offline: what is configured, what was tested, next step

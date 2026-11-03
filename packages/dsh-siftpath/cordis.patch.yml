@@ -1,0 +1,3 @@
+- insert:
+    - id: siftpath
+      name: '@onedotmint/dsh-siftpath'

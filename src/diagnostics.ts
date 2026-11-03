@@ -6,6 +6,7 @@ import { McpError, type Tool } from '@modelcontextprotocol/sdk/types.js';
 import { AjvJsonSchemaValidator } from '@modelcontextprotocol/sdk/validation/ajv';
 import { StreamableHTTPError } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { McpClients } from './client.js';
+import { deepseekSearch } from './deepseek.js';
 import { configPath, diagnostics, providerStatus, resolveSecret, writePrivateJson, type Configuration } from './config.js';
 import { SiftpathError } from './errors.js';
 import { normalize } from './output.js';
@@ -17,11 +18,12 @@ const reasons = {
   CONNECTION_FAILED: 'Cannot connect. Check the MCP command/URL, credentials and connectivity.',
   AUTH_FAILED: 'Authentication rejected. Check credentials and account access.', RATE_LIMITED: 'Rate or quota limit reached.',
   DISCOVERY_FAILED: 'Cannot list official MCP tools.', TOOL_NOT_FOUND: 'A configured tool was not found in tools/list.',
-  INVALID_UPSTREAM_ARGUMENTS: 'Official MCP rejected the mapped test arguments; check its current schema.',
+  INVALID_UPSTREAM_ARGUMENTS: 'Provider rejected mapped arguments or native input limits; check the binding and provider limits.',
   UPSTREAM_ERROR: 'Official MCP tool failed. Check account permissions/quota and tool configuration.',
   UPSTREAM_FORBIDDEN: 'The provider refused this request for this account. The exact reason is upstream (permission, plan, entitlement or suspended access); this is not a Siftpath configuration error.',
-  INVALID_UPSTREAM_RESPONSE: 'Official MCP result violates its declared output schema.', TASK_REQUIRED: 'Configured tool requires task execution, not a synchronous search/read call.',
+  INVALID_UPSTREAM_RESPONSE: 'Provider returned malformed output or violated its declared output schema.', TASK_REQUIRED: 'Configured tool requires task execution, not a synchronous search/read call.',
   OUTPUT_LIMIT: 'Source metadata exceeded maxOutputChars.', EMPTY_RESPONSE: 'Official MCP returned no readable text.', NO_SOURCES: 'Official MCP returned no traceable public source.',
+  RESPONSE_TOO_LARGE: 'Provider response exceeded 4 MiB.',
   UNSUPPORTED_OPERATION: 'No search or read binding is configured.', PROVIDER_TIMEOUT: 'Provider test deadline exceeded.', ABORTED: 'Test cancelled.',
 } as const;
 const codeSchema = z.enum(Object.keys(reasons) as [keyof typeof reasons, ...(keyof typeof reasons)[]]);
@@ -80,6 +82,19 @@ export async function providerTest(id: string, config: Configuration, env: NodeJ
   const signal = AbortSignal.any([timeout, ...(caller ? [caller] : [])]);
   let current: keyof ProviderTest['stages'] = 'connection';
   try {
+    if (provider!.connection.transport === 'deepseek') {
+      // A direct API has no independent MCP connection/discovery stage; make exactly one search.
+      current = 'request';
+      const operation = result.operations[0]!, at = performance.now();
+      try {
+        const binding = provider!.search!;
+        const raw = await deepseekSearch(id, binding.name, mapArguments(binding.arguments, { query: 'example.com', maxResults: 5 }), config, env, signal);
+        normalize(raw, id, binding.name, config.maxOutputChars, undefined, [], 'deepseek');
+        operation.state = 'passed'; result.stages.request = 'passed'; result.outcome = 'passed';
+      } catch (error) { operation.state = 'failed'; operation.code = errorCode(error); throw error; }
+      finally { operation.durationMs = Math.round(performance.now() - at); }
+      return result;
+    }
     await clients.connect(id, signal); result.stages.connection = 'passed';
     current = 'discovery';
     const tools = new Map<string, Tool>(), validator = new AjvJsonSchemaValidator(), cursors = new Set<string>(); let cursor: string | undefined;
@@ -160,7 +175,7 @@ export async function testReport(config: Configuration, target: string, path = c
   }
   const counts = tally(results);
   return { version: packageVersion, ok: counts.passed > 0 && counts.failed === 0 && !signal?.aborted, counts,
-    networkChecked: results.some(result => result.stages.connection !== 'not_tested'),
+    networkChecked: results.some(result => result.stages.connection !== 'not_tested' || result.stages.request !== 'not_tested'),
     results: results.map(result => ({ ...result, configuration: providerStatus(result.provider, config, env).code })), warnings: [...warnings] };
 }
 /** Why a past test no longer describes the current setup, in the words a user can act on. */

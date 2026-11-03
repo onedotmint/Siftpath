@@ -1,13 +1,13 @@
 # Siftpath
 
-A lightweight router from two agent tools to official provider MCP servers. Node.js 22+; no internal LLM, local scraper, ranking, cache or research planner.
+A lightweight router from two agent tools to official provider MCP servers, with an optional direct DeepSeek Search API backend. Node.js 22+; no internal LLM, local scraper, ranking, cache or research planner.
 
 ```text
 web_search({ query, intent?, maxResults? })
 web_read({ url, reader?, focus? })
 ```
 
-- Search: Tavily for `general` / `research`, Exa for `semantic`.
+- Search: Tavily for `general` / `research`, Exa for `semantic`. DeepSeek Search is optional and disabled until explicitly configured; existing routes do not change.
 - Read: Jina by default; Firecrawl is an explicit optional reader.
 - New configurations have empty search/read fallback lists; Brave is disabled and available in advanced setup.
 - Saved routes, Keys and custom bindings are preserved. No automatic switch to anonymous access after a Key error.
@@ -31,7 +31,11 @@ siftpath status                 # offline, not an availability test
 siftpath mcp                    # stdio server: only web_search and web_read
 ```
 
-A client may instead launch `node /absolute/path/to/package/dist/cli.js mcp`. For this checkout, install dependencies with `npm ci` before `pi install /absolute/path/to/Siftpath`. Pi directory installs need the directory's runtime dependencies; a bare tarball path is not a Pi package source—npm-install or unpack it first. Package/source version is `2.1.1`; a source version does not establish registry publication. See the [changelog](CHANGELOG.md) and [2.1.1 release notes](docs/RELEASE-2.1.1.md) for the maintenance update and known limits.
+A client may instead launch `node /absolute/path/to/package/dist/cli.js mcp`. For this checkout, install dependencies with `npm ci` before `pi install /absolute/path/to/Siftpath`. Pi directory installs need the directory's runtime dependencies; a bare tarball path is not a Pi package source—npm-install or unpack it first. This checkout is an unpublished `2.2.0-dev.0` development candidate; the existing registry release is not evidence for the new features. See the [changelog](CHANGELOG.md) and [2.1.1 release notes](docs/RELEASE-2.1.1.md) for the maintenance update and known limits.
+
+### DeepSeek Harness
+
+The separate native DSH bundle registers a selectable search backend and `siftpath_read({ url, reader?, focus? })`. It does not replace DSH source files, register a duplicate search tool, or switch providers on installation. See [DSH development installation and configuration](docs/DSH.md); the bundle is unpublished and its pinned host dependency audit currently blocks release, despite passing adapter functional tests.
 
 ## Use
 
@@ -71,6 +75,7 @@ npm run verify:source
 npm run verify:audit            # production High/Critical gate + full-tree report
 npm run pack:dry
 npm run verify:package         # actual tarball, prod-only install, CLI/SDK/Pi loading; no inference
+npm run verify:dsh             # separate DSH tarballs, pinned host APIs, offline adapter tests
 ```
 
 `AUTH_FAILED` / `MISSING_CREDENTIALS`: fix the Key or explicitly change access mode. `UPSTREAM_FORBIDDEN`: the provider itself refused this account or target; Siftpath reports the upstream status only and never guesses whether that means a ban, a plan limit or an entitlement, and never switches to anonymous access to work around it. `FOCUS_UNSUPPORTED`: choose a capable binding/reader or explicitly omit focus if a broader read is appropriate. `TOOL_NOT_FOUND`: review the binding against the provider's schema. Cold `npx` downloads can consume the provider deadline. Windows and WSL use separate homes/configurations.

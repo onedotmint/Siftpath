@@ -18,6 +18,9 @@ export const providerPresets: Record<string, Provider> = {
   firecrawl: { enabled: true, timeoutMs: 60000,
     connection: { transport: 'http', url: 'https://mcp.firecrawl.dev/v2/mcp', headers: { Authorization: 'Bearer ${FIRECRAWL_API_KEY}' } },
     read: { name: 'firecrawl_scrape', arguments: { url: '$url', formats: ['markdown'], onlyMainContent: true, objective: 'Read the supplied public webpage as Markdown.' } } },
+  deepseek: { enabled: true,
+    connection: { transport: 'deepseek', apiKey: '${DEEPSEEK_API_KEY}' },
+    search: { name: 'deepseek_search', arguments: { query: '$query', count: '$maxResults' } } },
 };
 export const anonymousPresets: Record<string, Provider> = {
   exa: { ...providerPresets.exa!, connection: { transport: 'http', url: 'https://mcp.exa.ai/mcp', headers: {} },
@@ -26,6 +29,6 @@ export const anonymousPresets: Record<string, Provider> = {
   tavily: { ...providerPresets.tavily!, connection: { transport: 'stdio', command: 'npx', args: ['-y', 'tavily-mcp@0.2.22'], env: {} } },
   firecrawl: { ...providerPresets.firecrawl!, connection: { transport: 'http', url: 'https://mcp.firecrawl.dev/v2/mcp', headers: {} } },
 };
-export const defaultProviders = Object.fromEntries(Object.entries(providerPresets).map(([id, provider]) => [id, { ...provider, enabled: id !== 'brave' }]));
+export const defaultProviders = Object.fromEntries(Object.entries(providerPresets).map(([id, provider]) => [id, { ...provider, enabled: !['brave', 'deepseek'].includes(id) }]));
 export const defaultRoutes = { defaultIntent: 'general' as const, search: 'tavily', read: 'jina',
   intents: { research: 'tavily', semantic: 'exa' }, searchFallback: [], readFallback: [] };

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.2.0-dev.0 — unpublished development candidate
+
+- Add an opt-in direct DeepSeek Search API backend without changing saved routes or enabling new services automatically.
+- Add a separately packaged native DSH search backend and `siftpath_read` tool with the existing `reader` / `focus` contract.
+- Preserve the two core MCP tools, the Pi extension and the existing default output budget.
+- This candidate is not published. Core offline checks and 17 DSH functional tests pass, but the pinned DSH host dependency audit blocks complete integration/release acceptance. No overrides or suppressed security gates are applied; live acceptance is separate.
+
 ## 2.1.1
 
 Maintenance update from 2.1.0. Publication is confirmed by the npm registry and Git release, not this source version.

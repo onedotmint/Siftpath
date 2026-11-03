@@ -118,7 +118,7 @@ export async function runQuickSetup(saved: Configuration, env: NodeJS.ProcessEnv
   try {
     prompts.intro('Siftpath setup (quick)');
     prompts.log.info('Space: toggle, Enter: confirm, Esc: cancel. Keys are never displayed. Unselected services and usable routes are kept. Use advanced setup to disable services.');
-    const recommended = catalog.filter(entry => entry.id !== 'brave');
+    const recommended = catalog.filter(entry => ['tavily', 'exa', 'jina', 'firecrawl'].includes(entry.id));
     const usable = recommended.filter(entry => providerStatus(entry.id, config, env).code === 'READY').map(entry => entry.id);
     const initialValues = usable.length ? usable : ['tavily', 'jina'];
     const chosen = await ask(prompts.multiselect({ message: 'What should Siftpath search and read with?', required: true,

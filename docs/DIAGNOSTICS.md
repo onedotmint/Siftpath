@@ -129,3 +129,7 @@ Key 输入使用自带的**遮罩输入组件**（`•` 回显、不回显明文
 ## Pi 首次安装验收
 
 见 Git 仓库的 [测试与验收记录](https://github.com/onedotmint/Siftpath/blob/main/docs/TESTING.md)：隔离 npm 包的真实 Pi 加载检查不进行推理；既有认证供应商和自主搜索/阅读记录另列。新的模型或真实供应商业务必须另行授权。
+
+## Direct DeepSeek API diagnostics
+
+The optional `deepseek` connection has no MCP initialization or tools/list. Its explicit provider test sends one small Search API request, reports only the request stage, and leaves connection/discovery `not_tested`; a passed request is not evidence that MCP discovery occurred. Successful zero results pass this contract check, not a relevance/coverage check. Tests can consume DeepSeek account quota and never switch providers. The normal status command stays offline.

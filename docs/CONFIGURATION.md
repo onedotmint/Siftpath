@@ -94,3 +94,21 @@ Key 输入遮罩，Enter 可保留已有值；禁用不删除 Key。环境变量
 - `maxOutputChars` 默认 16000，范围 2000–50000，限制完整序列化 JSON 的 UTF-16 字符数，不是下载量/token 数。sources 最多 50 条，裁剪有标志；增加预算不能补回上游未返回内容，也不保证长文完整。
 - `maxResults` 默认 5，范围 1–20。Tavily binding 的 `minResults:5` 会把更小请求提升并附 `MAX_RESULTS_RAISED`；最终条数由服务决定，不本地重排。
 - `siftpath status [--json]` / `doctor` 离线；READY 仅表示配置就绪。`siftpath test <provider|all> [--json]` 明确发起真实诊断，单家不回退，可能消耗额度。配置热更新、分阶段结果见 [DIAGNOSTICS.md](DIAGNOSTICS.md)。
+
+## 可选 DeepSeek Search API
+
+开发候选 `2.2.0-dev.0` 新增 `deepseek`，默认 disabled，不更改已有路线。通过高级配置 `siftpath setup --advanced` 或 Pi `/siftpath` → 高级配置选择 DeepSeek，显式保存 Key 或使用 `DEEPSEEK_API_KEY`；不支持匿名模式。快速配置的 Tavily/Exa 与 Jina/Firecrawl 推荐组合保持不变。启用服务不等于切换全部 intent：要替代默认搜索，请显式调整默认搜索与需要的 general/research/semantic 路线。
+
+连接固定为官方 Search API，不接受自定义 URL、任意 REST 模板或读取 binding。以下为 provider 条目，写入显式 providers 表时要保留其他需要的服务：
+
+```json
+{
+  "enabled": true,
+  "connection": { "transport": "deepseek", "apiKey": "${DEEPSEEK_API_KEY}" },
+  "search": { "name": "deepseek_search", "arguments": { "query": "$query", "count": "$maxResults" } }
+}
+```
+
+只发送显式 query、count 和 `need_content:false`；不发送聊天历史或原始用户问题，不调用辅助模型。原生查询最多 128 个 Unicode 码点，超限在派发前报错，不截短、不改写，也不因此调用后备；公共 `maxResults` 仍为 1–20，默认 5。经验证的 `results:[]` 是正常零命中，不触发后备。MCP 的无来源回复和 Reader 校验不因此放宽。
+
+`siftpath test deepseek` 会真实调用一次 Search API，可能计费；没有 MCP connection/discovery 阶段，诊断保留为 not_tested，不伪造发现成功。`status` 仍是离线检查。搜索质量、账户权限、延迟和实际账单需要另行验收。

@@ -1,7 +1,7 @@
 {
   "name": "@onedotmint/siftpath",
-  "version": "2.1.1",
-  "description": "Lightweight official MCP web search and reader router for AI agents.",
+  "version": "2.2.0-dev.0",
+  "description": "Lightweight web search and reader router over official MCP servers and the DeepSeek Search API.",
   "keywords": [
     "pi-package",
     "mcp",
@@ -35,6 +35,7 @@
     "docs/DEPENDENCIES.md",
     "docs/CONFIGURATION.md",
     "docs/DIAGNOSTICS.md",
+    "docs/DSH.md",
     "docs/MIGRATION.md",
     "docs/PROVIDERS.md",
     "docs/RELEASE-2.1.0.md",
@@ -55,6 +56,8 @@
     "prepack": "npm run build",
     "verify:source": "node scripts/verify-source.mjs",
     "verify:package": "node scripts/verify-package.mjs",
+    "build:dsh": "node packages/dsh-siftpath/build.mjs",
+    "verify:dsh": "node scripts/verify-dsh.mjs",
     "verify:audit": "node scripts/verify-audit.mjs"
   },
   "repository": {

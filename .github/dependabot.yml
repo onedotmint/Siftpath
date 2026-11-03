@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # One npm entry. Only low-risk development bumps are grouped; every runtime
+  # The core groups only low-risk development bumps; every runtime
   # dependency (`@modelcontextprotocol/sdk`, `zod`) keeps its own PR and review,
   # because versions here change transport, cancellation or input validation.
   - package-ecosystem: npm
@@ -20,6 +20,13 @@ updates:
         update-types:
           - minor
           - patch
+  # DSH ABI upgrades remain deliberate: its engine and service peers must agree.
+  - package-ecosystem: npm
+    directory: /packages/dsh-siftpath
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    versioning-strategy: increase
   - package-ecosystem: github-actions
     directory: /
     schedule:

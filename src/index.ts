@@ -5,4 +5,5 @@ export { readConfiguration, parseConfiguration, configPath, diagnostics } from '
 export type { Configuration, Provider, Binding } from './config.js';
 export type { SearchInput, ReadInput, Intent } from './inputs.js';
 export type { WebResult, Source } from './output.js';
+export { providerCatalog, applySelection } from './setup-plan.js';
 export { toolDefinitions, invokeTool } from './tools.js';

@@ -16,7 +16,7 @@ const hints: Record<string, string> = {
   PROVIDER_TIMEOUT: 'The official server did not answer in time. Its first run may still be downloading via npx: retry once, then check connectivity or raise timeoutMs.',
   CONNECTION_FAILED: 'Check network access, the configured MCP command/URL and any proxy settings.',
   TOOL_NOT_FOUND: 'The official tool name changed upstream: run `siftpath test <provider>` and update the binding or Siftpath.',
-  INVALID_UPSTREAM_ARGUMENTS: 'The official server rejected the mapped arguments; its schema changed. Update the binding or Siftpath.',
+  INVALID_UPSTREAM_ARGUMENTS: 'Check the provider input limits and mapped arguments. DeepSeek queries must contain at most 128 Unicode characters; queries are never silently shortened.',
   UPSTREAM_ERROR: 'The provider tool failed upstream; run `siftpath test <provider>` for the failing stage.',
   UPSTREAM_FORBIDDEN: 'The provider refused this request for this account. The reason is upstream (permission, plan, entitlement or suspended access); changing local configuration will not help.',
   NO_PROVIDER_SUCCEEDED: 'Nothing could serve this request: run /siftpath or `siftpath status` to see what is READY.',

@@ -24,3 +24,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Optional DeepSeek Harness bundle
+
+The separate `@onedotmint/dsh-siftpath` development package uses DeepSeek Harness’s published Cordis, Schemastery, tools, web, credentials and shared React UI APIs. These host packages remain external dependencies/peers; the browser bundle does not vendor React or the DSH UI library. Its interface and lifecycle design references are listed in `docs/DSH.md` and the adapter README. No DeepSeek search-engine implementation is copied; the optional core adapter calls the official Search API and preserves its response. Service access remains subject to DeepSeek’s terms and pricing.

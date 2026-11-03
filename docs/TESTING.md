@@ -1,6 +1,20 @@
 # 测试与证据索引
 
-## 当前验收状态
+## 当前开发候选：2.2.0-dev.0（未发布）
+
+本轮新增可选 DeepSeek Search API 与独立 DSH 原生插件；**下方 2.1.1 发布/CI 证据不覆盖这些改动**。未发布、未提交新的远端 CI、未发起模型推理或供应商业务验收。公开 npm 依赖下载与文档核对不等于 API 业务测试。
+
+本机 Linux / Node v24.22.1 / npm 11.19.1 验证：
+
+- 核心 `npm run check`：类型检查、构建通过，**264 passed / 1 historical skipped / 0 failed**（265项）。包含 DeepSeek 原文保留、Unicode 128码点边界、空结果、响应字节上限、取消/超时、HTTP错误脱敏和无自动重试，以及既有 Pi/CLI 回归。
+- `npm run verify:package`：实际核心 tarball 的锁定生产安装和无仓库 lock 消费者安装通过；真实 Pi **1.5.0** RPC 两次加载通过、0推理。生产消费者审计0漏洞；历史 Pi 1.4.0/跨平台证据不作为新候选当前运行结果。
+- `npm run verify:dsh`：实际核心和插件 tarball 隔离安装，固定 DSH **0.2.1-rc.5** 的真实 CLI `--dump-config` 组合通过，不启动 Agent；**17/17** 适配功能测试通过，但整体 `verify:dsh` 在随后安全门禁失败，不能记为完整验收通过。真实 Cordis/web/tools、配置/凭据轮换、继承/卸载、取消、显式搜索切换、原生 `FOCUS_UNSUPPORTED` 零fetch，以及真实rc5表单控件的渲染和离页草稿清理均覆盖。无关Markdown/图标/高亮依赖及CSS是Node渲染测试替身，不是完整浏览器验收。
+- Linux Clack PTY、`verify:source` 与 `git diff --check` 通过。核心 `verify:audit` 的生产/开发树均0漏洞，核心生产依赖仍只有 MCP SDK 和 Zod。
+- **DSH 发布阻塞**：固定宿主0.2.1-rc.5隔离消费者审计为high190/moderate7/critical0；这是npm包含受影响父包的传播计数，不是190个独立漏洞。根advisory来自DSH固定的 `zod@4.4.3` 与 `undici@8.11.2` 等依赖。详见 [DSH安全阻塞](DSH.md#security-release-blocker)。保留失败门禁，不做强制覆盖、降级或抑制。
+
+未覆盖：交互式 DSH Web 全流程、真实 DeepSeek 账户/搜索质量/收费、当前候选 Windows/Node22/26 矩阵、真实模型是否正确选择/使用focus。没有把离线通过或历史线上报告当作这些结果。
+
+## 已发布版本：2.1.1（历史验收状态）
 
 版本 **2.1.1** 已于 **2026-11-02** 正式发布，npm `latest`、Git Tag 与 [GitHub Release](https://github.com/onedotmint/Siftpath/releases/tag/v2.1.1) 一致。2.1.0 之后的依赖安全治理、诊断与体验修复已随此版本交付，详见 [发布说明](RELEASE-2.1.1.md) 和 [Changelog](../CHANGELOG.md)。本轮发布准备不新增运行时功能；本文件仅在 Git 保存，不进入 npm 包。
 

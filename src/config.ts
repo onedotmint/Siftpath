@@ -16,6 +16,7 @@ const bindingSchema = z.strictObject({ name: clean, arguments: z.record(z.string
   minResults: z.number().int().min(1).max(20).optional() });
 const connectionSchema = z.discriminatedUnion('transport', [
   z.strictObject({ transport: z.literal('stdio'), command: clean.refine(value => !value.includes('${')), args: z.array(clean.refine(value => !value.includes('${'))).default([]), env: z.record(z.string(), clean).default({}) }),
+  z.strictObject({ transport: z.literal('deepseek'), apiKey: clean }),
   z.strictObject({ transport: z.literal('http'), url: clean.refine(value => {
     try {
       const url = new URL(value);
@@ -27,7 +28,9 @@ const connectionSchema = z.discriminatedUnion('transport', [
 ]);
 const timeout = z.number().int().min(100).max(120000);
 const providerSchema = z.strictObject({ enabled: z.boolean().default(true), connection: connectionSchema,
-  timeoutMs: timeout.optional(), search: bindingSchema.optional(), read: bindingSchema.optional() });
+  timeoutMs: timeout.optional(), search: bindingSchema.optional(), read: bindingSchema.optional() }).refine(provider =>
+  provider.connection.transport !== 'deepseek' || !provider.read && provider.search?.name === 'deepseek_search' &&
+    provider.search.minResults === undefined && isDeepStrictEqual(provider.search.arguments, { query: '$query', count: '$maxResults' }));
 const routesSchema = z.strictObject({ defaultIntent: intentSchema.default(defaultRoutes.defaultIntent), search: clean.default(defaultRoutes.search), read: clean.default(defaultRoutes.read),
   intents: z.strictObject({ general: clean.optional(), semantic: clean.optional(), research: clean.optional() }).default(defaultRoutes.intents),
   searchFallback: z.array(clean).max(10).default(defaultRoutes.searchFallback), readFallback: z.array(clean).max(10).default(defaultRoutes.readFallback) });
