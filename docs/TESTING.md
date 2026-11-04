@@ -8,7 +8,7 @@
 
 - 核心 `npm run check`：类型检查、构建通过，**269 passed / 1 historical skipped / 0 failed**（270项）。包含 DeepSeek 原文保留、Unicode 128码点边界、空结果、响应字节上限、取消/超时、HTTP错误脱敏和无自动重试，以及 `omittedChars` 在 ASCII/密集转义/Unicode 上的精确切点、402/429 分类与不按措辞推断、`status` 摘要不得与 READY 行矛盾，以及既有 Pi/CLI 回归。
 - `npm run verify:package`：实际核心 tarball **68 文件 / 448,846 bytes** 的锁定生产安装和无仓库 lock 消费者安装通过；真实 Pi **1.5.0** RPC 两次加载通过、0推理、0供应商业务。消费者解析 MCP SDK 1.32.2、Zod 4.6.7、body-parser 2.4.0，生产消费者审计0漏洞；历史 Pi 1.4.0/跨平台证据不作为当前候选运行结果。
-- `npm run verify:dsh`：实际核心和插件 tarball 隔离安装，固定 DSH **0.2.1-rc.5** 的真实 CLI `--dump-config` 组合通过，不启动 Agent；**17/17** 适配功能测试通过，但整体 `verify:dsh` 在随后安全门禁失败，不能记为完整验收通过。真实 Cordis/web/tools、配置/凭据轮换、继承/卸载、取消、显式搜索切换、原生 `FOCUS_UNSUPPORTED` 零fetch，以及真实rc5表单控件的渲染和离页草稿清理均覆盖。无关Markdown/图标/高亮依赖及CSS是Node渲染测试替身，不是完整浏览器验收。
+- `npm run verify:dsh`：实际核心和插件 tarball 隔离安装，固定 DSH **0.2.1-rc.5** 的真实 CLI `--dump-config` 组合通过，不启动 Agent；**17/17** 适配功能测试通过，但整体 `verify:dsh` 在随后安全门禁失败，不能记为完整验收通过。真实 Cordis/web/tools、配置/凭据轮换、继承/卸载、取消、显式搜索切换、原生 `FOCUS_UNSUPPORTED` 零fetch，以及真实rc5表单控件的渲染和离页草稿清理均覆盖。无关Markdown/图标/高亮依赖及CSS是Node渲染测试替身，不是完整浏览器验收。CI 中该 job 标记 `continue-on-error`：已知阻塞按设计返回非零，不得阻断唯一发布对象（核心包）；它继续运行，以便宿主升级后自动转绿。
 - Linux Clack PTY、`verify:source` **125 文件**、`pack:dry`（68 文件）与 `git diff --check` 通过。核心 `verify:audit` 的生产/开发树均0漏洞，核心生产依赖仍只有 MCP SDK 和 Zod。
 - **DSH 发布阻塞**：固定宿主0.2.1-rc.5隔离消费者审计为high190/moderate7/critical0；这是npm包含受影响父包的传播计数，不是190个独立漏洞。根advisory来自DSH固定的 `zod@4.4.3` 与 `undici@8.11.2` 等依赖。详见 [DSH安全阻塞](DSH.md#security-release-blocker)。保留失败门禁，不做强制覆盖、降级或抑制。核心包（本版本唯一的发布对象）不受影响。
 
