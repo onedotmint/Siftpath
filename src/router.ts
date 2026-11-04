@@ -25,10 +25,11 @@ const SINGLE_CAUSE: Record<string, string> = {
   UNSUPPORTED_OPERATION: 'this provider has no binding for this operation.',
   FOCUS_UNSUPPORTED: 'this Reader has no native focus binding. Omit focus, or choose a focus-capable Reader.',
   AUTH_FAILED: 'the provider rejected the credential. Replace the Key.',
+  BALANCE_EXHAUSTED: 'the provider needs this account topped up before it will run the request. Add credit or use another Reader.',
+  RATE_LIMITED: 'the provider rate or quota limit was reached. Wait, or use another Reader.',
   UPSTREAM_FORBIDDEN: 'the provider refused this request for this account; the exact reason is upstream.',
   UPSTREAM_ERROR: 'the provider tool failed upstream. Run `siftpath test <provider>` for the failing stage.',
   PROVIDER_TIMEOUT: 'the provider did not answer within its timeout.',
-  RATE_LIMITED: 'the provider rate or quota limit was reached.',
 };
 export class Siftpath {
   readonly configuration: Configuration;
@@ -110,6 +111,9 @@ export class Siftpath {
       throw new SiftpathError(code, `${provider}: ${SINGLE_CAUSE[code] ?? 'the requested operation could not run.'}`, diagnostics);
     }
     const code = 'NO_PROVIDER_SUCCEEDED';
-    throw new SiftpathError(code, 'No configured provider could serve this request. Check status, credentials and the requested capability.', diagnostics);
+    // Every provider already reported a code; naming them is the whole difference between
+    // "something failed" and "your account is out of credit and the other one is refused".
+    const detail = diagnostics.map(({ provider, code }) => `${provider}(${code})`).join(', ');
+    throw new SiftpathError(code, `No configured provider could serve this request. Each attempt failed: ${detail}.`, diagnostics);
   }
 }

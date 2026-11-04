@@ -233,6 +233,32 @@ test('enabled but unconfigured providers are reported as pending setup, not as h
   assert.match(status.nextStep, /待配置: brave/);
 });
 
+test('a recorded provider failure is surfaced in nextStep instead of being hidden behind READY', async t => {
+  const s = await setup(t, { forbidden: { ...provider(), search: { name: 'forbidden', arguments: { q: '$query' } } }, exa: provider() });
+  await testReport(s.config, 'forbidden', s.path, {});
+  const fresh = await statusReport(s.config, s.path, {});
+  // READY is still configuration-only, so the row keeps saying READY...
+  assert.equal(fresh.providers.find(row => row.provider === 'forbidden').code, 'READY');
+  // ...but the summary must not tell the user everything is fine.
+  assert.match(fresh.nextStep, /Last test failed: forbidden\(UPSTREAM_FORBIDDEN\)/);
+  assert.match(fresh.nextStep, /Fix the failures above, then test again/);
+  assert.doesNotMatch(fresh.nextStep, /^Ready: ask the model/);
+  assert.match(formatStatus(fresh), /Last test failed: forbidden\(UPSTREAM_FORBIDDEN\)/);
+});
+
+test('a failure recorded before a configuration change is named together with the reason it may be stale', async t => {
+  const s = await setup(t, { forbidden: { ...provider(), search: { name: 'forbidden', arguments: { q: '$query' } } } });
+  await testReport(s.config, 'forbidden', s.path, {});
+  // Changing any fingerprinted limit makes the old result stale; it stays visible, labelled with its cause.
+  const changed = { ...s.config, maxOutputChars: 9000 };
+  const report = await statusReport(changed, s.path, {});
+  const row = report.providers.find(p => p.provider === 'forbidden');
+  assert.equal(row.lastTestStale, true); assert.equal(row.lastTestStaleReason, 'configuration');
+  assert.match(report.nextStep, /Last test failed: forbidden\(UPSTREAM_FORBIDDEN\) as tested before a configuration change/);
+  // A stale failure must not be treated as proof that the current setup is broken.
+  assert.doesNotMatch(report.nextStep, /Fix the failures above/);
+});
+
 test('status names the effective config file and separates READY from actually tested providers', async t => {
   const s = await setup(t, { exa: provider() });
   const untested = await statusReport(s.config, s.path, {});

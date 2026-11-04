@@ -7,7 +7,9 @@ import { publicUrl } from './inputs.js';
 export interface Source { url: string; title?: string }
 export interface WebResult {
   provider: string; tool: string; retrievedAt: string; url?: string;
-  content: string; sources: Source[]; truncated: boolean; sourcesTruncated: boolean;
+  content: string; sources: Source[];
+  /** Local clipping happened. `omittedChars` says how much was cut so an agent knows it sees a prefix. */
+  truncated: boolean; omittedChars?: number; sourcesTruncated: boolean;
   warnings: { provider?: string; code: string }[];
   metadata?: { creditsUsed?: number; cacheState?: string; cachedAt?: string };
 }
@@ -32,7 +34,9 @@ export function normalize(result: CallToolResult, provider: string, tool: string
     // it locally, and never fall back to an anonymous mode to work around it.
     const status = upstreamStatus(result);
     if (status === 401) throw new SiftpathError('AUTH_FAILED', 'Official MCP rejected the credential.');
+    if (status === 402) throw new SiftpathError('BALANCE_EXHAUSTED', 'Official MCP reported the account balance is insufficient.');
     if (status === 403) throw new SiftpathError('UPSTREAM_FORBIDDEN', 'Official MCP refused this request for this account.');
+    if (status === 429) throw new SiftpathError('RATE_LIMITED', 'Official MCP reported a rate or quota limit.');
     throw new SiftpathError('UPSTREAM_ERROR', 'Official MCP tool reported an error.');
   }
   const parts = result.content.flatMap(block => block.type === 'text' ? [block.text] :
@@ -110,6 +114,8 @@ function fitOutput(output: WebResult, limit: number): WebResult {
   if (JSON.stringify(output).length > limit) {
     output.truncated = true;
     const original = output.content;
+    // Probe with the widest possible count so the settled, shorter value can never overflow.
+    output.omittedChars = original.length;
     let low = 0, high = original.length;
     // JSON escaping is not one byte/character: choose a prefix using its actual serialized size.
     while (low < high) {
@@ -118,6 +124,8 @@ function fitOutput(output: WebResult, limit: number): WebResult {
       if (JSON.stringify(output).length <= limit) low = mid; else high = mid - 1;
     }
     output.content = original.slice(0, low).replace(/[\uD800-\uDBFF]$/, '');
+    // The settled count is never wider than the probe, so it cannot overflow the budget.
+    output.omittedChars = original.length - output.content.length;
   }
   if (JSON.stringify(output).length > limit) throw new SiftpathError('OUTPUT_LIMIT', 'Source metadata exceeds maxOutputChars; increase the configured limit.');
   return output;

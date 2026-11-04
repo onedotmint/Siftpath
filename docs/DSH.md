@@ -41,7 +41,7 @@ npm pack ./packages/dsh-siftpath --ignore-scripts
 Install both generated tarballs in the DSH profile, replacing the paths below:
 
 ```sh
-dsh plugin --profile web add /absolute/path/onedotmint-siftpath-2.2.0-dev.0.tgz /absolute/path/onedotmint-dsh-siftpath-2.2.0-dev.0.tgz
+dsh plugin --profile web add /absolute/path/onedotmint-siftpath-2.2.0.tgz /absolute/path/onedotmint-dsh-siftpath-2.2.0.tgz
 ```
 
 Open **Plugins → Siftpath → Configure**. Enable the needed providers, choose routes and budgets, and enter Keys into the write-only credential controls. Save settings and credentials, then click **Use Siftpath search**. The action changes only DSH’s `web.searchProvider`, keeps fetch settings intact, and refuses to overwrite a concurrently changed revision. The defaults intentionally match standalone Siftpath; DeepSeek and Brave are off. An intent-specific route overrides the default search, so changing the default alone does not override an existing research/semantic selection. Native DSH settings support the shipped presets; custom standalone provider definitions are not imported. Native fallback lists are empty.

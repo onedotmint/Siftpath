@@ -1,6 +1,6 @@
 # Native DSH adapter (candidate)
 
-`@onedotmint/dsh-siftpath@2.2.0-dev.0` is a source/tarball candidate, **not a claim of an existing published release**. It depends on the separate `@onedotmint/siftpath@2.2.0-dev.0` core; routing, official presets, provider requests and evidence normalization remain in that core.
+`@onedotmint/dsh-siftpath@2.2.0` is a source/tarball candidate, **not a claim of an existing published release**. It depends on the separate `@onedotmint/siftpath@2.2.0` core; routing, official presets, provider requests and evidence normalization remain in that core.
 
 Compatibility is pinned to `@deepseek-ai/dsh@0.2.1-rc.5`, rc5 service peers, Cordis `~4.0.5`, and Schemastery `~3.18.5`. Do not substitute npm's stale `latest` tools/web tags.
 
@@ -20,7 +20,7 @@ npm pack ./packages/dsh-siftpath --ignore-scripts
 Install **both** core and adapter tarballs into your DSH profile (replace paths with the produced files):
 
 ```sh
-dsh plugin --profile web add /absolute/path/onedotmint-siftpath-2.2.0-dev.0.tgz /absolute/path/onedotmint-dsh-siftpath-2.2.0-dev.0.tgz
+dsh plugin --profile web add /absolute/path/onedotmint-siftpath-2.2.0.tgz /absolute/path/onedotmint-dsh-siftpath-2.2.0.tgz
 ```
 
 The native bundle contributes only the Loader row `siftpath`. It does not delete or replace DSH files, presets, fetch tools, or standard tool names. In the Web Plugins page, open the Siftpath row configuration. Enable providers, choose authenticated or explicitly anonymous access, set credential-reference names and write keys through DSH's credential store. Configure routes and budgets, then save. Route providers must be enabled and support the operation. `unconfigured` disables a default route; blank intent routes inherit default search.

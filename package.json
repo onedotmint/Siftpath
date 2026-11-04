@@ -1,6 +1,6 @@
 {
   "name": "@onedotmint/siftpath",
-  "version": "2.2.0-dev.0",
+  "version": "2.2.0",
   "description": "Lightweight web search and reader router over official MCP servers and the DeepSeek Search API.",
   "keywords": [
     "pi-package",
@@ -40,6 +40,7 @@
     "docs/PROVIDERS.md",
     "docs/RELEASE-2.1.0.md",
     "docs/RELEASE-2.1.1.md",
+    "docs/RELEASE-2.2.0.md",
     "docs/SECURITY.md",
     "examples",
     "extensions"
