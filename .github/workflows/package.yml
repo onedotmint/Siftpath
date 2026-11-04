@@ -34,7 +34,9 @@ jobs:
       - run: npm run verify:source
       - run: npm run verify:audit
       - run: npm run verify:package
+      - run: npm run verify:dsh
       - run: npm pack --ignore-scripts
+      - run: npm pack ./packages/dsh-siftpath --ignore-scripts
       - uses: actions/upload-artifact@v7
         with:
           name: siftpath-npm-package

@@ -47,6 +47,41 @@ Key 输入遮罩，Enter 可保留已有值；禁用不删除 Key。环境变量
 - 阅读不传 `reader` 使用 `routes.read`；显式 `reader` 可选任意合法已配置 provider ID（包括自定义 ID），仅尝试该家，不走后备、不自动启用。
 - `focus` 调用前必须在所选 read binding 中确有 `$focus` 映射；否则 `FOCUS_UNSUPPORTED`，不调用该 provider、不静默转全文。上游自身仍可能降级，原生 notes 保留；匿名 Jina question 不保证聚焦成功。
 - 已显式保存的 fallback 是有序、去重、每家最多一次；不并行、不自动重试，不因证据不全启动后备。显式 reader 始终忽略 readFallback。
+
+## 多账号与冗余
+
+同一服务的第二个账号**不需要新功能**：它就是一个普通 provider 加一个 fallback 条目。凭据变量不同、连接和 binding 相同即可。
+
+```json
+{
+  "version": 2,
+  "credentials": { "JINA_API_KEY": "<主账号>", "JINA_BACKUP_API_KEY": "<备用账号>" },
+  "providers": {
+    "jina": {
+      "enabled": true,
+      "connection": { "transport": "http", "url": "https://mcp.jina.ai/v1",
+        "headers": { "Authorization": "Bearer ${JINA_API_KEY}" } },
+      "read": { "name": "read_url", "arguments": { "url": "$url", "question": "$focus", "topk": 3, "chunk_size": 250 } }
+    },
+    "jina-backup": {
+      "enabled": true,
+      "connection": { "transport": "http", "url": "https://mcp.jina.ai/v1",
+        "headers": { "Authorization": "Bearer ${JINA_BACKUP_API_KEY}" } },
+      "read": { "name": "read_url", "arguments": { "url": "$url", "question": "$focus", "topk": 3, "chunk_size": 250 } }
+    }
+  },
+  "routes": { "read": "jina", "readFallback": ["jina-backup"] }
+}
+```
+
+行为与边界：
+
+- 主账号失败（任何原因：`BALANCE_EXHAUSTED`、`AUTH_FAILED`、`UPSTREAM_FORBIDDEN`、超时）后按 `readFallback` 顺序尝试下一家，**不并行、不自动重试同一家**。
+- 成功的响应里会保留 `warnings: [{provider:"jina", code:"BALANCE_EXHAUSTED"}]`，主账号的问题不会被静默掩盖——可据此充值或换 Key。
+- 全部失败时错误消息逐家列出原因：`Each attempt failed: jina(BALANCE_EXHAUSTED), jina-backup(AUTH_FAILED).`
+- **不自动在账号间轮换**：是否切换由保存的 fallback 决定，Siftpath 不会自行判断“这个 402 是否值得换号”。同一个 402 可能是临时风控、季度额度或真正欠费，猜错会用用户不知情的账号花钱。
+- **不主动查询余额**：各供应商额度接口不同且多为私有，Siftpath 不为此新增网络请求。`siftpath test <provider>` 是显式诊断，普通调用与 `status` 都不会自动测试。
+- 跨供应商冗余同理：`readFallback: ["firecrawl"]`。注意 Firecrawl 无 focus binding，带 `focus` 的请求在该家会被 `FOCUS_UNSUPPORTED` 跳过，需自行决定是否值。
 - CLI：`siftpath read URL --reader ID [--focus "问题"]`。旧 mode/document 原型已撤回，由 reader 替代；没有 `--mode` 或 `routes.document`。
 
 ## 连接与 binding
@@ -94,3 +129,21 @@ Key 输入遮罩，Enter 可保留已有值；禁用不删除 Key。环境变量
 - `maxOutputChars` 默认 16000，范围 2000–50000，限制完整序列化 JSON 的 UTF-16 字符数，不是下载量/token 数。sources 最多 50 条，裁剪有标志；增加预算不能补回上游未返回内容，也不保证长文完整。
 - `maxResults` 默认 5，范围 1–20。Tavily binding 的 `minResults:5` 会把更小请求提升并附 `MAX_RESULTS_RAISED`；最终条数由服务决定，不本地重排。
 - `siftpath status [--json]` / `doctor` 离线；READY 仅表示配置就绪。`siftpath test <provider|all> [--json]` 明确发起真实诊断，单家不回退，可能消耗额度。配置热更新、分阶段结果见 [DIAGNOSTICS.md](DIAGNOSTICS.md)。
+
+## 可选 DeepSeek Search API
+
+`2.2.0` 新增 `deepseek`，默认 disabled，不更改已有路线。通过高级配置 `siftpath setup --advanced` 或 Pi `/siftpath` → 高级配置选择 DeepSeek，显式保存 Key 或使用 `DEEPSEEK_API_KEY`；不支持匿名模式。快速配置的 Tavily/Exa 与 Jina/Firecrawl 推荐组合保持不变。启用服务不等于切换全部 intent：要替代默认搜索，请显式调整默认搜索与需要的 general/research/semantic 路线。
+
+连接固定为官方 Search API，不接受自定义 URL、任意 REST 模板或读取 binding。以下为 provider 条目，写入显式 providers 表时要保留其他需要的服务：
+
+```json
+{
+  "enabled": true,
+  "connection": { "transport": "deepseek", "apiKey": "${DEEPSEEK_API_KEY}" },
+  "search": { "name": "deepseek_search", "arguments": { "query": "$query", "count": "$maxResults" } }
+}
+```
+
+只发送显式 query、count 和 `need_content:false`；不发送聊天历史或原始用户问题，不调用辅助模型。原生查询最多 128 个 Unicode 码点，超限在派发前报错，不截短、不改写，也不因此调用后备；公共 `maxResults` 仍为 1–20，默认 5。经验证的 `results:[]` 是正常零命中，不触发后备。MCP 的无来源回复和 Reader 校验不因此放宽。
+
+`siftpath test deepseek` 会真实调用一次 Search API，可能计费；没有 MCP connection/discovery 阶段，诊断保留为 not_tested，不伪造发现成功。`status` 仍是离线检查。搜索质量、账户权限、延迟和实际账单需要另行验收。

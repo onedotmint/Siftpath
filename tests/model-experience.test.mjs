@@ -110,7 +110,11 @@ test('real long Firecrawl Markdown clips within 16k while single reported credit
   const result = normalize(firecrawlRaw, 'firecrawl', 'firecrawl_scrape', 16000, firecrawlUrl);
   assert.deepEqual(result.metadata, { creditsUsed: 1, cacheState: 'hit', cachedAt: firecrawlBody.metadata.cachedAt });
   assert.equal(result.truncated, true); assert.equal(result.sourcesTruncated, false);
-  assert.equal(JSON.stringify(result).length, 16000);
+  assert.ok(JSON.stringify(result).length <= 16000);
+  // An agent holding a prefix can see how much of the native body was cut.
+  assert.equal(result.content.length + result.omittedChars, firecrawlRaw.content[0].text.length);
+  assert.ok(result.omittedChars > 0);
+  assert.ok(result.content.length > 14000);
   assert.equal(result.provider, 'firecrawl'); assert.equal(result.tool, 'firecrawl_scrape');
   assert.equal(result.url, firecrawlUrl); assert.equal(result.sources[0].url, firecrawlUrl);
   assert.ok(firecrawlRaw.content[0].text.startsWith(result.content));

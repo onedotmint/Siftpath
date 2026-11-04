@@ -94,7 +94,7 @@ export default function (pi) {
   // Registering the same name again replaces the earlier registration, so a reload never duplicates tools.
   pi.registerMcpServer(SERVER, {
     command: process.execPath, args: [cli, 'mcp'], exposure: 'direct', timeout: 180,
-    description: 'Siftpath: web search and webpage reading through the configured official provider MCP servers.',
+    description: 'Siftpath: web search and webpage reading through configured official provider services.',
   });
   pi.on('session_shutdown', () => { for (const controller of running) controller.abort(); });
   pi.on('session_start', async (_event, ctx) => {
@@ -187,7 +187,7 @@ export default function (pi) {
     const { config, plan } = await core();
     // Editing starts from disk only; environment credentials are resolved at runtime, never saved implicitly.
     let draft = await config.readConfiguration(config.configPath(), {});
-    const searches = catalog.filter(entry => entry.search && entry.id !== 'brave').map(entry => entry.id);
+    const searches = catalog.filter(entry => ['tavily', 'exa'].includes(entry.id)).map(entry => entry.id);
     const readers = catalog.filter(entry => entry.read).map(entry => entry.id);
     ctx.ui.notify('快速配置只添加或更新所选服务，保留其它服务及可用路由，不自动添加后备；如需停用服务，请使用高级配置。', 'info');
     const chooseGroup = async (title, ids, keep) => {

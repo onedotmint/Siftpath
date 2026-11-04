@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.2.0 — feature release
+
+Backward-compatible release from 2.1.1. Publication is confirmed by the npm registry and Git release, not this source version.
+
+- Add an opt-in direct DeepSeek Search API backend without changing saved routes or enabling new services automatically.
+- Add a separately packaged native DSH search backend and `siftpath_read` tool with the existing `reader` / `focus` contract. **This bundle is not published**: its pinned host dependency audit fails the High/Critical gate. The core package is unaffected because it uses its own patched Zod/MCP dependencies.
+- Preserve the two core MCP tools, the Pi extension, the default routes and the existing default output budget.
+- Report `omittedChars` whenever the output budget clips a body, so an agent can tell it holds a prefix and how much of the end was cut; the count is rounded together with the prefix so it never overflows `maxOutputChars`.
+- Classify an observable upstream 402 as `BALANCE_EXHAUSTED` and an observable 429 as `RATE_LIMITED` instead of folding both into `UPSTREAM_ERROR`. Only a status code is read (`structuredContent.error.status`, or an `HTTP <code>` prefix in a text block) — never provider wording, so no ban, plan or entitlement is inferred.
+- Stop `status` from contradicting itself: a recorded provider failure now appears in `Next:` as `Last test failed: <provider>(<code>)`. A failure recorded before a package upgrade or configuration change is still listed but labelled with why it may no longer describe the current setup.
+- Name every attempt when no provider succeeds: `Each attempt failed: jina(BALANCE_EXHAUSTED), jina-backup(AUTH_FAILED).` A single generic sentence made users re-check everything when the actionable cause was already known.
+- Document multi-account redundancy as configuration rather than a feature: a second account is another provider plus a fallback entry, keeping the failing account visible in `warnings`. No automatic account rotation and no balance polling are added — whether a 402 means transient throttling, an exhausted plan or genuine non-payment is decided by the operator, not guessed locally.
+- Document what Siftpath cannot see, because it forwards reader responses rather than fetching pages itself: a 404, an anti-bot block or empty boilerplate from a reader still arrives as `isError: false`, raw HTML is passed through uncleaned, and a focus miss is not reported as `NOT_FOUND`.
+- See [release notes](docs/RELEASE-2.2.0.md) for compatibility and known limits.
 ## 2.1.1
 
 Maintenance update from 2.1.0. Publication is confirmed by the npm registry and Git release, not this source version.

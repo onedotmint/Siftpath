@@ -96,7 +96,7 @@ test('password validation rejects empty required keys, controls and oversized va
 });
 
 test('all built-in providers have ready authenticated presets and anonymous modes only where native support exists', () => {
-  for (const id of ['brave', 'exa', 'tavily', 'jina', 'firecrawl']) {
+  for (const id of ['brave', 'exa', 'tavily', 'jina', 'firecrawl', 'deepseek']) {
     const key = id.toUpperCase() + '_API_KEY';
     const config = parseConfiguration({ providers: { [id]: providerPresets[id] } });
     assert.equal(providerStatus(id, config, {}).code, 'MISSING_CREDENTIALS');
@@ -104,10 +104,11 @@ test('all built-in providers have ready authenticated presets and anonymous mode
     assert.ok(config.providers[id].search || config.providers[id].read);
   }
   for (const id of ['exa', 'tavily', 'jina', 'firecrawl']) assert.equal(providerStatus(id, parseConfiguration({ providers: { [id]: anonymousPresets[id] } }), {}).code, 'READY');
-  assert.equal(anonymousPresets.brave, undefined);
+  assert.equal(anonymousPresets.brave, undefined); assert.equal(anonymousPresets.deepseek, undefined);
+  assert.equal(parseConfiguration({}).providers.deepseek.enabled, false);
   for (const id of ['tavily', 'exa', 'jina', 'firecrawl']) assert.equal(parseConfiguration({}).providers[id].enabled, true);
   assert.equal(parseConfiguration({}).providers.brave.enabled, false);
-  assert.deepEqual(providerCatalog.map(entry => entry.id), ['tavily', 'exa', 'jina', 'firecrawl', 'brave']);
+  assert.deepEqual(providerCatalog.map(entry => entry.id), ['tavily', 'exa', 'jina', 'firecrawl', 'deepseek', 'brave']);
 });
 test('read-only configuration does not invent a usable search route and asks before testing', async () => {
   const p = prompts({ providers: ['firecrawl'], action: 'anonymous', test: true });
@@ -306,4 +307,17 @@ test('adding Tavily does not redirect an existing Brave primary through a new ge
   assert.equal(next.routes.search, 'brave');
   assert.deepEqual(next.routes.intents, { general: 'brave', research: 'tavily', semantic: 'brave' });
   assert.deepEqual(next.routes.searchFallback, []);
+});
+
+test('advanced setup configures optional DeepSeek without changing the quick recommendation set', async () => {
+  const p = prompts({ providers: ['deepseek'], action: 'key', key: 'fixture-deepseek-only' });
+  const result = await runSetupWizard(parseConfiguration({}), {}, p);
+  assert.equal(result.configuration.providers.deepseek.enabled, true);
+  assert.equal(result.configuration.providers.deepseek.connection.transport, 'deepseek');
+  assert.equal(result.configuration.routes.search, 'deepseek');
+  assert.deepEqual(result.configuration.routes.intents, { general: 'deepseek', semantic: 'deepseek', research: 'deepseek' });
+  assert.deepEqual(result.configuration.routes.searchFallback, []);
+  assert.equal(result.configuration.routes.read, 'unconfigured');
+  assert.ok(!JSON.stringify(p.notices).includes('fixture-deepseek-only'));
+  assert.equal(p.calls.find(call => call.message === 'After saving, run real provider tests? (may use API quota)').initialValue, false);
 });

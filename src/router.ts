@@ -1,4 +1,5 @@
 import { McpClients } from './client.js';
+import { deepseekSearch } from './deepseek.js';
 import { parseConfiguration, providerStatus, type Binding, type Configuration } from './config.js';
 import { SiftpathError, type Diagnostic } from './errors.js';
 import { parseInput, publicUrl, readSchema, searchSchema, type ReadInput, type SearchInput } from './inputs.js';
@@ -24,10 +25,11 @@ const SINGLE_CAUSE: Record<string, string> = {
   UNSUPPORTED_OPERATION: 'this provider has no binding for this operation.',
   FOCUS_UNSUPPORTED: 'this Reader has no native focus binding. Omit focus, or choose a focus-capable Reader.',
   AUTH_FAILED: 'the provider rejected the credential. Replace the Key.',
+  BALANCE_EXHAUSTED: 'the provider needs this account topped up before it will run the request. Add credit or use another Reader.',
+  RATE_LIMITED: 'the provider rate or quota limit was reached. Wait, or use another Reader.',
   UPSTREAM_FORBIDDEN: 'the provider refused this request for this account; the exact reason is upstream.',
   UPSTREAM_ERROR: 'the provider tool failed upstream. Run `siftpath test <provider>` for the failing stage.',
   PROVIDER_TIMEOUT: 'the provider did not answer within its timeout.',
-  RATE_LIMITED: 'the provider rate or quota limit was reached.',
 };
 export class Siftpath {
   readonly configuration: Configuration;
@@ -82,17 +84,23 @@ export class Siftpath {
         const effective = { ...input };
         const raised = kind === 'search' && !!binding.minResults && Number(effective.maxResults) < binding.minResults;
         if (raised) effective.maxResults = binding.minResults;
-        const raw = await this.clients.call(id, binding.name, mapArguments(binding.arguments, effective), AbortSignal.any([signal, attempt]));
+        const args = mapArguments(binding.arguments, effective), operationSignal = AbortSignal.any([signal, attempt]);
+        const direct = provider!.connection.transport === 'deepseek';
+        const raw = direct ? await deepseekSearch(id, binding.name, args, c, this.env, operationSignal)
+          : await this.clients.call(id, binding.name, args, operationSignal);
         cancelled();
         const warnings: WebResult['warnings'] = [];
         if (raised) warnings.push({ provider: id, code: 'MAX_RESULTS_RAISED' });
         if (kind === 'read' && input.focus) warnings.push({ provider: id, code: 'FOCUS_MAY_OMIT_CONTENT' });
         warnings.push(...diagnostics.map(({ provider, code }) => ({ provider, code })));
-        return normalize(raw, id, binding.name, c.maxOutputChars, kind === 'read' ? String(input.url) : undefined, warnings);
+        return normalize(raw, id, binding.name, c.maxOutputChars, kind === 'read' ? String(input.url) : undefined, warnings, direct ? 'deepseek' : undefined);
       } catch (error) {
         cancelled();
         const code = attempt.aborted ? 'PROVIDER_TIMEOUT' : error instanceof SiftpathError ? error.code : 'UPSTREAM_ERROR';
         diagnostics.push({ provider: id, code });
+        // Provider input limits must not silently send a different provider the query instead.
+        if (provider!.connection.transport === 'deepseek' && code === 'INVALID_UPSTREAM_ARGUMENTS')
+          throw new SiftpathError(code, 'DeepSeek requires a query of 1–128 Unicode characters and a count of 1–50; the query was not rewritten or sent to a fallback.', diagnostics);
       }
     }
     cancelled();
@@ -103,6 +111,9 @@ export class Siftpath {
       throw new SiftpathError(code, `${provider}: ${SINGLE_CAUSE[code] ?? 'the requested operation could not run.'}`, diagnostics);
     }
     const code = 'NO_PROVIDER_SUCCEEDED';
-    throw new SiftpathError(code, 'No configured provider could serve this request. Check status, credentials and the requested capability.', diagnostics);
+    // Every provider already reported a code; naming them is the whole difference between
+    // "something failed" and "your account is out of credit and the other one is refused".
+    const detail = diagnostics.map(({ provider, code }) => `${provider}(${code})`).join(', ');
+    throw new SiftpathError(code, `No configured provider could serve this request. Each attempt failed: ${detail}.`, diagnostics);
   }
 }

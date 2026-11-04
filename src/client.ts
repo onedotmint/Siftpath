@@ -63,6 +63,7 @@ export class McpClients {
     const status = providerStatus(id, this.config, this.env);
     if (status.code !== 'READY') throw new SiftpathError(status.code, 'Provider is unavailable.', [status]);
     const provider = this.config.providers[id]!, c = provider.connection;
+    if (c.transport !== 'stdio' && c.transport !== 'http') throw new SiftpathError('UNSUPPORTED_OPERATION', 'Connection is not an MCP transport.');
     const values = (entries: Record<string, string>) => Object.fromEntries(Object.entries(entries).map(([key, val]) => [key, resolveSecret(val, this.config, this.env)]));
     const transport = c.transport === 'stdio'
       ? new StdioClientTransport({ command: c.command, args: c.args, env: { ...getDefaultEnvironment(), ...values(c.env) }, stderr: 'ignore', maxBufferSize: 4 * 1024 * 1024 })

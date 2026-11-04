@@ -1,11 +1,11 @@
 # Architecture
 
-One npm package, TypeScript, Node.js 22+. The public tools are only:
+The core npm package is TypeScript, Node.js 22+. An optional, separately packaged DSH bundle depends on the core SDK; the core has no DSH dependency. The core public tools remain:
 
 ```text
 web_search({ query, intent?, maxResults? })
 web_read({ url, reader?, focus? })
-Agent → shared input validation → Router/binding → official MCP → native output envelope
+Agent → shared input validation → Router/binding → official MCP or DeepSeek Search API → native output envelope
 ```
 
 ## Responsibilities
@@ -20,7 +20,7 @@ Agent → shared input validation → Router/binding → official MCP → native
 | `output.ts` | Native content, source index, warnings and serialized character budget |
 | `diagnostics.ts`, `cli.ts`, `mcp/stdio.ts`, `index.ts` | Explicit probes, CLI, official SDK stdio server and SDK exports |
 
-Runtime dependencies are the official MCP SDK and Zod, including their transitive dependencies. No local fetcher/HTML parser, vendor HTTP adapter, fusion, ranking, cache, sufficiency judgment, hidden follow-up or LLM planner. Providers own retrieval, native extraction, caching and billing.
+Runtime dependencies are the official MCP SDK and Zod, including their transitive dependencies. No local webpage fetcher/HTML parser, fusion, ranking, cache, sufficiency judgment, hidden follow-up or LLM planner. The only direct vendor API adapter is DeepSeek Search, with a fixed official HTTPS endpoint; it is not a general REST transport. Providers own retrieval, native extraction, caching and billing.
 
 ## Routing and capability checks
 
@@ -42,6 +42,12 @@ Overall deadline defaults to 60s; provider attempts default to 20s including con
 
 Native text/order are preserved. For the observed `firecrawl_scrape` root `{ markdown, metadata }` envelope, an optional `WebResult.metadata` projects only validated `creditsUsed`, `cacheState` and `cachedAt` before clipping. Valid structured metadata takes precedence; JSON text is a fallback, never summed or merged. The original content is not rewritten. Other tools and unknown/nested layouts remain opaque; webpage text is not searched for usage fields. Structured content is not appended when one JSON text block already contains every field with deeply equal values (object key order irrelevant, array/string content exact); otherwise distinct evidence remains. No fuzzy matching, summary or inferred completeness class.
 
-`sources` indexes public URLs, including outgoing links, not separately fetched or semantically verified citations. Reads preserve the exact requested URL. `retrievedAt` is local processing time. Warnings and the small allowlisted metadata projection are assembled before one final serialized JSON budget pass. Provenance, warnings and metadata count toward the same limit first; the remaining space holds the longest native content prefix (no fixed extra allowance or larger default). Missing/invalid usage is omitted, credits are not currency, and cache hits are not assumed free; the original content may still contain a copy of the projected fields, not an additional charge. `truncated` remains about content, not the provider response. In particular, `truncated` describes local clipping only. Neither a non-focused read nor `truncated:false` proves upstream completeness. The stdio response carries the JSON envelope as text for client compatibility.
+`sources` indexes public URLs, including outgoing links, not separately fetched or semantically verified citations. Reads preserve the exact requested URL. `retrievedAt` is local processing time. Warnings and the small allowlisted metadata projection are assembled before one final serialized JSON budget pass. Provenance, warnings and metadata count toward the same limit first; the remaining space holds the longest native content prefix (no fixed extra allowance or larger default). Missing/invalid usage is omitted, credits are not currency, and cache hits are not assumed free; the original content may still contain a copy of the projected fields, not an additional charge. `truncated` remains about content, not the provider response. In particular, `truncated` describes local clipping only, and `omittedChars` reports how many body characters were cut from the end, so any truncated result is a prefix rather than a sample. Neither a non-focused read nor `truncated:false` proves upstream completeness. The stdio response carries the JSON envelope as text for client compatibility.
 
 Diagnostics intentionally check discovery/output contracts more strictly than normal calls; their private per-config records are not proof of search quality. See [DIAGNOSTICS.md](DIAGNOSTICS.md) and [TESTING.md](https://github.com/onedotmint/Siftpath/blob/main/docs/TESTING.md).
+
+## Native DSH boundary
+
+`packages/dsh-siftpath` is a separate installable bundle, not a core runtime dependency. It registers an optional `ctx.web` search provider and one `siftpath_read` tool; it does not overwrite DSH's `web_search` / `web_fetch`, implement another search planner or install a local MCP bridge. DSH retains its own multi-query orchestration. The selected Siftpath default intent supplies the native search route because DSH's request has no `intent` field.
+
+The adapter owns only DSH configuration projection, credential resolution, native result/error projection and lifecycle cleanup. Core validation, routing, native focus capability checks and output budgets remain in the SDK. Configuration and credential changes take effect through fresh operation snapshots; retired routers finish in-flight work before teardown. Installing the bundle neither changes DSH's selected backend nor migrates the standalone configuration file. See [DSH integration](DSH.md).

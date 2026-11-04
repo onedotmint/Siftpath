@@ -1,6 +1,37 @@
 # 测试与证据索引
 
-## 当前验收状态
+## 当前候选：2.2.0（发布前）
+
+本轮新增可选 DeepSeek Search API 与独立 DSH 原生插件，并修复输出截断信号、402/429 诊断分类与 `status` 自相矛盾的摘要；**下方 2.1.1 发布/CI 证据不覆盖这些改动**。尚未提交新的远端 CI，也未在本轮重新执行供应商或模型验收。公开 npm 依赖下载与文档核对不等于 API 业务测试。
+
+本机 Linux / Node v24.22.1 / npm 11.19.1 验证：
+
+- 核心 `npm run check`：类型检查、构建通过，**269 passed / 1 historical skipped / 0 failed**（270项）。包含 DeepSeek 原文保留、Unicode 128码点边界、空结果、响应字节上限、取消/超时、HTTP错误脱敏和无自动重试，以及 `omittedChars` 在 ASCII/密集转义/Unicode 上的精确切点、402/429 分类与不按措辞推断、`status` 摘要不得与 READY 行矛盾，以及既有 Pi/CLI 回归。
+- `npm run verify:package`：实际核心 tarball **68 文件 / 448,846 bytes** 的锁定生产安装和无仓库 lock 消费者安装通过；真实 Pi **1.5.0** RPC 两次加载通过、0推理、0供应商业务。消费者解析 MCP SDK 1.32.2、Zod 4.6.7、body-parser 2.4.0，生产消费者审计0漏洞；历史 Pi 1.4.0/跨平台证据不作为当前候选运行结果。
+- `npm run verify:dsh`：实际核心和插件 tarball 隔离安装，固定 DSH **0.2.1-rc.5** 的真实 CLI `--dump-config` 组合通过，不启动 Agent；**17/17** 适配功能测试通过，但整体 `verify:dsh` 在随后安全门禁失败，不能记为完整验收通过。真实 Cordis/web/tools、配置/凭据轮换、继承/卸载、取消、显式搜索切换、原生 `FOCUS_UNSUPPORTED` 零fetch，以及真实rc5表单控件的渲染和离页草稿清理均覆盖。无关Markdown/图标/高亮依赖及CSS是Node渲染测试替身，不是完整浏览器验收。CI 中该 job 标记 `continue-on-error`：已知阻塞按设计返回非零，不得阻断唯一发布对象（核心包）；它继续运行，以便宿主升级后自动转绿。
+- Linux Clack PTY、`verify:source` **125 文件**、`pack:dry`（68 文件）与 `git diff --check` 通过。核心 `verify:audit` 的生产/开发树均0漏洞，核心生产依赖仍只有 MCP SDK 和 Zod。
+- **DSH 发布阻塞**：固定宿主0.2.1-rc.5隔离消费者审计为high190/moderate7/critical0；这是npm包含受影响父包的传播计数，不是190个独立漏洞。根advisory来自DSH固定的 `zod@4.4.3` 与 `undici@8.11.2` 等依赖。详见 [DSH安全阻塞](DSH.md#security-release-blocker)。保留失败门禁，不做强制覆盖、降级或抑制。核心包（本版本唯一的发布对象）不受影响。
+
+未覆盖：交互式 DSH Web 全流程、真实 DeepSeek 账户/搜索质量/收费、当前候选 Windows/Node22/26 矩阵、真实模型是否正确选择/使用focus。
+
+### 本轮 live 验收（已执行）
+
+维护者更换 Jina/Firecrawl 凭据后，用开发树 `dist/` 完成下列真实调用（未安装进 Pi，未使用模型推理）：
+
+| 项目 | 调用 | 结果 |
+|---|---|---|
+| `siftpath test jina` | 1 | PASSED 3955ms，connect/tools/request 全通过 |
+| `siftpath test firecrawl` | 1 | PASSED 3860ms，账号已恢复 |
+| Jina 成功读页 | 1 | `truncated:false`，无误判错误码 |
+| Firecrawl 成功读页 | 1 | 正常返回，`metadata.creditsUsed:1`、`cacheState:hit` |
+| 长页截断（Python asyncio） | 1 | `content 30435 + omittedChars 17373 = 47808`；封套精确 32000，不超预算 |
+| `SIFTPATH_READ_QUALITY=1` 窗口对照 | 3 | `1x100` 覆盖 1/3（`transaction`/`noEffect` 缺失且 `truncated:false`）；`3x250` 3/3；`4x160` 3/3 |
+
+这些验证了两个先前只有离线 fixture 的方向：**真实成功响应不会被 402/429 分类误判**，以及**当前 `topk:3, chunk_size:250` 预设确实优于更窄窗口**。1×100 的“覆盖 1/3 且不报截断”是保留现窗口的直接依据。
+
+仍未做：把候选包装进 Pi 做 Agent 闭环（模型是否会正确使用 `omittedChars`/`focus` 未验证），以及任何模型推理或付费模型预算。
+
+## 已发布版本：2.1.1（历史验收状态）
 
 版本 **2.1.1** 已于 **2026-11-02** 正式发布，npm `latest`、Git Tag 与 [GitHub Release](https://github.com/onedotmint/Siftpath/releases/tag/v2.1.1) 一致。2.1.0 之后的依赖安全治理、诊断与体验修复已随此版本交付，详见 [发布说明](RELEASE-2.1.1.md) 和 [Changelog](../CHANGELOG.md)。本轮发布准备不新增运行时功能；本文件仅在 Git 保存，不进入 npm 包。
 

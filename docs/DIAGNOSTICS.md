@@ -33,6 +33,8 @@ node dist/cli.js test all --json
 
 启用但缺凭据的供应商在 `status` 里显示 `MISSING_CREDENTIALS` 并进入 `待配置:` 提示，不会被当成健康。
 
+已记录的测试失败不会被 `READY` 掩盖：未过期的失败在 `Next:` 中列为 `Last test failed: <provider>(<code>)` 并给出修复后重测的建议；因包升级或配置改动而过期的失败仍然列出，但会明确写成 `as tested before a configuration change` 之类的限制，且不会据此宣称当前配置已坏。
+
 ## 状态含义
 
 配置状态与实际测试分开：
@@ -61,9 +63,11 @@ node dist/cli.js test all --json
 
 **诊断与正常调用的判定不同：**诊断还要求配置工具能被发现、支持同步调用、声明的输出 Schema 合法匹配；普通业务路径要求 MCP 响应成功、可读内容与来源可封装并满足预算，不额外发 tools/list，也不校验未发现的供应商输出 Schema。因而诊断可能拒绝普通请求可使用的文本响应；诊断通过不代表意图选路、显式 reader、后备或 focus 已被验证；正常读取会在业务前检查 binding 是否映射 `$focus`，不支持则不调用。对照回归明确保留这一区别，避免把探针等同于 Router 验收。
 
-失败只输出固定脱敏分类，并附带一条可操作提示（`hint`），例如 AUTH_FAILED、RATE_LIMITED、CONNECTION_FAILED、TOOL_NOT_FOUND、DISCOVERY_FAILED、INVALID_UPSTREAM_ARGUMENTS、UPSTREAM_ERROR、UPSTREAM_FORBIDDEN、PROVIDER_TIMEOUT。不会输出上游错误正文、网页内容、请求头或 Key。
+失败只输出固定脱敏分类，并附带一条可操作提示（`hint`），例如 AUTH_FAILED、BALANCE_EXHAUSTED、RATE_LIMITED、CONNECTION_FAILED、TOOL_NOT_FOUND、DISCOVERY_FAILED、INVALID_UPSTREAM_ARGUMENTS、UPSTREAM_ERROR、UPSTREAM_FORBIDDEN、PROVIDER_TIMEOUT。不会输出上游错误正文、网页内容、请求头或 Key。
 
 `UPSTREAM_FORBIDDEN` 用于供应商在工具层拒绝了这次请求，与凭据错误（`AUTH_FAILED`）和 Siftpath 配置错误分开。Siftpath 只上报可观测到的上游状态码，**不推断具体是封禁、套餐还是端点权限**；也不以匿名模式重试来绕过认证拒绝。显式指定 `reader` 且只有一个诊断原因，或唯一诊断原因为 `FOCUS_UNSUPPORTED` 时，错误消息会写明是哪一家、什么原因。普通默认路线失败仍可返回 `NO_PROVIDER_SUCCEEDED`，具体原因保留在 diagnostics 中。
+
+`BALANCE_EXHAUSTED` 专门表示**上游状态码 402**（需要充值/付费才能运行），与临时限速 `RATE_LIMITED`（429）和通用 `UPSTREAM_ERROR` 分开：用户和模型据此能判断“换 Reader 或充值”而非“改本地配置”。分类只来自可观测的状态码：工具的 `structuredContent.error.status`，或文本块开头的 `HTTP <3位状态码>`。**不扫描正文措辞**（例如不因出现 “balance”“banned” 就归类），因此没有状态码的上游仍保持 `UPSTREAM_ERROR` / `UPSTREAM_FORBIDDEN`。
 
 ## 最近测试记录
 
@@ -129,3 +133,7 @@ Key 输入使用自带的**遮罩输入组件**（`•` 回显、不回显明文
 ## Pi 首次安装验收
 
 见 Git 仓库的 [测试与验收记录](https://github.com/onedotmint/Siftpath/blob/main/docs/TESTING.md)：隔离 npm 包的真实 Pi 加载检查不进行推理；既有认证供应商和自主搜索/阅读记录另列。新的模型或真实供应商业务必须另行授权。
+
+## Direct DeepSeek API diagnostics
+
+The optional `deepseek` connection has no MCP initialization or tools/list. Its explicit provider test sends one small Search API request, reports only the request stage, and leaves connection/discovery `not_tested`; a passed request is not evidence that MCP discovery occurred. Successful zero results pass this contract check, not a relevance/coverage check. Tests can consume DeepSeek account quota and never switch providers. The normal status command stays offline.

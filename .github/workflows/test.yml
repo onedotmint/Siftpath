@@ -46,6 +46,28 @@ jobs:
       - run: npm run verify:package
       - run: git diff --check
 
+  # The DSH bundle is deliberately unpublished behind a recorded host audit block:
+  # its pinned @deepseek-ai/dsh host brings in zod/undici advisories that fail the
+  # High/Critical gate, and no override or suppression is applied. `verify:dsh` exits
+  # nonzero on that gate by design, so this job must not block the core package, which
+  # is the only published artifact. Keep it running: it still proves the 17 adapter
+  # checks and will go green on its own once a patched host is pinned. See docs/DSH.md.
+  dsh:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run build
+      - name: Native DSH tarballs and offline adapter checks
+        run: npm run verify:dsh
+
   # Production High/Critical blocks the matrix. The full tree, including dev
   # tooling, is audited and reported separately below.
   audit:

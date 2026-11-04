@@ -56,6 +56,7 @@ test('real stdio MCP client sees only two tools and exercises search/read/errors
   assert.match(readTool.description, /narrow focus/);
   assert.match(readTool.description, /stop when sufficient/);
   assert.match(readTool.description, /truncated=false.*completeness/);
+  assert.match(readTool.description, /omittedChars/);
   assert.equal(readTool.inputSchema.properties.mode, undefined);
   assert.equal(readTool.inputSchema.properties.reader.type, 'string');
   assert.match(readTool.description, /unfetched links/);

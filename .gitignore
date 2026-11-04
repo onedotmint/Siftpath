@@ -13,3 +13,6 @@ coverage/
 # Private, latest-only provider diagnostics saved alongside a selected config.
 .siftpath-tests.json
 .*.siftpath-tests.json
+
+# Native DSH browser/host build artifacts.
+packages/dsh-siftpath/lib/

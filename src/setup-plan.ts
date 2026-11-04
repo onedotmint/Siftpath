@@ -7,12 +7,13 @@ export interface ProviderInfo {
 }
 export type CredentialMode = 'keep' | 'existing' | 'key' | 'anonymous';
 
-/** Quick recommendation order: Tavily/Exa search, Jina/Firecrawl read; Brave stays advanced-only. */
+/** Quick recommendation order: Tavily/Exa search, Jina/Firecrawl read; Brave/DeepSeek stay advanced-only. */
 export const providerCatalog: ProviderInfo[] = [
   { id: 'tavily', label: 'Tavily', hint: 'Default general/research search; API Key recommended', key: 'TAVILY_API_KEY', search: true, read: false, anonymous: true },
   { id: 'exa', label: 'Exa', hint: 'Semantic search; API Key recommended', key: 'EXA_API_KEY', search: true, read: false, anonymous: true },
   { id: 'jina', label: 'Jina', hint: 'Default webpage reader with native focus; API Key recommended', key: 'JINA_API_KEY', search: false, read: true, anonymous: true },
   { id: 'firecrawl', label: 'Firecrawl', hint: 'Explicit reader: web_read({ url, reader: "firecrawl" }); API Key recommended', key: 'FIRECRAWL_API_KEY', search: false, read: true, anonymous: true },
+  { id: 'deepseek', label: 'DeepSeek', hint: 'Optional Search API (128 Unicode character query limit); API Key required', key: 'DEEPSEEK_API_KEY', search: true, read: false, anonymous: false },
   { id: 'brave', label: 'Brave', hint: 'Advanced optional general search; API Key required', key: 'BRAVE_API_KEY', search: true, read: false, anonymous: false },
 ];
 const preferred = { search: ['tavily', 'exa', 'brave'], read: ['jina', 'firecrawl'] } as const;

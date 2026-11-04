@@ -81,6 +81,60 @@ test('a provider refusal is reported as upstream, not as a Siftpath misconfigura
     return true;
   });
 });
+test('an insufficient balance and a rate limit stay distinct from a generic upstream failure', async t => {
+  for (const [tool, code] of [['payment', 'BALANCE_EXHAUSTED'], ['text402', 'BALANCE_EXHAUSTED'], ['rate', 'RATE_LIMITED']]) {
+    const r = await router(t, config({ brave: { ...provider(), read: { name: tool, arguments: { url: '$url' } } } },
+      { routes: { search: 'brave', read: 'brave', searchFallback: [] } }));
+    await assert.rejects(r.read({ url: 'https://example.com', reader: 'brave' }), error => {
+      assert.equal(error.code, code);
+      assert.ok(!JSON.stringify(error).includes('PRIVATE_KEY'));
+      return true;
+    });
+  }
+});
+test('a total failure names every provider and its code instead of one generic sentence', async t => {
+  // Both configured readers reject the account: the user must be able to tell which code came from where.
+  const r = await router(t, config({
+    first: { ...provider(), read: { name: 'payment', arguments: { url: '$url' } } },
+    second: { ...provider(), read: { name: 'forbidden', arguments: { url: '$url' } } },
+  }, { routes: { search: 'first', read: 'first', intents: {}, searchFallback: [], readFallback: ['second'] } }));
+  await assert.rejects(r.read({ url: 'https://example.com' }), error => {
+    assert.equal(error.code, 'NO_PROVIDER_SUCCEEDED');
+    // Each attempt is named with its own classified code, in attempt order.
+    assert.match(error.message, /first\(BALANCE_EXHAUSTED\)/);
+    assert.match(error.message, /second\(UPSTREAM_FORBIDDEN\)/);
+    assert.deepEqual(error.diagnostics.map(d => d.code), ['BALANCE_EXHAUSTED', 'UPSTREAM_FORBIDDEN']);
+    // Still no leaked provider text or credentials.
+    assert.ok(!JSON.stringify(error).includes('PRIVATE_KEY'));
+    return true;
+  });
+});
+
+// A second account for the same service needs no new feature: it is an ordinary provider plus a fallback.
+test('a sibling provider can serve a request the first account cannot, and the first failure stays visible', async t => {
+  const r = await router(t, config({
+    primary: { ...provider(), read: { name: 'payment', arguments: { url: '$url', question: '$focus' } } },
+    backup: { ...provider(), read: { name: 'read', arguments: { url: '$url', question: '$focus' } } },
+  }, { routes: { search: 'primary', read: 'primary', intents: {}, searchFallback: [], readFallback: ['backup'] } }));
+  const result = await r.read({ url: 'https://example.com', focus: 'title' });
+  assert.equal(result.provider, 'backup');
+  assert.ok(result.content.length > 20);
+  // The primary's failure is preserved rather than hidden, so the operator can act on it.
+  assert.ok(result.warnings.some(w => w.provider === 'primary' && w.code === 'BALANCE_EXHAUSTED'));
+});
+
+test('an insufficient balance is only claimed from an observable 402, never from provider wording', async t => {
+  // The generic failure and the 403 refusal must not be reclassified by guessing at their text.
+  for (const [tool, code] of [['fail', 'UPSTREAM_ERROR'], ['forbidden', 'UPSTREAM_FORBIDDEN']]) {
+    const r = await router(t, config({ brave: { ...provider(), read: { name: tool, arguments: { url: '$url' } } } },
+      { routes: { search: 'brave', read: 'brave', searchFallback: [] } }));
+    await assert.rejects(r.read({ url: 'https://example.com', reader: 'brave' }), error => {
+      assert.equal(error.code, code);
+      assert.doesNotMatch(JSON.stringify(error), /balance|top.?up|recharge/i);
+      return true;
+    });
+  }
+});
 test('a single explicit provider failure names its own cause instead of repeating the generic message', async t => {
   // Jina here has no read binding at all, so the single provider's cause is structural.
   const r = await router(t, config({ jina: { ...provider(), read: undefined } }, { routes: { search: 'jina', read: 'jina', searchFallback: [] } }));
@@ -138,6 +192,26 @@ test('config rejects URL credentials, URL query keys, invalid limits and unknown
 test('escaped-dense output keeps the largest usable nonempty prefix', () => {
   const output = normalize({ content: [{ type: 'text', text: 'https://example.com\n' + '"'.repeat(10000) }] }, 'test', 'search', 2000);
   assert.ok(output.content.length > 700); assert.ok(JSON.stringify(output).length <= 2000); assert.ok(output.truncated);
+});
+test('omittedChars reports the exact cut on ASCII, escaped and Unicode bodies', () => {
+  const cases = [
+    'plain '.repeat(2000),
+    '"\\\n\t'.repeat(3000),
+    '中文😀'.repeat(3000),
+  ];
+  for (const text of cases) {
+    const output = normalize({ content: [{ type: 'text', text: 'https://example.com\n' + text }] }, 'test', 'read', 3000);
+    assert.ok(output.truncated, 'the budget must actually clip');
+    assert.ok(JSON.stringify(output).length <= 3000, 'rounding the count must not overflow the budget');
+    // The reported count describes the body prefix, so prefix + omitted is the original size.
+    const body = 'https://example.com\n' + text;
+    assert.equal(output.content.length + output.omittedChars, body.length);
+    assert.ok(output.content === body.slice(0, output.content.length), 'content stays a verbatim prefix');
+    assert.ok(!/[\uD800-\uDBFF]$/.test(output.content), 'a surrogate pair is never split');
+  }
+  // A result that fits carries no cut count at all.
+  const fits = normalize({ content: [{ type: 'text', text: 'short https://example.com' }] }, 'test', 'read', 3000);
+  assert.equal(fits.truncated, false); assert.equal(Object.hasOwn(fits, 'omittedChars'), false);
 });
 test('parenthesized original URLs survive JSON/Markdown without a fake duplicate', () => {
   const url = 'https://en.wikipedia.org/wiki/Function_(mathematics)';

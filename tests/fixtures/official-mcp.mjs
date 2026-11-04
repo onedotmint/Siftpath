@@ -12,7 +12,7 @@ export function mockServer() {
       return { tools: [{ name: 'search', inputSchema: { type: 'object' }, ...(process.env.MOCK_OUTPUT_SCHEMA ? { outputSchema: { type: 'object', properties: { verifiedField: { type: 'string' } }, required: ['verifiedField'] } } : { execution: { taskSupport: 'required' } }) }], nextCursor: 'second-page' };
     }
     if (process.env.MOCK_PAGINATED_TOOLS && !request.params?.cursor) return { tools: [], nextCursor: 'second-page' };
-    return { tools: ['search', 'read', 'forbidden', 'fail', 'slow', 'empty', 'malformed', 'secret', 'large'].map(name => ({
+    return { tools: ['search', 'read', 'forbidden', 'payment', 'rate', 'text402', 'fail', 'slow', 'empty', 'malformed', 'secret', 'large'].map(name => ({
       name, inputSchema: { type: 'object', properties: {}, additionalProperties: true },
     })) };
   });
@@ -30,6 +30,13 @@ export function mockServer() {
     if (name === 'forbidden') return { isError: true,
       content: [{ type: 'text', text: 'Tool \'search\' execution failed: Unauthorized: private detail' }],
       structuredContent: { success: false, error: { code: 'forbidden', status: 403, message: 'PRIVATE_KEY_ERROR_BODY' } } };
+    // Real Jina shape: no structured status at all, only a status code spelled in the text.
+    if (name === 'text402') return { isError: true,
+      content: [{ type: 'text', text: 'HTTP 402: Account balance not enough to run this query, please recharge. (uid: PRIVATE_KEY_ERROR_BODY)' }] };
+    if (name === 'payment') return { isError: true,
+      content: [{ type: 'text', text: 'Payment required: private detail' }],
+      structuredContent: { success: false, error: { code: 'payment_required', status: 402, message: 'PRIVATE_KEY_ERROR_BODY' } } };
+    if (name === 'rate') return { isError: true, content: [{ type: 'text', text: 'HTTP 429: too many requests' }] };
     if (name === 'secret') throw new Error('PRIVATE_KEY_ERROR_BODY');
     if (name === 'empty') return { content: [] };
     if (name === 'malformed') return { content: [{ type: 'text', text: 'No traceable results' }] };
