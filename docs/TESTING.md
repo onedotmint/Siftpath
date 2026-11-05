@@ -1,8 +1,10 @@
 # 测试与证据索引
 
-## 当前候选：2.2.0（发布前）
+## 已发布：2.2.0（2026-11-05）
 
-本轮新增可选 DeepSeek Search API 与独立 DSH 原生插件，并修复输出截断信号、402/429 诊断分类与 `status` 自相矛盾的摘要；**下方 2.1.1 发布/CI 证据不覆盖这些改动**。尚未提交新的远端 CI，也未在本轮重新执行供应商或模型验收。公开 npm 依赖下载与文档核对不等于 API 业务测试。
+正式发布已完成，npm `latest`、Git Tag 与 [GitHub Release](https://github.com/onedotmint/Siftpath/releases/tag/v2.2.0) 一致。发布细节见下方“2.2.0 发布结果”，功能与兼容性见 [release notes](RELEASE-2.2.0.md)。
+
+本轮新增可选 DeepSeek Search API 与独立 DSH 原生插件，并修复输出截断信号、402/429 诊断分类与 `status` 自相矛盾的摘要；**下方 2.1.1 发布/CI 证据不覆盖这些改动**。
 
 本机 Linux / Node v24.22.1 / npm 11.19.1 验证：
 
@@ -30,6 +32,16 @@
 这些验证了两个先前只有离线 fixture 的方向：**真实成功响应不会被 402/429 分类误判**，以及**当前 `topk:3, chunk_size:250` 预设确实优于更窄窗口**。1×100 的“覆盖 1/3 且不报截断”是保留现窗口的直接依据。
 
 仍未做：把候选包装进 Pi 做 Agent 闭环（模型是否会正确使用 `omittedChars`/`focus` 未验证），以及任何模型推理或付费模型预算。
+
+### 2.2.0 发布结果
+
+- 代码合入 main：PR #15 → merge commit `4833dece2a28161744c70932ecd951f20c501368`（`v2.2.0` 指向该提交）。
+- main CI [41858607815](https://github.com/onedotmint/Siftpath/actions/runs/41858607815) 整体 `success`：audit 与六格功能矩阵（Linux/Windows × Node 22/24/26）及 npm 11/12 兼容任务全部通过。`dsh` job 仍标记 `failure`（固定宿主审计的已知阻塞），但不阻断整体结论；该 job 使用 `continue-on-error` 且保持运行，以便宿主升级后自动转绿。
+- npm 发布经历了两个障碍：首次为 `EOTP`（需一次性口令），随后 token 失效为 `E401`，重新 `npm login --auth-type=web` 后才成功。发布命令需在真实 PTY 中运行，否则 npm 会把授权链接的 `authId` 输出为 `***`。
+- 发布返回 `+ @onedotmint/siftpath@2.2.0` 后，公共元数据约 90 秒内仍为 `2.1.1`；实测等到 `version` 与 `dist-tags.latest` 同时为 `2.2.0` 才确认，**没有因退出码 0 提前宣布成功**。
+- 发布包 69 文件、126.2 kB 压缩 / 457.8 kB 解包，`shasum 0f5a5792f9c37a57183a9fbb5d0679ef674c581b`，registry 返回的 `dist.shasum`/`dist.integrity` 与本地构建逐字相同。
+- 实际从 registry 安装并运行 `npx -y @onedotmint/siftpath@2.2.0`：`--version` 输出 `2.2.0`，`read https://example.com --json` 由 `jina` 真实读回 1016 字符、`truncated:false`。这是发布包的端到端可用性证据，不是模型行为验收。
+- 本轮发布 0 模型推理；供应商业务仅限上文 live 验收记录中的数次真实读取与诊断。
 
 ## 已发布版本：2.1.1（历史验收状态）
 
