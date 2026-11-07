@@ -82,7 +82,7 @@
     }
   },
   "devDependencies": {
-    "@earendil-works/pi-tui": "1.4.0",
+    "@earendil-works/pi-tui": "1.5.0",
     "@clack/prompts": "1.8.1",
     "@types/node": "22.20.5",
     "esbuild": "0.28.2",
