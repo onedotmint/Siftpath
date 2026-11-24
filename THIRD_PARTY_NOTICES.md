@@ -4,13 +4,13 @@ The repository's MIT LICENSE is preserved from SmartSearch at `a6e310d8c51d1fb9e
 
 This rebuild retains and adapts the project's private JSON configuration storage, hidden credential entry, public URL guard, CLI conventions and package-version reader. The old evidence engine and historical evaluation fixtures are no longer distributed.
 
-Runtime npm dependencies are @modelcontextprotocol/sdk (MIT) and Zod (MIT), with transitive dependencies installed from their registries; inspect package-lock.json and the installed packages' licenses. TypeScript (Apache-2.0), @types/node (MIT), undici-types (MIT) are development dependencies. The Pi extension uses the host-provided @earendil-works/pi-tui (MIT), declared as an optional peer and pinned to 1.4.0 for development tests; it is not bundled or needed by the standalone CLI/MCP runtime. Official provider MCP packages are launched separately on demand and retain their own licenses/terms.
+Runtime npm dependencies are @modelcontextprotocol/sdk (MIT) and Zod (MIT), with transitive dependencies installed from their registries; inspect package-lock.json and the installed packages' licenses. TypeScript (Apache-2.0), @types/node (MIT), undici-types (MIT) are development dependencies. The Pi extension uses the host-provided @earendil-works/pi-tui (MIT), declared as an optional peer and pinned to 1.5.2 for development tests; it is not bundled or needed by the standalone CLI/MCP runtime. Official provider MCP packages are launched separately on demand and retain their own licenses/terms.
 
 Official provider source and web-search-plus-mcp/agntn-web were interface/design references, not vendored implementation. Precise links and inspected revisions: docs/PROVIDERS.md. No upstream search/reader/ranking implementation is copied into Siftpath.
 
 ## Bundled interactive setup
 
-The lazily loaded `dist/setup-ui.js` bundles @clack/prompts 1.8.1, @clack/core 1.5.1, sisteransi 1.0.5, fast-wrap-ansi 0.2.2, fast-string-width 3.0.2 and fast-string-truncated-width 3.0.3 (all MIT). Clack and esbuild 0.25.12 are build-only dependencies, not runtime package requirements.
+The lazily loaded `dist/setup-ui.js` bundles @clack/prompts 1.9.0, @clack/core 1.6.0, sisteransi 2.0.0, fast-wrap-ansi 0.2.2, fast-string-width 3.0.2 and fast-string-truncated-width 3.0.3 (all MIT). Clack and esbuild 0.28.2 are build-only dependencies, not runtime package requirements.
 
 Copyright notices for bundled MIT code:
 

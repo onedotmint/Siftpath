@@ -78,8 +78,12 @@ try {
   // Print root advisories, not hundreds of repeated propagation entries in the host graph.
   console.log(JSON.stringify({ verificationConsumerAudit: gate.counts,
     findings: auditFindings(audit).filter(finding => finding.advisories.length) }));
-  assert.equal(gate.blocked, false, 'Pinned DSH/adapter verification consumer has a High/Critical dependency finding.');
-  console.log(JSON.stringify({ ok: true, core: corePack.version, adapter: pkg.version, dsh: pkg.engines.dsh, bundleFiles: files.length, isolatedTarballInstall: true, nativeProfileComposition: true, verificationConsumerAudit: audit.metadata.vulnerabilities, providerBusinessCalls: 0, modelPrompts: 0 }));
+  if (gate.blocked) {
+    console.error('DSH release blocked: the pinned host/adapter consumer has a High/Critical dependency finding.');
+    process.exitCode = 10;
+  } else {
+    console.log(JSON.stringify({ ok: true, core: corePack.version, adapter: pkg.version, dsh: pkg.engines.dsh, bundleFiles: files.length, isolatedTarballInstall: true, nativeProfileComposition: true, verificationConsumerAudit: audit.metadata.vulnerabilities, providerBusinessCalls: 0, modelPrompts: 0 }));
+  }
 } finally {
   await rm(temp, { recursive: true, force: true });
 }
