@@ -46,9 +46,7 @@ test('live probes use the shipped anonymous config rather than duplicating hoste
 
 test('Clack is a build-only dependency and only the lazy setup module bundles its terminal code', async () => {
   const pkg = JSON.parse(await readFile('package.json', 'utf8'));
-  // The point is isolation, not a frozen version: pinning the exact number here made every
-  // Dependabot bump look like a packaging regression. The bundle check below is the real test.
-  assert.equal(pkg.devDependencies['@clack/prompts'], '1.8.1');
+  assert.match(pkg.devDependencies['@clack/prompts'], /^\d+\.\d+\.\d+$/);
   assert.match(pkg.devDependencies.esbuild, /^\d+\.\d+\.\d+$/);
   assert.equal(pkg.dependencies['@clack/prompts'], undefined); assert.equal(pkg.dependencies.esbuild, undefined);
   const setup = await readFile('dist/setup.js', 'utf8'), ui = await readFile('dist/setup-ui.js', 'utf8');
@@ -60,7 +58,7 @@ test('Clack is a build-only dependency and only the lazy setup module bundles it
 
 test('Pi terminal helpers come from the host, not standalone runtime dependencies', async () => {
   const pkg = JSON.parse(await readFile('package.json', 'utf8'));
-  assert.equal(pkg.devDependencies['@earendil-works/pi-tui'], '1.4.0');
+  assert.match(pkg.devDependencies['@earendil-works/pi-tui'], /^\d+\.\d+\.\d+$/);
   assert.equal(pkg.peerDependenciesMeta['@earendil-works/pi-tui'].optional, true);
   assert.equal(pkg.dependencies['@earendil-works/pi-tui'], undefined);
 });
